@@ -16,7 +16,7 @@
 
 - name: Add Adoptium repository
   apt_repository:
-    repo: "deb [signed-by=/usr/share/keyrings/adoptium-archive-keyring.gpg] https://packages.adoptium.net/artifactory/deb {{ ansible_distribution_release }} main"
+    repo: "deb [signed-by=/usr/share/keyrings/adoptium-archive-keyring.gpg] https://packages.adoptium.net/artifactory/deb {{ ansible_facts['distribution_release'] }} main"
     filename: adoptium
     state: present
 

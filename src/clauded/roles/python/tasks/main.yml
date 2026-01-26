@@ -26,7 +26,7 @@
 
 - name: Add deadsnakes repository
   apt_repository:
-    repo: "deb [signed-by=/usr/share/keyrings/deadsnakes-archive-keyring.gpg] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu {{ ansible_distribution_release }} main"
+    repo: "deb [signed-by=/usr/share/keyrings/deadsnakes-archive-keyring.gpg] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu {{ ansible_facts['distribution_release'] }} main"
     filename: deadsnakes
     state: present
 
