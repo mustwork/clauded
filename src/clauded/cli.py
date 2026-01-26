@@ -16,7 +16,8 @@ from .provisioner import Provisioner
 )
 @click.option("--reprovision", is_flag=True, help="Re-run provisioning on the VM")
 @click.option("--stop", is_flag=True, help="Stop the VM without entering shell")
-def main(destroy: bool, reprovision: bool, stop: bool) -> None:
+@click.option("--edit", is_flag=True, help="Edit VM configuration and reprovision")
+def main(destroy: bool, reprovision: bool, stop: bool, edit: bool) -> None:
     """clauded - Isolated, per-project Lima VMs.
 
     Run in any directory to create or connect to a project-specific VM.
@@ -55,6 +56,38 @@ def main(destroy: bool, reprovision: bool, stop: bool) -> None:
             vm.stop()
         else:
             click.echo(f"VM '{vm.name}' is not running.")
+        return
+
+    # Handle --edit
+    if edit:
+        if not config_path.exists():
+            click.echo("No .clauded.yaml found. Run 'clauded' to create one.")
+            raise SystemExit(1)
+
+        config = Config.load(config_path)
+        vm = LimaVM(config)
+
+        if not vm.exists():
+            click.echo(f"VM '{vm.name}' does not exist. Run 'clauded' to create it.")
+            raise SystemExit(1)
+
+        if not vm.is_running():
+            vm.start()
+
+        try:
+            new_config = wizard.run_edit(config, project_path)
+            new_config.save(config_path)
+            click.echo("\nUpdated .clauded.yaml")
+            provisioner = Provisioner(new_config, vm)
+            provisioner.run()
+        except KeyboardInterrupt:
+            click.echo("\nEdit cancelled.")
+            raise SystemExit(1) from None
+
+        click.echo(
+            f"\nStarting Claude Code in VM '{vm.name}' at {new_config.mount_guest}..."
+        )
+        vm.shell()
         return
 
     # No config? Run wizard
