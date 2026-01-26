@@ -1,6 +1,6 @@
 # clauded
 
-Isolated, per-project Lima VMs with automatic environment provisioning.
+Isolated, per-project Lima VMs with automatic environment provisioning that feel just like `claude`.
 
 ## Overview
 
@@ -73,12 +73,13 @@ Isolated, per-project Lima VMs with automatic environment provisioning.
 ## Installation
 
 ```bash
-git clone https://github.com/yourorg/clauded.git
+git clone https://github.com/mustwork/clauded.git
+# or: git clone git@github.com:mustwork/clauded.git
 cd clauded
-make install-global
+make install
 ```
 
-This installs the `clauded` command globally via pip.
+This builds and installs the `clauded` command via `uv tool`.
 
 ## Quick Start
 
@@ -183,18 +184,20 @@ See [docs/configuration.md](docs/configuration.md) for full configuration refere
 
 ```bash
 make dev          # Install with dev dependencies
+make hooks        # Install pre-commit hooks
 ```
 
 ### Common Commands
 
 ```bash
+make sync         # Sync dependencies
 make test         # Run tests
 make coverage     # Run tests with coverage report
 make lint         # Run linter (ruff)
 make format       # Auto-format code
 make typecheck    # Run type checker (mypy)
 make check        # Run all checks (lint + typecheck + test)
-make build        # Build wheel distribution
+make build        # Build wheel
 make clean        # Remove build artifacts
 ```
 
@@ -275,6 +278,6 @@ Contributions welcome! Please:
 
 ## Support
 
-- Report issues: [GitHub Issues](https://github.com/yourorg/clauded/issues)
+- Report issues: [GitHub Issues](https://github.com/mustwork/clauded/issues)
 - Documentation: [docs/](docs/)
 - Specifications: [specs/spec.md](specs/spec.md)

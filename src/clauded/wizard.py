@@ -75,12 +75,12 @@ def run(project_path: Path) -> Config:
     if answers["go"] is None:
         raise KeyboardInterrupt()
 
-    # Tools (multi-select, defaults: docker, git)
+    # Tools (multi-select, default: docker)
+    # Note: git and npm are always installed via common and node roles
     answers["tools"] = questionary.checkbox(
         "Select tools:",
         choices=[
             Choice("docker", checked=True),
-            Choice("git", checked=True),
             Choice("aws-cli", checked=False),
             Choice("gh", checked=False),
             Choice("gradle", checked=False),
@@ -199,11 +199,11 @@ def run_edit(config: Config, project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     # Tools - pre-check current selections
+    # Note: git and npm are always installed via common and node roles
     answers["tools"] = questionary.checkbox(
         "Select tools:",
         choices=[
             Choice("docker", checked="docker" in config.tools),
-            Choice("git", checked="git" in config.tools),
             Choice("aws-cli", checked="aws-cli" in config.tools),
             Choice("gh", checked="gh" in config.tools),
             Choice("gradle", checked="gradle" in config.tools),

@@ -43,7 +43,8 @@ help:
 # ----------------------------------------------------------------------------
 
 install: build
-	uv tool install --force .
+	uv tool uninstall clauded 2>/dev/null || true
+	uv tool install dist/clauded-*.whl
 
 # ----------------------------------------------------------------------------
 # Development

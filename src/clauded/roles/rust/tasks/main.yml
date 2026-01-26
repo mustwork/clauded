@@ -56,6 +56,14 @@
     path: /tmp/rustup-init.sh
     state: absent
 
+- name: Ensure default toolchain is set
+  command: /usr/local/cargo/bin/rustup default {{ rust_version }}
+  environment:
+    RUSTUP_HOME: /usr/local/rustup
+    CARGO_HOME: /usr/local/cargo
+  register: rustup_default_result
+  changed_when: "'unchanged' not in rustup_default_result.stderr"
+
 - name: Verify Rust installation
   command: /usr/local/cargo/bin/rustc --version
   register: rust_version_output

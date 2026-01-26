@@ -79,12 +79,11 @@ class Provisioner:
 
     def _get_roles(self) -> list[str]:
         """Determine which roles to include based on config."""
-        roles = ["common"]  # Always include
+        roles = ["common", "node"]  # Always include (git is in common, npm in node)
 
         if self.config.python:
             roles.append("python")
-        if self.config.node:
-            roles.append("node")
+        # node is already included by default for npm
         if self.config.java:
             roles.append("java")
         if self.config.kotlin:
@@ -103,7 +102,6 @@ class Provisioner:
             roles.append("gh")
         if "gradle" in self.config.tools:
             roles.append("gradle")
-        # git is included in common
 
         # Databases
         if "postgresql" in self.config.databases:

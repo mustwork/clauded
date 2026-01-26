@@ -89,14 +89,14 @@ class TestProvisionerGetRoles:
 
         assert "node" in roles
 
-    def test_excludes_node_when_none(self, minimal_config: Config) -> None:
-        """Node role excluded when node is None."""
+    def test_node_always_included(self, minimal_config: Config) -> None:
+        """Node role always included (npm is required for Claude)."""
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
         roles = provisioner._get_roles()
 
-        assert "node" not in roles
+        assert "node" in roles
 
     def test_includes_java_when_selected(self, full_config: Config) -> None:
         """Java role included when java version specified."""
@@ -260,8 +260,8 @@ class TestProvisionerGetRoles:
 
         expected_roles = [
             "common",
+            "node",  # Always included (npm required for Claude)
             "python",
-            "node",
             "java",
             "kotlin",
             "rust",
@@ -278,14 +278,14 @@ class TestProvisionerGetRoles:
         ]
         assert roles == expected_roles
 
-    def test_minimal_config_has_only_common(self, minimal_config: Config) -> None:
-        """Minimal config only produces common role."""
+    def test_minimal_config_has_common_and_node(self, minimal_config: Config) -> None:
+        """Minimal config produces common and node roles (git and npm always needed)."""
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
         roles = provisioner._get_roles()
 
-        assert roles == ["common"]
+        assert roles == ["common", "node"]
 
 
 class TestProvisionerGeneratePlaybook:
