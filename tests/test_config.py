@@ -15,7 +15,11 @@ class TestConfigFromWizard:
         answers = {
             "python": "3.11",
             "node": "20",
-            "tools": ["docker", "git", "aws-cli"],
+            "java": "21",
+            "kotlin": "2.0",
+            "rust": "stable",
+            "go": "1.22",
+            "tools": ["docker", "git", "aws-cli", "gradle"],
             "databases": ["postgresql", "redis"],
             "frameworks": ["playwright", "claude-code"],
             "cpus": "8",
@@ -27,7 +31,11 @@ class TestConfigFromWizard:
 
         assert config.python == "3.11"
         assert config.node == "20"
-        assert config.tools == ["docker", "git", "aws-cli"]
+        assert config.java == "21"
+        assert config.kotlin == "2.0"
+        assert config.rust == "stable"
+        assert config.go == "1.22"
+        assert config.tools == ["docker", "git", "aws-cli", "gradle"]
         assert config.databases == ["postgresql", "redis"]
         assert config.frameworks == ["playwright", "claude-code"]
         assert config.cpus == 8
@@ -79,6 +87,38 @@ class TestConfigFromWizard:
 
         assert config.node is None
 
+    def test_none_java_is_stored_as_none(self, tmp_path: Path) -> None:
+        """When Java is 'None', it's stored as None."""
+        answers = {"java": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+
+        config = Config.from_wizard(answers, tmp_path)
+
+        assert config.java is None
+
+    def test_none_kotlin_is_stored_as_none(self, tmp_path: Path) -> None:
+        """When Kotlin is 'None', it's stored as None."""
+        answers = {"kotlin": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+
+        config = Config.from_wizard(answers, tmp_path)
+
+        assert config.kotlin is None
+
+    def test_none_rust_is_stored_as_none(self, tmp_path: Path) -> None:
+        """When Rust is 'None', it's stored as None."""
+        answers = {"rust": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+
+        config = Config.from_wizard(answers, tmp_path)
+
+        assert config.rust is None
+
+    def test_none_go_is_stored_as_none(self, tmp_path: Path) -> None:
+        """When Go is 'None', it's stored as None."""
+        answers = {"go": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+
+        config = Config.from_wizard(answers, tmp_path)
+
+        assert config.go is None
+
     def test_empty_selections_default_to_empty_lists(self, tmp_path: Path) -> None:
         """Missing selections default to empty lists."""
         answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
@@ -105,7 +145,11 @@ class TestConfigSaveAndLoad:
             mount_guest="/workspace",
             python="3.12",
             node="20",
-            tools=["docker", "git"],
+            java="21",
+            kotlin="2.0",
+            rust="stable",
+            go="1.22",
+            tools=["docker", "git", "gradle"],
             databases=["postgresql"],
             frameworks=["claude-code"],
         )
@@ -123,6 +167,10 @@ class TestConfigSaveAndLoad:
         assert loaded.mount_guest == original.mount_guest
         assert loaded.python == original.python
         assert loaded.node == original.node
+        assert loaded.java == original.java
+        assert loaded.kotlin == original.kotlin
+        assert loaded.rust == original.rust
+        assert loaded.go == original.go
         assert loaded.tools == original.tools
         assert loaded.databases == original.databases
         assert loaded.frameworks == original.frameworks
@@ -137,7 +185,11 @@ class TestConfigSaveAndLoad:
             mount_host="/test/path",
             python="3.12",
             node="20",
-            tools=["docker"],
+            java="21",
+            kotlin="2.0",
+            rust="stable",
+            go="1.22",
+            tools=["docker", "gradle"],
             databases=[],
             frameworks=["claude-code"],
         )
@@ -157,12 +209,16 @@ class TestConfigSaveAndLoad:
         assert data["mount"]["guest"] == "/workspace"
         assert data["environment"]["python"] == "3.12"
         assert data["environment"]["node"] == "20"
-        assert data["environment"]["tools"] == ["docker"]
+        assert data["environment"]["java"] == "21"
+        assert data["environment"]["kotlin"] == "2.0"
+        assert data["environment"]["rust"] == "stable"
+        assert data["environment"]["go"] == "1.22"
+        assert data["environment"]["tools"] == ["docker", "gradle"]
         assert data["environment"]["databases"] == []
         assert data["environment"]["frameworks"] == ["claude-code"]
 
-    def test_load_handles_null_python_node(self, tmp_path: Path) -> None:
-        """Loading handles null/missing Python and Node versions."""
+    def test_load_handles_null_languages(self, tmp_path: Path) -> None:
+        """Loading handles null/missing language versions."""
         config_path = tmp_path / ".clauded.yaml"
         config_path.write_text("""
 version: "1"
@@ -177,6 +233,10 @@ mount:
 environment:
   python: null
   node: null
+  java: null
+  kotlin: null
+  rust: null
+  go: null
   tools: []
   databases: []
   frameworks: []
@@ -186,6 +246,10 @@ environment:
 
         assert config.python is None
         assert config.node is None
+        assert config.java is None
+        assert config.kotlin is None
+        assert config.rust is None
+        assert config.go is None
 
 
 class TestConfigDefaults:

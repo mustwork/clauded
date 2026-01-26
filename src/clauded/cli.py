@@ -84,8 +84,8 @@ def main(destroy: bool, reprovision: bool, stop: bool) -> None:
         provisioner = Provisioner(config, vm)
         provisioner.run()
 
-    # Enter shell
-    click.echo(f"\nEntering VM '{vm.name}' at {config.mount_guest}...")
+    # Enter Claude Code
+    click.echo(f"\nStarting Claude Code in VM '{vm.name}' at {config.mount_guest}...")
     vm.shell()
 
 

@@ -67,9 +67,16 @@ class LimaVM:
         subprocess.run(["limactl", "delete", "-f", self.name], check=True)
 
     def shell(self) -> None:
-        """Open an interactive shell in the VM."""
+        """Open the Claude Code shell in the VM."""
         subprocess.run(
-            ["limactl", "shell", self.name, "--workdir", self.config.mount_guest],
+            [
+                "limactl",
+                "shell",
+                "--workdir",
+                self.config.mount_guest,
+                self.name,
+                "claude",
+            ]
         )
 
     def get_ssh_config_path(self) -> Path:

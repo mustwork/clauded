@@ -6,6 +6,7 @@
 # Development:
 #   make sync          Sync dependencies
 #   make dev           Install with dev dependencies
+#   make hooks         Install pre-commit hooks
 #   make test          Run tests
 #   make coverage      Run tests with coverage
 #   make lint          Run linter (ruff)
@@ -15,7 +16,7 @@
 #   make build         Build wheel
 #   make clean         Clean build artifacts
 
-.PHONY: install sync dev test coverage lint format typecheck check build clean help
+.PHONY: install sync dev test coverage lint format typecheck check build clean help hooks
 
 # Default target
 help:
@@ -27,6 +28,7 @@ help:
 	@echo "Development:"
 	@echo "  make sync        Sync dependencies"
 	@echo "  make dev         Install with dev dependencies"
+	@echo "  make hooks       Install pre-commit hooks"
 	@echo "  make test        Run tests"
 	@echo "  make coverage    Run tests with coverage report"
 	@echo "  make lint        Run linter (ruff)"
@@ -41,7 +43,7 @@ help:
 # ----------------------------------------------------------------------------
 
 install: build
-	uv tool install .
+	uv tool install --force .
 
 # ----------------------------------------------------------------------------
 # Development
@@ -52,6 +54,9 @@ sync:
 
 dev:
 	uv sync --extra dev
+
+hooks: dev
+	uv run pre-commit install
 
 test: dev
 	uv run pytest tests/ -v

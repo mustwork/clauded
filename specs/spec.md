@@ -8,7 +8,7 @@
 - Per-project VM lifecycle management (create, start, stop, destroy)
 - Interactive wizard-based environment configuration
 - Declarative configuration via `.clauded.yaml`
-- Automatic provisioning of Python, Node.js, databases, and developer tools
+- Automatic provisioning of Python, Node.js, Java, Kotlin, Rust, Go, databases, and developer tools
 - Project directory mounting at `/workspace` in VMs
 - Reprovisionable environments for stack updates
 - Customizable VM resources (CPU, memory, disk)
@@ -92,8 +92,8 @@
 - Execute ansible-playbook with generated files in temp directory
 
 **`wizard.py`**
-- Interactive questionary prompts for Python/Node.js versions
-- Multi-select for tools (docker, git, aws-cli, gh)
+- Interactive questionary prompts for Python/Node.js/Java/Kotlin/Rust/Go versions
+- Multi-select for tools (docker, git, aws-cli, gh, gradle)
 - Multi-select for databases (postgresql, redis, mysql)
 - Multi-select for frameworks (claude-code, playwright)
 - Optional VM resource customization
@@ -147,11 +147,16 @@ mount:
 environment:
   python: "<version>|null"
   node: "<version>|null"
+  java: "<version>|null"
+  kotlin: "<version>|null"
+  rust: "<version>|null"
+  go: "<version>|null"
   tools:
     - docker
     - git
     - aws-cli  # optional
     - gh       # optional
+    - gradle   # optional
   databases:
     - postgresql  # optional
     - redis       # optional
@@ -179,9 +184,14 @@ environment:
 - Conditional roles based on config:
   - `python` if config.environment.python is set
   - `node` if config.environment.node is set
+  - `java` if config.environment.java is set
+  - `kotlin` if config.environment.kotlin is set
+  - `rust` if config.environment.rust is set
+  - `go` if config.environment.go is set
   - `docker` if "docker" in config.environment.tools
   - `aws_cli` if "aws-cli" in config.environment.tools
   - `gh` if "gh" in config.environment.tools
+  - `gradle` if "gradle" in config.environment.tools
   - `postgresql` if "postgresql" in config.environment.databases
   - `redis` if "redis" in config.environment.databases
   - `mysql` if "mysql" in config.environment.databases
@@ -195,12 +205,17 @@ environment:
 | `common` | Base system packages | ca-certificates, curl, git, gnupg, build-essential |
 | `python` | Python version installation | deadsnakes PPA, python{{ python_version }}, update-alternatives |
 | `node` | Node.js installation | NodeSource repository, nodejs={{ node_version }} |
+| `java` | Java version installation | Adoptium/Temurin JDK, temurin-{{ java_version }}-jdk |
+| `kotlin` | Kotlin compiler installation | Download from GitHub releases, kotlin{{ kotlin_version }} |
+| `rust` | Rust toolchain installation | rustup, rustc/cargo {{ rust_version }} |
+| `go` | Go version installation | Download from go.dev, go{{ go_version }} |
 | `docker` | Docker setup | docker.io, systemd service, user group |
 | `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, libpq-dev, service enabled |
 | `redis` | Redis installation | redis-server, service enabled, port 6379 |
 | `mysql` | MySQL installation | mysql-server, service enabled, port 3306 |
 | `aws_cli` | AWS CLI v2 | Download aarch64 zip, unzip, install |
 | `gh` | GitHub CLI | GPG key, apt repository, gh package |
+| `gradle` | Gradle build tool | Download latest, install to /opt/gradle |
 | `playwright` | Playwright testing | npm install -g playwright, playwright install |
 | `claude_code` | Claude Code CLI | npm install -g @anthropic-ai/claude-code |
 
@@ -212,10 +227,18 @@ environment:
   vars:
     python_version: "{{ config.environment.python }}"
     node_version: "{{ config.environment.node }}"
+    java_version: "{{ config.environment.java }}"
+    kotlin_version: "{{ config.environment.kotlin }}"
+    rust_version: "{{ config.environment.rust }}"
+    go_version: "{{ config.environment.go }}"
   roles:
     - common
     - python  # conditional
     - node    # conditional
+    - java    # conditional
+    - kotlin  # conditional
+    - rust    # conditional
+    - go      # conditional
     # ... other roles based on config
 ```
 
@@ -402,7 +425,11 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 - ✓ Mount project directory read-write in VM
 - ✓ Install Python version specified in config
 - ✓ Install Node.js version specified in config
-- ✓ Support all 11 Ansible roles
+- ✓ Install Java version specified in config
+- ✓ Install Kotlin version specified in config
+- ✓ Install Rust version specified in config
+- ✓ Install Go version specified in config
+- ✓ Support all 16 Ansible roles
 
 ### Non-Functional
 

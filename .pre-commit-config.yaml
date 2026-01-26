@@ -1,0 +1,32 @@
+# Pre-commit hooks for clauded
+# Install: uv run pre-commit install
+# Run manually: uv run pre-commit run --all-files
+
+repos:
+  # Ruff for linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Local hooks that use project dependencies via uv
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        args: [src/]
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        types: [python]
+        args: [tests/, -v, --tb=short]
+        pass_filenames: false
+        stages: [pre-commit]

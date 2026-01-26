@@ -1,0 +1,53 @@
+---
+- name: Install required packages for Kotlin installation
+  apt:
+    name:
+      - curl
+      - unzip
+    state: present
+    update_cache: yes
+
+- name: Create Kotlin installation directory
+  file:
+    path: /opt/kotlin
+    state: directory
+    mode: '0755'
+
+- name: Download Kotlin compiler {{ kotlin_version }}
+  get_url:
+    url: "https://github.com/JetBrains/kotlin/releases/download/v{{ kotlin_version }}.0/kotlin-compiler-{{ kotlin_version }}.0.zip"
+    dest: /tmp/kotlin-compiler.zip
+    mode: '0644'
+
+- name: Extract Kotlin compiler
+  unarchive:
+    src: /tmp/kotlin-compiler.zip
+    dest: /opt/kotlin
+    remote_src: yes
+    creates: /opt/kotlin/kotlinc
+
+- name: Create symlinks for Kotlin binaries
+  file:
+    src: "/opt/kotlin/kotlinc/bin/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+  loop:
+    - kotlin
+    - kotlinc
+    - kotlin-dce-js
+    - kotlinc-js
+    - kotlinc-jvm
+
+- name: Clean up downloaded archive
+  file:
+    path: /tmp/kotlin-compiler.zip
+    state: absent
+
+- name: Verify Kotlin installation
+  command: kotlin -version
+  register: kotlin_version_output
+  changed_when: false
+
+- name: Display Kotlin version
+  debug:
+    msg: "Kotlin version: {{ kotlin_version_output.stdout }}"

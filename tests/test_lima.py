@@ -229,15 +229,20 @@ class TestLimaVMCommands:
             check=True,
         )
 
-    def test_shell_calls_limactl_shell_with_workdir(
-        self, sample_config: Config
-    ) -> None:
-        """shell() calls limactl shell with workdir option."""
+    def test_shell_calls_limactl_shell_with_claude(self, sample_config: Config) -> None:
+        """shell() calls limactl shell with claude command."""
         vm = LimaVM(sample_config)
 
         with patch("subprocess.run") as mock_run:
             vm.shell()
 
         mock_run.assert_called_once_with(
-            ["limactl", "shell", "clauded-test1234", "--workdir", "/workspace"],
+            [
+                "limactl",
+                "shell",
+                "--workdir",
+                "/workspace",
+                "clauded-test1234",
+                "claude",
+            ]
         )

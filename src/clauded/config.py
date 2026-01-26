@@ -26,6 +26,10 @@ class Config:
     # Environment
     python: str | None = None
     node: str | None = None
+    java: str | None = None
+    kotlin: str | None = None
+    rust: str | None = None
+    go: str | None = None
     tools: list[str] = field(default_factory=list)
     databases: list[str] = field(default_factory=list)
     frameworks: list[str] = field(default_factory=list)
@@ -44,6 +48,10 @@ class Config:
             mount_host=str(project_path),
             python=answers.get("python") if answers.get("python") != "None" else None,
             node=answers.get("node") if answers.get("node") != "None" else None,
+            java=answers.get("java") if answers.get("java") != "None" else None,
+            kotlin=answers.get("kotlin") if answers.get("kotlin") != "None" else None,
+            rust=answers.get("rust") if answers.get("rust") != "None" else None,
+            go=answers.get("go") if answers.get("go") != "None" else None,
             tools=answers.get("tools", []),
             databases=answers.get("databases", []),
             frameworks=answers.get("frameworks", []),
@@ -65,6 +73,10 @@ class Config:
             mount_guest=data["mount"]["guest"],
             python=data["environment"].get("python"),
             node=data["environment"].get("node"),
+            java=data["environment"].get("java"),
+            kotlin=data["environment"].get("kotlin"),
+            rust=data["environment"].get("rust"),
+            go=data["environment"].get("go"),
             tools=data["environment"].get("tools", []),
             databases=data["environment"].get("databases", []),
             frameworks=data["environment"].get("frameworks", []),
@@ -87,6 +99,10 @@ class Config:
             "environment": {
                 "python": self.python,
                 "node": self.node,
+                "java": self.java,
+                "kotlin": self.kotlin,
+                "rust": self.rust,
+                "go": self.go,
                 "tools": self.tools,
                 "databases": self.databases,
                 "frameworks": self.frameworks,

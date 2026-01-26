@@ -3,6 +3,7 @@
 import getpass
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -10,6 +11,18 @@ import yaml
 
 from .config import Config
 from .lima import LimaVM
+
+
+def _find_ansible_playbook() -> str:
+    """Find the ansible-playbook executable in the same environment as clauded."""
+    # When installed as a uv tool or in a venv, ansible-playbook is in the same
+    # bin directory as the Python interpreter
+    bin_dir = Path(sys.executable).parent
+    ansible_playbook = bin_dir / "ansible-playbook"
+    if ansible_playbook.exists():
+        return str(ansible_playbook)
+    # Fallback to PATH lookup
+    return "ansible-playbook"
 
 
 class Provisioner:
@@ -53,9 +66,7 @@ class Provisioner:
 
             subprocess.run(
                 [
-                    "uv",
-                    "run",
-                    "ansible-playbook",
+                    _find_ansible_playbook(),
                     "-i",
                     str(inventory_path),
                     str(playbook_path),
@@ -74,6 +85,14 @@ class Provisioner:
             roles.append("python")
         if self.config.node:
             roles.append("node")
+        if self.config.java:
+            roles.append("java")
+        if self.config.kotlin:
+            roles.append("kotlin")
+        if self.config.rust:
+            roles.append("rust")
+        if self.config.go:
+            roles.append("go")
 
         # Tools
         if "docker" in self.config.tools:
@@ -82,6 +101,8 @@ class Provisioner:
             roles.append("aws_cli")
         if "gh" in self.config.tools:
             roles.append("gh")
+        if "gradle" in self.config.tools:
+            roles.append("gradle")
         # git is included in common
 
         # Databases
@@ -110,6 +131,10 @@ class Provisioner:
                 "vars": {
                     "python_version": self.config.python or "3.12",
                     "node_version": self.config.node or "20",
+                    "java_version": self.config.java or "21",
+                    "kotlin_version": self.config.kotlin or "2.0",
+                    "rust_version": self.config.rust or "stable",
+                    "go_version": self.config.go or "1.22",
                 },
                 "roles": self._get_roles(),
             }
@@ -118,9 +143,15 @@ class Provisioner:
     def _generate_inventory(self) -> str:
         """Generate the Ansible inventory."""
         username = getpass.getuser()
-        return f"""[vm]
-{self.vm.name} ansible_host=localhost ansible_connection=ssh ansible_user={username}
-"""
+        # Use lima-{name} to match the Host entry in Lima's ssh.config
+        lima_host = f"lima-{self.vm.name}"
+        host_vars = (
+            f"ansible_host={lima_host} "
+            f"ansible_connection=ssh "
+            f"ansible_user={username} "
+            f"ansible_become_password="
+        )
+        return f"[vm]\n{self.vm.name} {host_vars}\n"
 
     def _generate_ansible_cfg(self) -> str:
         """Generate ansible.cfg content."""
@@ -128,6 +159,9 @@ class Provisioner:
 host_key_checking = False
 retry_files_enabled = False
 interpreter_python = auto_silent
+
+[privilege_escalation]
+become_ask_pass = False
 
 [ssh_connection]
 pipelining = True

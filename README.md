@@ -16,8 +16,8 @@ Isolated, per-project Lima VMs with automatic environment provisioning.
 
 ## Features
 
-- **Interactive Setup Wizard**: Guided prompts for Python, Node.js, databases, and tools
-- **Multiple Runtime Versions**: Choose Python 3.10/3.11/3.12 and Node.js 18/20/22
+- **Interactive Setup Wizard**: Guided prompts for languages, databases, and tools
+- **Multiple Runtime Versions**: Choose Python 3.10/3.11/3.12, Node.js 18/20/22, Java 11/17/21, Kotlin 1.9/2.0, Rust stable/nightly, and Go 1.20/1.21/1.22
 - **Database Support**: PostgreSQL, Redis, and MySQL with automatic installation
 - **Developer Tools**: Docker, AWS CLI, GitHub CLI, Git pre-installed
 - **Testing Frameworks**: Playwright with browser binaries ready to use
@@ -34,6 +34,10 @@ Isolated, per-project Lima VMs with automatic environment provisioning.
 |----------|----------|-------|
 | Python | 3.10, 3.11, 3.12 | Installed via deadsnakes PPA, includes pip |
 | Node.js | 18, 20, 22 | Installed via NodeSource, includes npm |
+| Java | 11, 17, 21 | Eclipse Temurin JDK via Adoptium |
+| Kotlin | 1.9, 2.0 | Kotlin compiler from JetBrains releases |
+| Rust | stable, nightly | Installed via rustup, includes cargo |
+| Go | 1.20, 1.21, 1.22 | Official Go distribution |
 
 ### Developer Tools
 
@@ -43,6 +47,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning.
 | Git | Version control (always installed via common role) |
 | AWS CLI | AWS command-line interface (v2, ARM64) |
 | GitHub CLI | GitHub workflow automation (`gh` command) |
+| Gradle | Build automation tool for Java/Kotlin projects |
 
 ### Databases
 
@@ -88,8 +93,12 @@ clauded
 If no `.clauded.yaml` exists, the interactive wizard will guide you through setup:
 
 ```
-? Select Python version: 3.12
-? Select Node.js version: 20
+? Python version: 3.12
+? Node.js version: 20
+? Java version: 21
+? Kotlin version: 2.0
+? Rust version: stable
+? Go version: 1.22
 ? Select tools (space to select): docker, git
 ? Select databases: postgresql, redis
 ? Select frameworks: claude-code, playwright
@@ -147,11 +156,16 @@ mount:
 environment:
   python: "3.12"
   node: "20"
+  java: "21"
+  kotlin: "2.0"
+  rust: "stable"
+  go: "1.22"
   tools:
     - docker
     - git
     - aws-cli
     - gh
+    - gradle
   databases:
     - postgresql
     - redis
@@ -237,7 +251,7 @@ clauded/
 │   ├── lima.py            # Lima VM operations
 │   ├── provisioner.py     # Ansible integration
 │   ├── wizard.py          # Interactive setup
-│   └── roles/             # Ansible roles (11 roles)
+│   └── roles/             # Ansible roles (16 roles)
 ├── tests/                 # Test suite
 ├── docs/                  # Technical documentation
 ├── specs/                 # Specifications

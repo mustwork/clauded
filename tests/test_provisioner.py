@@ -21,7 +21,11 @@ def full_config() -> Config:
         mount_guest="/workspace",
         python="3.12",
         node="20",
-        tools=["docker", "aws-cli", "gh"],
+        java="21",
+        kotlin="2.0",
+        rust="stable",
+        go="1.22",
+        tools=["docker", "aws-cli", "gh", "gradle"],
         databases=["postgresql", "redis", "mysql"],
         frameworks=["playwright", "claude-code"],
     )
@@ -94,6 +98,78 @@ class TestProvisionerGetRoles:
 
         assert "node" not in roles
 
+    def test_includes_java_when_selected(self, full_config: Config) -> None:
+        """Java role included when java version specified."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "java" in roles
+
+    def test_excludes_java_when_none(self, minimal_config: Config) -> None:
+        """Java role excluded when java is None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "java" not in roles
+
+    def test_includes_kotlin_when_selected(self, full_config: Config) -> None:
+        """Kotlin role included when kotlin version specified."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "kotlin" in roles
+
+    def test_excludes_kotlin_when_none(self, minimal_config: Config) -> None:
+        """Kotlin role excluded when kotlin is None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "kotlin" not in roles
+
+    def test_includes_rust_when_selected(self, full_config: Config) -> None:
+        """Rust role included when rust version specified."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "rust" in roles
+
+    def test_excludes_rust_when_none(self, minimal_config: Config) -> None:
+        """Rust role excluded when rust is None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "rust" not in roles
+
+    def test_includes_go_when_selected(self, full_config: Config) -> None:
+        """Go role included when go version specified."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "go" in roles
+
+    def test_excludes_go_when_none(self, minimal_config: Config) -> None:
+        """Go role excluded when go is None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "go" not in roles
+
     def test_includes_docker_when_in_tools(self, full_config: Config) -> None:
         """Docker role included when docker in tools."""
         vm = LimaVM(full_config)
@@ -120,6 +196,15 @@ class TestProvisionerGetRoles:
         roles = provisioner._get_roles()
 
         assert "gh" in roles
+
+    def test_includes_gradle_when_in_tools(self, full_config: Config) -> None:
+        """Gradle role included when gradle in tools."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "gradle" in roles
 
     def test_includes_postgresql_when_in_databases(self, full_config: Config) -> None:
         """PostgreSQL role included when postgresql in databases."""
@@ -167,7 +252,7 @@ class TestProvisionerGetRoles:
         assert "claude_code" in roles
 
     def test_full_config_has_all_roles(self, full_config: Config) -> None:
-        """Full config produces all 11 roles."""
+        """Full config produces all 16 roles."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
@@ -177,9 +262,14 @@ class TestProvisionerGetRoles:
             "common",
             "python",
             "node",
+            "java",
+            "kotlin",
+            "rust",
+            "go",
             "docker",
             "aws_cli",
             "gh",
+            "gradle",
             "postgresql",
             "redis",
             "mysql",
@@ -266,6 +356,80 @@ class TestProvisionerGeneratePlaybook:
         playbook = provisioner._generate_playbook()
 
         assert playbook[0]["vars"]["node_version"] == "20"
+
+    def test_play_includes_java_version_var(self, full_config: Config) -> None:
+        """Play includes java_version variable."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["java_version"] == "21"
+
+    def test_play_defaults_java_version_when_none(self, minimal_config: Config) -> None:
+        """Java version defaults to 21 when None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["java_version"] == "21"
+
+    def test_play_includes_kotlin_version_var(self, full_config: Config) -> None:
+        """Play includes kotlin_version variable."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["kotlin_version"] == "2.0"
+
+    def test_play_defaults_kotlin_version_when_none(
+        self, minimal_config: Config
+    ) -> None:
+        """Kotlin version defaults to 2.0 when None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["kotlin_version"] == "2.0"
+
+    def test_play_includes_rust_version_var(self, full_config: Config) -> None:
+        """Play includes rust_version variable."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["rust_version"] == "stable"
+
+    def test_play_defaults_rust_version_when_none(self, minimal_config: Config) -> None:
+        """Rust version defaults to stable when None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["rust_version"] == "stable"
+
+    def test_play_includes_go_version_var(self, full_config: Config) -> None:
+        """Play includes go_version variable."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["go_version"] == "1.22"
+
+    def test_play_defaults_go_version_when_none(self, minimal_config: Config) -> None:
+        """Go version defaults to 1.22 when None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["go_version"] == "1.22"
 
     def test_play_includes_roles(self, full_config: Config) -> None:
         """Play includes roles from _get_roles()."""

@@ -1,7 +1,33 @@
 ---
-- name: Add deadsnakes PPA
+- name: Install required packages for adding repositories
+  apt:
+    name:
+      - gpg
+      - curl
+    state: present
+    update_cache: yes
+
+- name: Remove command-not-found to avoid apt post-invoke errors
+  apt:
+    name: command-not-found
+    state: absent
+
+- name: Create keyrings directory
+  file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download deadsnakes GPG key
+  shell: |
+    curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" | gpg --dearmor -o /usr/share/keyrings/deadsnakes-archive-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/deadsnakes-archive-keyring.gpg
+
+- name: Add deadsnakes repository
   apt_repository:
-    repo: ppa:deadsnakes/ppa
+    repo: "deb [signed-by=/usr/share/keyrings/deadsnakes-archive-keyring.gpg] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu {{ ansible_distribution_release }} main"
+    filename: deadsnakes
     state: present
 
 - name: Install Python {{ python_version }}
@@ -19,12 +45,6 @@
     link: /usr/bin/python3
     path: "/usr/bin/python{{ python_version }}"
     priority: 100
-
-- name: Install pip for Python {{ python_version }}
-  apt:
-    name: "python{{ python_version }}-distutils"
-    state: present
-  ignore_errors: yes
 
 - name: Ensure pip is installed
   shell: |

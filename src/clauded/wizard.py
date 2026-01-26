@@ -35,6 +35,46 @@ def run(project_path: Path) -> Config:
     if answers["node"] is None:
         raise KeyboardInterrupt()
 
+    # Java version (default: 21)
+    answers["java"] = questionary.select(
+        "Java version?",
+        choices=["21", "17", "11", "None"],
+        default="21",
+    ).ask()
+
+    if answers["java"] is None:
+        raise KeyboardInterrupt()
+
+    # Kotlin version (default: 2.0)
+    answers["kotlin"] = questionary.select(
+        "Kotlin version?",
+        choices=["2.0", "1.9", "None"],
+        default="2.0",
+    ).ask()
+
+    if answers["kotlin"] is None:
+        raise KeyboardInterrupt()
+
+    # Rust version (default: stable)
+    answers["rust"] = questionary.select(
+        "Rust version?",
+        choices=["stable", "nightly", "None"],
+        default="stable",
+    ).ask()
+
+    if answers["rust"] is None:
+        raise KeyboardInterrupt()
+
+    # Go version (default: 1.22)
+    answers["go"] = questionary.select(
+        "Go version?",
+        choices=["1.22", "1.21", "1.20", "None"],
+        default="1.22",
+    ).ask()
+
+    if answers["go"] is None:
+        raise KeyboardInterrupt()
+
     # Tools (multi-select, defaults: docker, git)
     answers["tools"] = questionary.checkbox(
         "Select tools:",
@@ -43,6 +83,7 @@ def run(project_path: Path) -> Config:
             Choice("git", checked=True),
             Choice("aws-cli", checked=False),
             Choice("gh", checked=False),
+            Choice("gradle", checked=False),
         ],
     ).ask()
 
@@ -58,17 +99,19 @@ def run(project_path: Path) -> Config:
     if answers["databases"] is None:
         raise KeyboardInterrupt()
 
-    # Frameworks (multi-select, default: claude-code)
-    answers["frameworks"] = questionary.checkbox(
-        "Select frameworks:",
+    # Additional frameworks (multi-select) - claude-code is always included
+    additional_frameworks = questionary.checkbox(
+        "Additional frameworks:",
         choices=[
-            Choice("claude-code", checked=True),
             Choice("playwright", checked=False),
         ],
     ).ask()
 
-    if answers["frameworks"] is None:
+    if additional_frameworks is None:
         raise KeyboardInterrupt()
+
+    # Always include claude-code
+    answers["frameworks"] = ["claude-code"] + additional_frameworks
 
     # VM resources
     if questionary.confirm("Customize VM resources?", default=False).ask():
