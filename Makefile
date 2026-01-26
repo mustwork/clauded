@@ -14,12 +14,8 @@
 #   make check         Run all checks (lint, typecheck, test)
 #   make build         Build wheel
 #   make clean         Clean build artifacts
-#
-# Lima VM (legacy):
-#   make bootstrap     Provision Lima VM with Ansible
-#   make shell         Shell into Lima VM
 
-.PHONY: install sync dev test coverage lint format typecheck check build clean bootstrap shell help
+.PHONY: install sync dev test coverage lint format typecheck check build clean help
 
 # Default target
 help:
@@ -39,10 +35,6 @@ help:
 	@echo "  make check       Run all checks"
 	@echo "  make build       Build wheel"
 	@echo "  make clean       Clean build artifacts"
-	@echo ""
-	@echo "Lima VM (legacy):"
-	@echo "  make bootstrap   Provision Lima VM"
-	@echo "  make shell       Shell into Lima VM"
 
 # ----------------------------------------------------------------------------
 # Installation
@@ -86,20 +78,3 @@ build:
 clean:
 	rm -rf build/ dist/ *.egg-info/ htmlcov/ .coverage .pytest_cache/ .mypy_cache/ .ruff_cache/
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-
-# ----------------------------------------------------------------------------
-# Lima VM (legacy bootstrap)
-# ----------------------------------------------------------------------------
-
-INSTANCE ?= claude
-HOST_ALIAS := lima-$(INSTANCE)
-LIMA_SSHCONF := $(HOME)/.lima/$(INSTANCE)/ssh.config
-
-bootstrap:
-	@test -f "$(LIMA_SSHCONF)" || (echo "Missing $(LIMA_SSHCONF). Start the VM first: limactl start $(INSTANCE)"; exit 1)
-	@ANSIBLE_SSH_ARGS="-F $(LIMA_SSHCONF)" \
-	  uv run ansible-playbook -c ssh -i ansible/inventory.ini ansible/site.yml \
-	  -l "$(HOST_ALIAS)"
-
-shell:
-	@limactl shell "$(INSTANCE)"
