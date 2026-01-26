@@ -1,0 +1,17 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install common packages
+  apt:
+    name:
+      - ca-certificates
+      - curl
+      - git
+      - gnupg
+      - lsb-release
+      - build-essential
+      - software-properties-common
+    state: present

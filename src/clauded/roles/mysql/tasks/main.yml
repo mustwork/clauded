@@ -1,0 +1,20 @@
+---
+- name: Install MySQL
+  apt:
+    name:
+      - mysql-server
+      - mysql-client
+      - libmysqlclient-dev
+    state: present
+
+- name: Enable MySQL service
+  systemd:
+    name: mysql
+    enabled: yes
+    state: started
+
+- name: Ensure MySQL is accepting connections
+  wait_for:
+    port: 3306
+    delay: 5
+    timeout: 60

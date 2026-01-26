@@ -1,0 +1,27 @@
+---
+- name: Add GitHub CLI GPG key
+  apt_key:
+    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    keyring: /usr/share/keyrings/githubcli-archive-keyring.gpg
+    state: present
+
+- name: Add GitHub CLI repository
+  apt_repository:
+    repo: "deb [arch=arm64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+    filename: github-cli
+    state: present
+
+- name: Install GitHub CLI
+  apt:
+    name: gh
+    state: present
+    update_cache: yes
+
+- name: Verify gh installation
+  command: gh --version
+  register: gh_version
+  changed_when: false
+
+- name: Display gh version
+  debug:
+    msg: "GitHub CLI version: {{ gh_version.stdout }}"

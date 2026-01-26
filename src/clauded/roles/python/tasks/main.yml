@@ -1,0 +1,33 @@
+---
+- name: Add deadsnakes PPA
+  apt_repository:
+    repo: ppa:deadsnakes/ppa
+    state: present
+
+- name: Install Python {{ python_version }}
+  apt:
+    name:
+      - "python{{ python_version }}"
+      - "python{{ python_version }}-venv"
+      - "python{{ python_version }}-dev"
+    state: present
+    update_cache: yes
+
+- name: Set Python {{ python_version }} as default
+  alternatives:
+    name: python3
+    link: /usr/bin/python3
+    path: "/usr/bin/python{{ python_version }}"
+    priority: 100
+
+- name: Install pip for Python {{ python_version }}
+  apt:
+    name: "python{{ python_version }}-distutils"
+    state: present
+  ignore_errors: yes
+
+- name: Ensure pip is installed
+  shell: |
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python{{ python_version }}
+  args:
+    creates: /usr/local/bin/pip3

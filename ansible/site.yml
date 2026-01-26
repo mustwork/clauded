@@ -1,0 +1,96 @@
+---
+- name: Bootstrap claude Lima VM
+  hosts: lima
+  become: true
+
+  vars:
+    node_major: "20"
+
+  tasks:
+    - name: Basic packages
+      ansible.builtin.apt:
+        update_cache: true
+        name:
+          - ca-certificates
+          - curl
+          - git
+          - gnupg
+          - lsb-release
+        state: present
+
+    # ---- Node.js 20 (NodeSource) ----
+    - name: Add NodeSource repo for Node.js {{ node_major }}
+      ansible.builtin.shell: |
+        set -euxo pipefail
+        curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
+        echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_{{ node_major }}.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list
+        apt-get update
+      args:
+        executable: /bin/bash
+        creates: /etc/apt/sources.list.d/nodesource.list
+
+    - name: Install Node.js
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+
+    - name: Show node/npm versions
+      ansible.builtin.shell: |
+        node -v
+        npm -v
+      register: node_versions
+      changed_when: false
+
+    - name: Print node/npm versions
+      ansible.builtin.debug:
+        var: node_versions.stdout_lines
+
+    # ---- Docker (Ubuntu package) ----
+    - name: Install Docker Engine (docker.io)
+      ansible.builtin.apt:
+        name: docker.io
+        state: present
+
+    - name: Enable + start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add ubuntu user to docker group
+      ansible.builtin.user:
+        name: ubuntu
+        groups: docker
+        append: true
+
+    # ---- Playwright ----
+    - name: Install Playwright globally
+      ansible.builtin.command: npm install -g playwright
+      args:
+        creates: /usr/local/lib/node_modules/playwright
+
+    - name: Install Playwright browsers + system deps
+      # This will install OS deps (apt) and download browsers into Playwright cache
+      ansible.builtin.command: playwright install --with-deps
+      environment:
+        # Put browser cache somewhere predictable (optional)
+        PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+      args:
+        creates: /opt/playwright-browsers
+
+    # ---- Claude Code ----
+    - name: Install Claude Code globally via npm
+      ansible.builtin.command: npm install -g @anthropic-ai/claude-code
+      args:
+        creates: /usr/lib/node_modules/@anthropic-ai/claude-code
+
+    - name: Verify Claude Code installed
+      ansible.builtin.command: claude --version
+      register: claude_ver
+      changed_when: false
+
+    - name: Print Claude version
+      ansible.builtin.debug:
+        var: claude_ver.stdout

@@ -1,0 +1,14 @@
+---
+- name: Install Playwright globally
+  npm:
+    name: playwright
+    global: yes
+  environment:
+    PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+
+- name: Install Playwright browsers and dependencies
+  shell: npx playwright install --with-deps
+  args:
+    creates: /opt/playwright-browsers
+  environment:
+    PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers

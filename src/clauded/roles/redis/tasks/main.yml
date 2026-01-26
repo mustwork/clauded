@@ -1,0 +1,17 @@
+---
+- name: Install Redis
+  apt:
+    name: redis-server
+    state: present
+
+- name: Enable Redis service
+  systemd:
+    name: redis-server
+    enabled: yes
+    state: started
+
+- name: Ensure Redis is accepting connections
+  wait_for:
+    port: 6379
+    delay: 2
+    timeout: 30

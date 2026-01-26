@@ -1,0 +1,20 @@
+---
+- name: Install PostgreSQL
+  apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+      - libpq-dev
+    state: present
+
+- name: Enable PostgreSQL service
+  systemd:
+    name: postgresql
+    enabled: yes
+    state: started
+
+- name: Ensure PostgreSQL is accepting connections
+  wait_for:
+    port: 5432
+    delay: 5
+    timeout: 60

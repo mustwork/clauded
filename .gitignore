@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Test artifacts
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Generated/user-specific files
+.ssh-config.claude
+lima.REJECTED.yaml

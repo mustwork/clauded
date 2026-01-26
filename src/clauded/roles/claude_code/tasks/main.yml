@@ -1,0 +1,15 @@
+---
+- name: Install Claude Code CLI
+  npm:
+    name: "@anthropic-ai/claude-code"
+    global: yes
+
+- name: Verify Claude Code installation
+  command: claude --version
+  register: claude_version
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display Claude Code version
+  debug:
+    msg: "Claude Code version: {{ claude_version.stdout | default('installed') }}"
