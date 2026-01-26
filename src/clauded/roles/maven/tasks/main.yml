@@ -1,0 +1,71 @@
+---
+- name: Install required packages for Maven installation
+  apt:
+    name:
+      - curl
+    state: present
+    update_cache: yes
+
+- name: Get latest Maven version
+  uri:
+    url: https://api.github.com/repos/apache/maven/releases/latest
+    return_content: yes
+  register: maven_latest
+
+- name: Set Maven version
+  set_fact:
+    maven_version: "{{ maven_latest.json.tag_name | regex_replace('^maven-', '') }}"
+
+- name: Create Maven installation directory
+  file:
+    path: /opt/maven
+    state: directory
+    mode: '0755'
+
+- name: Download Maven
+  get_url:
+    url: "https://dlcdn.apache.org/maven/maven-3/{{ maven_version }}/binaries/apache-maven-{{ maven_version }}-bin.tar.gz"
+    dest: /tmp/maven.tar.gz
+    mode: '0644'
+
+- name: Extract Maven
+  unarchive:
+    src: /tmp/maven.tar.gz
+    dest: /opt/maven
+    remote_src: yes
+    creates: "/opt/maven/apache-maven-{{ maven_version }}"
+
+- name: Create symlink for current Maven version
+  file:
+    src: "/opt/maven/apache-maven-{{ maven_version }}"
+    dest: /opt/maven/current
+    state: link
+    force: yes
+
+- name: Set Maven environment variables system-wide
+  copy:
+    dest: /etc/profile.d/maven.sh
+    content: |
+      export MAVEN_HOME=/opt/maven/current
+      export PATH=$MAVEN_HOME/bin:$PATH
+    mode: '0644'
+
+- name: Create symlink for Maven binary
+  file:
+    src: /opt/maven/current/bin/mvn
+    dest: /usr/local/bin/mvn
+    state: link
+
+- name: Clean up downloaded archive
+  file:
+    path: /tmp/maven.tar.gz
+    state: absent
+
+- name: Verify Maven installation
+  command: /opt/maven/current/bin/mvn --version
+  register: maven_version_output
+  changed_when: false
+
+- name: Display Maven version
+  debug:
+    msg: "{{ maven_version_output.stdout_lines }}"

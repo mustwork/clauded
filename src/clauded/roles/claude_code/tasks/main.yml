@@ -4,6 +4,14 @@
     name: "@anthropic-ai/claude-code"
     global: yes
 
+- name: Configure Claude Code to skip permissions
+  copy:
+    dest: /etc/profile.d/claude.sh
+    content: |
+      export CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS=1
+    mode: '0644'
+  when: claude_dangerously_skip_permissions | default(true)
+
 - name: Verify Claude Code installation
   command: claude --version
   register: claude_version

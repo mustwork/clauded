@@ -83,7 +83,12 @@ class Provisioner:
 
         if self.config.python:
             roles.append("python")
+            roles.append("uv")
+            roles.append("poetry")
         # node is already included by default for npm
+        if self.config.java or self.config.kotlin:
+            roles.append("maven")
+            roles.append("gradle")
         if self.config.java:
             roles.append("java")
         if self.config.kotlin:
@@ -100,8 +105,6 @@ class Provisioner:
             roles.append("aws_cli")
         if "gh" in self.config.tools:
             roles.append("gh")
-        if "gradle" in self.config.tools:
-            roles.append("gradle")
 
         # Databases
         if "postgresql" in self.config.databases:
@@ -133,6 +136,9 @@ class Provisioner:
                     "kotlin_version": self.config.kotlin or "2.0",
                     "rust_version": self.config.rust or "stable",
                     "go_version": self.config.go or "1.22",
+                    "claude_dangerously_skip_permissions": (
+                        self.config.claude_dangerously_skip_permissions
+                    ),
                 },
                 "roles": self._get_roles(),
             }

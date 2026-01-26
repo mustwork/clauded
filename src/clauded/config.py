@@ -34,6 +34,9 @@ class Config:
     databases: list[str] = field(default_factory=list)
     frameworks: list[str] = field(default_factory=list)
 
+    # Claude Code settings
+    claude_dangerously_skip_permissions: bool = True
+
     @classmethod
     def from_wizard(cls, answers: dict, project_path: Path) -> "Config":
         """Create a Config from wizard answers."""
@@ -55,6 +58,9 @@ class Config:
             tools=answers.get("tools", []),
             databases=answers.get("databases", []),
             frameworks=answers.get("frameworks", []),
+            claude_dangerously_skip_permissions=answers.get(
+                "claude_dangerously_skip_permissions", True
+            ),
         )
 
     @classmethod
@@ -80,6 +86,9 @@ class Config:
             tools=data["environment"].get("tools", []),
             databases=data["environment"].get("databases", []),
             frameworks=data["environment"].get("frameworks", []),
+            claude_dangerously_skip_permissions=data.get("claude", {}).get(
+                "dangerously_skip_permissions", True
+            ),
         )
 
     def save(self, path: Path) -> None:
@@ -106,6 +115,11 @@ class Config:
                 "tools": self.tools,
                 "databases": self.databases,
                 "frameworks": self.frameworks,
+            },
+            "claude": {
+                "dangerously_skip_permissions": (
+                    self.claude_dangerously_skip_permissions
+                ),
             },
         }
 

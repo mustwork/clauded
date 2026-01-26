@@ -17,3 +17,6 @@ htmlcov/
 # Generated/user-specific files
 .ssh-config.claude
 lima.REJECTED.yaml
+
+# clauded itself
+.clauded.yaml

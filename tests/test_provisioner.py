@@ -25,7 +25,7 @@ def full_config() -> Config:
         kotlin="2.0",
         rust="stable",
         go="1.22",
-        tools=["docker", "aws-cli", "gh", "gradle"],
+        tools=["docker", "aws-cli", "gh"],
         databases=["postgresql", "redis", "mysql"],
         frameworks=["playwright", "claude-code"],
     )
@@ -197,14 +197,41 @@ class TestProvisionerGetRoles:
 
         assert "gh" in roles
 
-    def test_includes_gradle_when_in_tools(self, full_config: Config) -> None:
-        """Gradle role included when gradle in tools."""
+    def test_includes_gradle_when_java_selected(self, full_config: Config) -> None:
+        """Gradle role included when java is selected."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
         roles = provisioner._get_roles()
 
         assert "gradle" in roles
+
+    def test_includes_maven_when_java_selected(self, full_config: Config) -> None:
+        """Maven role included when java is selected."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "maven" in roles
+
+    def test_includes_uv_when_python_selected(self, full_config: Config) -> None:
+        """UV role included when python is selected."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "uv" in roles
+
+    def test_includes_poetry_when_python_selected(self, full_config: Config) -> None:
+        """Poetry role included when python is selected."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "poetry" in roles
 
     def test_includes_postgresql_when_in_databases(self, full_config: Config) -> None:
         """PostgreSQL role included when postgresql in databases."""
@@ -252,7 +279,7 @@ class TestProvisionerGetRoles:
         assert "claude_code" in roles
 
     def test_full_config_has_all_roles(self, full_config: Config) -> None:
-        """Full config produces all 16 roles."""
+        """Full config produces all 19 roles."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
@@ -262,6 +289,10 @@ class TestProvisionerGetRoles:
             "common",
             "node",  # Always included (npm required for Claude)
             "python",
+            "uv",  # Auto-installed with Python
+            "poetry",  # Auto-installed with Python
+            "maven",  # Auto-installed with Java/Kotlin
+            "gradle",  # Auto-installed with Java/Kotlin
             "java",
             "kotlin",
             "rust",
@@ -269,7 +300,6 @@ class TestProvisionerGetRoles:
             "docker",
             "aws_cli",
             "gh",
-            "gradle",
             "postgresql",
             "redis",
             "mysql",

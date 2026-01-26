@@ -161,13 +161,71 @@ class TestLimaVMGenerateLimaConfig:
         """Generated config has virtiofs mount for project directory."""
         vm = LimaVM(sample_config)
 
-        config = vm._generate_lima_config()
+        with patch("clauded.lima.Path.home") as mock_home:
+            mock_home.return_value = Path("/nonexistent/home")
+            config = vm._generate_lima_config()
 
         assert config["mountType"] == "virtiofs"
-        assert len(config["mounts"]) == 1
+        # First mount is always the project directory
         assert config["mounts"][0]["location"] == "/path/to/project"
         assert config["mounts"][0]["mountPoint"] == "/workspace"
         assert config["mounts"][0]["writable"] is True
+
+    def test_mounts_home_directories_when_exist(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """Mounts ~/.claude and ~/.git when they exist."""
+        vm = LimaVM(sample_config)
+
+        # Create test directories
+        claude_dir = tmp_path / ".claude"
+        git_dir = tmp_path / ".git"
+        claude_dir.mkdir()
+        git_dir.mkdir()
+
+        with patch("clauded.lima.Path.home", return_value=tmp_path):
+            config = vm._generate_lima_config()
+
+        assert len(config["mounts"]) == 3
+
+        # Check .claude mount
+        claude_mount = config["mounts"][1]
+        assert claude_mount["location"] == str(claude_dir)
+        assert claude_mount["mountPoint"] == "~/.claude"
+        assert claude_mount["writable"] is False
+
+        # Check .git mount
+        git_mount = config["mounts"][2]
+        assert git_mount["location"] == str(git_dir)
+        assert git_mount["mountPoint"] == "~/.git"
+        assert git_mount["writable"] is False
+
+    def test_skips_home_directories_when_not_exist(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """Does not mount ~/.claude and ~/.git when they don't exist."""
+        vm = LimaVM(sample_config)
+
+        with patch("clauded.lima.Path.home", return_value=tmp_path):
+            config = vm._generate_lima_config()
+
+        assert len(config["mounts"]) == 1
+
+    def test_mounts_only_existing_home_directories(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """Only mounts home directories that exist."""
+        vm = LimaVM(sample_config)
+
+        # Create only .claude
+        claude_dir = tmp_path / ".claude"
+        claude_dir.mkdir()
+
+        with patch("clauded.lima.Path.home", return_value=tmp_path):
+            config = vm._generate_lima_config()
+
+        assert len(config["mounts"]) == 2
+        assert config["mounts"][1]["mountPoint"] == "~/.claude"
 
     def test_disables_containerd(self, sample_config: Config) -> None:
         """Generated config disables containerd."""

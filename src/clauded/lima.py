@@ -85,6 +85,27 @@ class LimaVM:
 
     def _generate_lima_config(self) -> dict:
         """Generate Lima YAML configuration."""
+        mounts = [
+            {
+                "location": self.config.mount_host,
+                "mountPoint": self.config.mount_guest,
+                "writable": True,
+            }
+        ]
+
+        # Add read-only mounts for home directory config (if they exist)
+        home = Path.home()
+        for dirname in [".claude", ".git"]:
+            dirpath = home / dirname
+            if dirpath.exists():
+                mounts.append(
+                    {
+                        "location": str(dirpath),
+                        "mountPoint": f"~/{dirname}",
+                        "writable": False,
+                    }
+                )
+
         return {
             "vmType": "vz",
             "os": "Linux",
@@ -103,13 +124,7 @@ class LimaVM:
                 "user": False,
             },
             "mountType": "virtiofs",
-            "mounts": [
-                {
-                    "location": self.config.mount_host,
-                    "mountPoint": self.config.mount_guest,
-                    "writable": True,
-                }
-            ],
+            "mounts": mounts,
             "provision": [
                 {
                     "mode": "system",

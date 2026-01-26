@@ -1,0 +1,27 @@
+---
+- name: Install uv (Python package manager)
+  shell: |
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  args:
+    creates: /root/.local/bin/uv
+
+- name: Create symlink for uv
+  file:
+    src: /root/.local/bin/uv
+    dest: /usr/local/bin/uv
+    state: link
+
+- name: Create symlink for uvx
+  file:
+    src: /root/.local/bin/uvx
+    dest: /usr/local/bin/uvx
+    state: link
+
+- name: Verify uv installation
+  command: uv --version
+  register: uv_version_output
+  changed_when: false
+
+- name: Display uv version
+  debug:
+    msg: "uv version: {{ uv_version_output.stdout }}"
