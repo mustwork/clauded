@@ -1,0 +1,428 @@
+# clauded Specification
+
+## Purpose & Scope
+
+`clauded` is a CLI tool for macOS that creates isolated, per-project Linux VMs using Lima (Linux Machines) with automatic environment provisioning via Ansible. It enables developers to define their development stack declaratively in a `.clauded.yaml` configuration file, ensuring reproducible and isolated environments across team members.
+
+**In Scope:**
+- Per-project VM lifecycle management (create, start, stop, destroy)
+- Interactive wizard-based environment configuration
+- Declarative configuration via `.clauded.yaml`
+- Automatic provisioning of Python, Node.js, databases, and developer tools
+- Project directory mounting at `/workspace` in VMs
+- Reprovisionable environments for stack updates
+- Customizable VM resources (CPU, memory, disk)
+
+**Out of Scope:**
+- Remote VM provisioning (cloud providers)
+- Multi-VM orchestration
+- Non-macOS host support
+- x86_64 architecture support
+- Container orchestration beyond Docker installation
+- VM snapshots or backups
+- GUI interfaces
+
+## Architecture Overview
+
+### Component Model
+
+```
+┌─────────────────────────────────────────────────────┐
+│  CLI (Click Framework)                              │
+│  - Command routing (default, --stop, --destroy,    │
+│    --reprovision)                                   │
+│  - Entry point: clauded.cli:main                    │
+└────────────────┬────────────────────────────────────┘
+                 │
+                 ├─→ Config Module
+                 │   ├─ Load/save .clauded.yaml (YAML)
+                 │   ├─ Interactive wizard (questionary)
+                 │   └─ VM name generation (MD5 hash)
+                 │
+                 ├─→ LimaVM Module
+                 │   ├─ Check VM existence (limactl list)
+                 │   ├─ Create VM (generate Lima YAML, limactl start)
+                 │   ├─ Lifecycle: start/stop/destroy
+                 │   └─ Shell access (limactl shell)
+                 │
+                 └─→ Provisioner Module
+                     ├─ Dynamic role selection based on config
+                     ├─ Generate Ansible playbook YAML
+                     ├─ Generate Ansible inventory INI
+                     ├─ Generate ansible.cfg
+                     └─ Execute ansible-playbook via SSH
+```
+
+### Technology Stack
+
+- **Language**: Python 3.12+
+- **CLI Framework**: Click 8.1+
+- **Interactive UI**: Questionary 2.0+
+- **Configuration**: PyYAML 6.0+
+- **VM Management**: Lima (limactl commands via subprocess)
+- **Provisioning**: Ansible 13.2+ (ansible-playbook via subprocess)
+- **Base OS**: Ubuntu Jammy 22.04 LTS (cloud image)
+- **Hypervisor**: Apple Virtualization Framework (vz)
+- **Filesystem**: virtiofs for host-guest mounting
+
+### Module Responsibilities
+
+**`cli.py`**
+- Parse command-line options
+- Orchestrate workflow based on flags (--destroy, --stop, --reprovision)
+- Handle VM state transitions (missing → create, stopped → start, running → shell)
+
+**`config.py`**
+- Define `Config` dataclass with VM settings and environment selections
+- Load/save `.clauded.yaml` using PyYAML
+- Run interactive wizard via `wizard.py` when config missing
+- Generate unique VM names from project path (MD5 hash, first 8 chars)
+
+**`lima.py`**
+- Manage Lima VM lifecycle via `limactl` subprocess calls
+- Generate Lima YAML configuration with VM resources, Ubuntu image, and mounts
+- Check VM existence and running status
+- Provide SSH config path for Ansible connectivity
+
+**`provisioner.py`**
+- Select Ansible roles based on config environment selections
+- Generate dynamic Ansible playbook YAML with role list and variables
+- Generate Ansible inventory INI with Lima SSH connection details
+- Generate ansible.cfg with host_key_checking=False and pipelining=True
+- Execute ansible-playbook with generated files in temp directory
+
+**`wizard.py`**
+- Interactive questionary prompts for Python/Node.js versions
+- Multi-select for tools (docker, git, aws-cli, gh)
+- Multi-select for databases (postgresql, redis, mysql)
+- Multi-select for frameworks (claude-code, playwright)
+- Optional VM resource customization
+- Return populated `Config` object
+
+## Core Functionality
+
+### 1. VM Lifecycle Management
+
+**VM Creation**
+- Input: `Config` object with VM settings and environment selections
+- Process:
+  1. Generate Lima YAML config with vmType=vz, Ubuntu Jammy image, CPU/memory/disk settings
+  2. Configure virtiofs mount: host project path → /workspace
+  3. Execute `limactl start <vm-name> --tty=false <lima-config-path>`
+- Output: Running Lima VM with project directory mounted
+
+**VM Starting**
+- Input: VM name
+- Process: Execute `limactl start <vm-name>`
+- Output: Running VM
+
+**VM Stopping**
+- Input: VM name
+- Process: Execute `limactl stop <vm-name>`
+- Output: Stopped VM (persistent disk preserved)
+
+**VM Destruction**
+- Input: VM name
+- Process: Execute `limactl delete <vm-name> --force`
+- Output: VM and disk removed
+
+**Shell Access**
+- Input: VM name
+- Process: Execute `limactl shell <vm-name> --workdir /workspace`
+- Output: Interactive shell session at /workspace
+
+### 2. Configuration Management
+
+**Config Schema (.clauded.yaml)**
+```yaml
+version: "1"
+vm:
+  name: clauded-{8-char-hash}
+  cpus: <int>
+  memory: <size>GiB
+  disk: <size>GiB
+mount:
+  host: <absolute-path>
+  guest: /workspace
+environment:
+  python: "<version>|null"
+  node: "<version>|null"
+  tools:
+    - docker
+    - git
+    - aws-cli  # optional
+    - gh       # optional
+  databases:
+    - postgresql  # optional
+    - redis       # optional
+    - mysql       # optional
+  frameworks:
+    - claude-code  # optional
+    - playwright   # optional
+```
+
+**Config Generation**
+- Wizard prompts or programmatic creation
+- VM name: MD5(project_path)[:8] prefixed with "clauded-"
+- Defaults: 4 CPUs, 8GiB memory, 20GiB disk
+- Host mount: absolute path to current project directory
+- Guest mount: fixed at /workspace
+
+**Config Persistence**
+- Save: YAML serialization to `.clauded.yaml` in project root
+- Load: YAML deserialization from `.clauded.yaml`
+
+### 3. Provisioning System
+
+**Role Selection Logic**
+- Always include: `common` role (base packages)
+- Conditional roles based on config:
+  - `python` if config.environment.python is set
+  - `node` if config.environment.node is set
+  - `docker` if "docker" in config.environment.tools
+  - `aws_cli` if "aws-cli" in config.environment.tools
+  - `gh` if "gh" in config.environment.tools
+  - `postgresql` if "postgresql" in config.environment.databases
+  - `redis` if "redis" in config.environment.databases
+  - `mysql` if "mysql" in config.environment.databases
+  - `playwright` if "playwright" in config.environment.frameworks
+  - `claude_code` if "claude-code" in config.environment.frameworks
+
+**Ansible Roles**
+
+| Role | Purpose | Key Tasks |
+|------|---------|-----------|
+| `common` | Base system packages | ca-certificates, curl, git, gnupg, build-essential |
+| `python` | Python version installation | deadsnakes PPA, python{{ python_version }}, update-alternatives |
+| `node` | Node.js installation | NodeSource repository, nodejs={{ node_version }} |
+| `docker` | Docker setup | docker.io, systemd service, user group |
+| `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, libpq-dev, service enabled |
+| `redis` | Redis installation | redis-server, service enabled, port 6379 |
+| `mysql` | MySQL installation | mysql-server, service enabled, port 3306 |
+| `aws_cli` | AWS CLI v2 | Download aarch64 zip, unzip, install |
+| `gh` | GitHub CLI | GPG key, apt repository, gh package |
+| `playwright` | Playwright testing | npm install -g playwright, playwright install |
+| `claude_code` | Claude Code CLI | npm install -g @anthropic-ai/claude-code |
+
+**Playbook Generation**
+```yaml
+- name: Provision clauded VM
+  hosts: all
+  become: true
+  vars:
+    python_version: "{{ config.environment.python }}"
+    node_version: "{{ config.environment.node }}"
+  roles:
+    - common
+    - python  # conditional
+    - node    # conditional
+    # ... other roles based on config
+```
+
+**Inventory Generation**
+```ini
+[lima]
+lima-{vm-name} ansible_connection=ssh ansible_user={user}
+
+[all:vars]
+ansible_ssh_common_args=-F {lima-ssh-config-path}
+```
+
+**Provisioning Execution**
+- Generate playbook, inventory, and ansible.cfg in temp directory
+- Execute: `ansible-playbook -i <inventory> <playbook> --limit lima-{vm-name}`
+- Cleanup temp files after execution
+
+### 4. CLI Workflows
+
+**Default Workflow (no flags)**
+1. Check if `.clauded.yaml` exists
+   - If missing: Run wizard, generate config, save to `.clauded.yaml`
+2. Check if VM exists (via `limactl list`)
+   - If missing: Create VM, provision with Ansible
+3. Check if VM is running
+   - If stopped: Start VM
+4. Enter shell at /workspace
+
+**--destroy Workflow**
+1. Check if VM exists
+   - If exists: Execute `limactl delete <vm-name> --force`
+2. Prompt user: "Remove .clauded.yaml?"
+   - If yes: Delete `.clauded.yaml`
+
+**--stop Workflow**
+1. Check if VM is running
+   - If running: Execute `limactl stop <vm-name>`
+2. Exit (do not enter shell)
+
+**--reprovision Workflow**
+1. Ensure VM is running
+   - If stopped: Start VM first
+2. Load `.clauded.yaml`
+3. Re-run Ansible provisioning with current config
+4. Enter shell
+
+## Security Model
+
+### Trust Boundaries
+
+1. **Host ↔ VM**: Host trusts VM (same user owns both)
+2. **Ansible Connection**: SSH-based, using Lima's generated SSH config
+3. **VM Internet Access**: VM has full internet access via Lima networking
+
+### Security Constraints
+
+- VMs run under host user's privileges (not root on host)
+- Ansible playbooks run with `become: true` (root inside VM)
+- SSH host key checking disabled for Lima VMs (ansible.cfg)
+- No authentication required for VM access (SSH key-based via Lima)
+- VMs are local-only (not exposed to network)
+
+### Sensitive Data Handling
+
+- `.clauded.yaml` may be committed to version control (no secrets)
+- VM disk is local and persists between starts
+- Lima SSH keys stored in `~/.lima/<vm-name>/`
+
+## Non-Functional Requirements
+
+### Performance
+
+- VM creation: ~2-5 minutes (Ubuntu image download + provisioning)
+- VM start: ~5-15 seconds
+- VM stop: ~2-5 seconds
+- Shell entry: <1 second for running VM
+
+### Reliability
+
+- Idempotent Ansible playbooks (safe to re-run)
+- VM name determinism (same project → same VM name)
+- Graceful error handling for missing dependencies (Lima, Ansible)
+
+### Compatibility
+
+- **OS**: macOS (Lima requirement)
+- **Architecture**: ARM64/aarch64 (Apple Silicon)
+- **Python**: 3.12+
+- **Lima**: Compatible with latest Lima releases
+- **Ansible**: 13.2+
+
+### Usability
+
+- Interactive wizard for new users
+- Sensible defaults (4 CPU, 8GB RAM, Python 3.12, Node 20)
+- Clear error messages for missing prerequisites
+- Help text via `make help` and CLI `--help`
+
+## Data & Interfaces
+
+### Configuration File Format
+
+**File**: `.clauded.yaml` (YAML format)
+**Location**: Project root directory
+**Schema**: See Configuration Management section
+
+### CLI Interface
+
+**Command**: `clauded`
+**Options**:
+- `--destroy`: Destroy VM and optionally remove config
+- `--stop`: Stop VM without entering shell
+- `--reprovision`: Re-run Ansible provisioning
+
+**Exit Codes**:
+- 0: Success
+- Non-zero: Error (subprocess failure, missing config, etc.)
+
+### External Dependencies
+
+**Required**:
+- Lima (`limactl` in PATH)
+- Ansible (`ansible-playbook` in PATH via uv)
+- Internet connection (for Ubuntu image download and package installation)
+
+**Optional**:
+- Git (for version control of `.clauded.yaml`)
+- uv package manager (for development)
+
+## State Machine
+
+### VM States
+
+```
+[Non-existent] --create--> [Running] --provision--> [Provisioned]
+                              |
+                              ├--stop--> [Stopped]
+                              |
+                              └--destroy--> [Non-existent]
+
+[Stopped] --start--> [Running]
+[Running] --reprovision--> [Provisioned]
+```
+
+### Config States
+
+```
+[Missing] --wizard--> [Exists]
+[Exists] --edit--> [Modified]
+[Modified] --reprovision--> [Applied to VM]
+```
+
+## Constraints & Assumptions
+
+### Constraints
+
+1. **Single VM per project**: One `.clauded.yaml` → one VM
+2. **macOS-only**: Lima is macOS-specific
+3. **ARM64-only**: Hardcoded architecture in Lima config
+4. **Local VMs only**: No remote provisioning
+5. **Ubuntu Jammy**: Hardcoded base image
+6. **No VM migration**: VMs are tied to host machine
+
+### Assumptions
+
+1. Lima is installed and functional
+2. User has sufficient disk space for VMs (20GB+ per VM)
+3. User has internet access for image downloads and package installation
+4. Project directory is on local filesystem (not network mount)
+5. User has permissions to execute `limactl` and `ansible-playbook`
+
+## Acceptance Criteria
+
+### Functional
+
+- ✓ Create VM from wizard-generated config
+- ✓ Create VM from existing `.clauded.yaml`
+- ✓ Start stopped VM
+- ✓ Stop running VM
+- ✓ Destroy VM and optionally remove config
+- ✓ Provision VM with selected tools/databases/frameworks
+- ✓ Reprovision existing VM after config changes
+- ✓ Enter interactive shell at /workspace
+- ✓ Mount project directory read-write in VM
+- ✓ Install Python version specified in config
+- ✓ Install Node.js version specified in config
+- ✓ Support all 11 Ansible roles
+
+### Non-Functional
+
+- ✓ VM creation completes within 5 minutes on standard network
+- ✓ Ansible provisioning is idempotent (re-running safe)
+- ✓ Config file is valid YAML and human-readable
+- ✓ CLI provides clear error messages for common failures
+- ✓ Test coverage >80% for core modules
+- ✓ Type checking passes with strict mypy
+- ✓ Linting passes with ruff
+
+## Extension Points
+
+Future enhancements may include:
+
+1. **Cloud VM Support**: Extend provisioning to AWS/GCP/Azure
+2. **Multi-VM Orchestration**: Docker Compose-like multi-VM setups
+3. **VM Snapshots**: Save/restore VM states
+4. **Template Library**: Pre-configured stacks (Django, Express, Rails)
+5. **Team Sharing**: Remote VM provisioning for distributed teams
+6. **Resource Monitoring**: Track CPU/memory usage per VM
+7. **x86_64 Support**: Cross-architecture compatibility
+8. **Non-interactive Mode**: CI/CD integration for automated testing

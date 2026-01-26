@@ -1,7 +1,10 @@
 # Makefile for clauded
 #
+# Installation:
+#   make install         Install clauded for current user (~/.local/bin)
+#
 # Development:
-#   make install       Install dependencies
+#   make sync          Sync dependencies
 #   make dev           Install with dev dependencies
 #   make test          Run tests
 #   make coverage      Run tests with coverage
@@ -16,13 +19,17 @@
 #   make bootstrap     Provision Lima VM with Ansible
 #   make shell         Shell into Lima VM
 
-.PHONY: install dev test coverage lint format typecheck check build clean bootstrap shell help
+.PHONY: install sync dev test coverage lint format typecheck check build clean bootstrap shell help
 
 # Default target
 help:
-	@echo "clauded development commands:"
+	@echo "clauded commands:"
 	@echo ""
-	@echo "  make install     Install dependencies"
+	@echo "Installation:"
+	@echo "  make install     Install clauded for current user (~/.local/bin)"
+	@echo ""
+	@echo "Development:"
+	@echo "  make sync        Sync dependencies"
 	@echo "  make dev         Install with dev dependencies"
 	@echo "  make test        Run tests"
 	@echo "  make coverage    Run tests with coverage report"
@@ -33,21 +40,28 @@ help:
 	@echo "  make build       Build wheel"
 	@echo "  make clean       Clean build artifacts"
 	@echo ""
-	@echo "Lima VM commands:"
+	@echo "Lima VM (legacy):"
 	@echo "  make bootstrap   Provision Lima VM"
 	@echo "  make shell       Shell into Lima VM"
+
+# ----------------------------------------------------------------------------
+# Installation
+# ----------------------------------------------------------------------------
+
+install: build
+	uv tool install .
 
 # ----------------------------------------------------------------------------
 # Development
 # ----------------------------------------------------------------------------
 
-install:
-	uv sync
+sync:
+	uv sync --inexact
 
 dev:
 	uv sync --extra dev
 
-test:
+test: dev
 	uv run pytest tests/ -v
 
 coverage:
