@@ -35,7 +35,7 @@ class LimaVM:
         )
         return result.stdout.strip() == "Running"
 
-    def create(self) -> None:
+    def create(self, *, debug: bool = False) -> None:
         """Create and start a new VM."""
         lima_config = self._generate_lima_config()
 
@@ -45,19 +45,27 @@ class LimaVM:
 
         try:
             print(f"\nCreating VM '{self.name}'...")
+            cmd = ["limactl"]
+            if debug:
+                cmd.extend(["--debug", "--log-level", "debug"])
+            cmd.extend(["start", "--name", self.name, config_path])
             subprocess.run(
-                ["limactl", "start", "--name", self.name, config_path],
+                cmd,
                 check=True,
                 stdin=subprocess.DEVNULL,
             )
         finally:
             Path(config_path).unlink(missing_ok=True)
 
-    def start(self) -> None:
+    def start(self, *, debug: bool = False) -> None:
         """Start an existing VM."""
         print(f"\nStarting VM '{self.name}'...")
+        cmd = ["limactl"]
+        if debug:
+            cmd.extend(["--debug", "--log-level", "debug"])
+        cmd.extend(["start", self.name])
         subprocess.run(
-            ["limactl", "start", self.name],
+            cmd,
             check=True,
             stdin=subprocess.DEVNULL,
         )

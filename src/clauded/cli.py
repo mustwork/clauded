@@ -35,7 +35,7 @@ from .provisioner import Provisioner
 @click.option(
     "--debug",
     is_flag=True,
-    help="Enable debug logging for detection and verbose Ansible output",
+    help="Enable verbose output for detection, VM creation, and provisioning",
 )
 def main(
     destroy: bool,
@@ -113,7 +113,7 @@ def main(
             raise SystemExit(1)
 
         if not vm.is_running():
-            vm.start()
+            vm.start(debug=debug)
 
         try:
             new_config = wizard.run_edit(config, project_path)
@@ -152,12 +152,12 @@ def main(
 
     # VM doesn't exist? Create and provision
     if not vm.exists():
-        vm.create()
+        vm.create(debug=debug)
         provisioner = Provisioner(config, vm, debug=debug)
         provisioner.run()
     elif not vm.is_running():
         # VM exists but stopped? Start it
-        vm.start()
+        vm.start(debug=debug)
     elif reprovision:
         # VM running and --reprovision? Re-run provisioning
         provisioner = Provisioner(config, vm, debug=debug)
