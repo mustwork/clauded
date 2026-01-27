@@ -25,7 +25,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 - **AI Integration**: Claude Code CLI for AI-assisted development
 - **VM Lifecycle Management**: Create, start, stop, destroy, and reprovision VMs
 - **Customizable Resources**: Configure CPU, memory, and disk allocation per project
-- **Workspace Mounting**: Your project directory mounted at `/workspace` in the VM
+- **Workspace Mounting**: Your project directory mounted at the same path in the VM
 
 ## Supported Environments
 
@@ -170,7 +170,7 @@ vm:
   disk: 20GiB
 mount:
   host: /Users/you/projects/myproject
-  guest: /workspace
+  guest: /Users/you/projects/myproject
 environment:
   python: "3.12"
   node: "20"
@@ -259,7 +259,7 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture docum
 1. **Configuration**: Load `.clauded.yaml` or run wizard to create it
 2. **VM Creation**: Generate Lima YAML config and create VM via `limactl`
 3. **Provisioning**: Dynamically select Ansible roles based on config and provision via SSH
-4. **Shell Access**: Enter interactive shell with working directory at `/workspace`
+4. **Shell Access**: Enter interactive shell at your project directory
 
 ## Project Structure
 

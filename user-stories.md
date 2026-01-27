@@ -330,16 +330,16 @@ Seamless shell access with project directory mounting.
 
 **Acceptance Criteria**:
 - [ ] `clauded` (default) enters interactive shell
-- [ ] Shell working directory is `/workspace`
+- [ ] Shell working directory is the project path
 - [ ] Can execute commands inside VM
 - [ ] Exit command returns to host shell
 
 #### [Implemented] Story: Mount Project Directory
 
-**As a** Developer, **I want** my project directory mounted at `/workspace` inside the VM, **so that** changes I make in the editor are immediately available.
+**As a** Developer, **I want** my project directory mounted at the same path inside the VM, **so that** changes I make in the editor are immediately available and Claude Code sessions are unique per project.
 
 **Acceptance Criteria**:
-- [ ] Host project directory is mounted at `/workspace`
+- [ ] Host project directory is mounted at the same path in VM
 - [ ] Mount is read-write (bidirectional sync)
 - [ ] Files changed on host appear in VM immediately
 - [ ] Files changed in VM appear on host immediately
@@ -356,10 +356,10 @@ Seamless shell access with project directory mounting.
 
 #### [Implemented] Story: Start in Workspace Directory
 
-**As a** Developer, **I want** the shell to start in `/workspace`, **so that** I can immediately begin working without navigating directories.
+**As a** Developer, **I want** the shell to start in my project directory, **so that** I can immediately begin working without navigating directories.
 
 **Acceptance Criteria**:
-- [ ] Shell starts with pwd=/workspace
+- [ ] Shell starts with pwd=project path
 - [ ] Project files are immediately visible (`ls`)
 - [ ] Can execute project commands without cd
 

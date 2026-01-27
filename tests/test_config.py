@@ -42,7 +42,7 @@ class TestConfigFromWizard:
         assert config.memory == "16GiB"
         assert config.disk == "50GiB"
         assert config.mount_host == str(tmp_path)
-        assert config.mount_guest == "/workspace"
+        assert config.mount_guest == str(tmp_path)
 
     def test_generates_unique_vm_name_from_path(self, tmp_path: Path) -> None:
         """VM name is generated from path hash."""
@@ -183,6 +183,7 @@ class TestConfigSaveAndLoad:
             memory="8GiB",
             disk="20GiB",
             mount_host="/test/path",
+            mount_guest="/test/path",
             python="3.12",
             node="20",
             java="21",
@@ -206,7 +207,7 @@ class TestConfigSaveAndLoad:
         assert data["vm"]["memory"] == "8GiB"
         assert data["vm"]["disk"] == "20GiB"
         assert data["mount"]["host"] == "/test/path"
-        assert data["mount"]["guest"] == "/workspace"
+        assert data["mount"]["guest"] == "/test/path"
         assert data["environment"]["python"] == "3.12"
         assert data["environment"]["node"] == "20"
         assert data["environment"]["java"] == "21"
@@ -263,7 +264,8 @@ class TestConfigDefaults:
         assert config.cpus == 4
         assert config.memory == "8GiB"
         assert config.disk == "20GiB"
-        assert config.mount_guest == "/workspace"
+        assert config.mount_host == ""
+        assert config.mount_guest == ""
         assert config.tools == []
         assert config.databases == []
         assert config.frameworks == []

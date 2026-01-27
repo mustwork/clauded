@@ -33,7 +33,7 @@
 │  ┌──────────────────────────────────────────────────────┐    │
 │  │  Lima VM (Ubuntu 22.04 / Apple Virtualization)       │    │
 │  │                                                       │    │
-│  │  /workspace (virtiofs mount from host project dir)   │    │
+│  │  <project-path> (virtiofs mount from host)            │    │
 │  │                                                       │    │
 │  │  Provisioned Software:                                │    │
 │  │  - Python 3.x, Node.js                                │    │
@@ -206,7 +206,7 @@ def destroy(self) -> None:
     # Run: limactl delete <vm-name> --force
 
 def shell(self) -> None:
-    # Run: limactl shell <vm-name> --workdir /workspace
+    # Run: limactl shell <vm-name> --workdir <project-path>
 ```
 
 **Lima Config Generation**:

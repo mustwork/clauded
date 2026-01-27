@@ -19,7 +19,7 @@ def sample_config() -> Config:
         memory="8GiB",
         disk="20GiB",
         mount_host="/path/to/project",
-        mount_guest="/workspace",
+        mount_guest="/path/to/project",
         python="3.12",
         node="20",
         tools=["docker"],
@@ -173,7 +173,7 @@ class TestLimaVMGenerateLimaConfig:
         assert config["mountType"] == "virtiofs"
         # First mount is always the project directory
         assert config["mounts"][0]["location"] == "/path/to/project"
-        assert config["mounts"][0]["mountPoint"] == "/workspace"
+        assert config["mounts"][0]["mountPoint"] == "/path/to/project"
         assert config["mounts"][0]["writable"] is True
 
     def test_mounts_home_directories_when_exist(
@@ -369,7 +369,7 @@ class TestLimaVMCommands:
                 "limactl",
                 "shell",
                 "--workdir",
-                "/workspace",
+                "/path/to/project",
                 "clauded-test1234",
                 "claude",
             ]

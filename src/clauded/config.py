@@ -21,7 +21,7 @@ class Config:
 
     # Mount settings
     mount_host: str = ""
-    mount_guest: str = "/workspace"
+    mount_guest: str = ""
 
     # Environment
     python: str | None = None
@@ -49,6 +49,7 @@ class Config:
             memory=answers.get("memory", "8GiB"),
             disk=answers.get("disk", "20GiB"),
             mount_host=str(project_path),
+            mount_guest=str(project_path),
             python=answers.get("python") if answers.get("python") != "None" else None,
             node=answers.get("node") if answers.get("node") != "None" else None,
             java=answers.get("java") if answers.get("java") != "None" else None,

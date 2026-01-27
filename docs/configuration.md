@@ -27,7 +27,7 @@ vm:
   disk: 20GiB
 mount:
   host: /Users/yourname/projects/myproject
-  guest: /workspace
+  guest: /Users/yourname/projects/myproject
 environment:
   python: "3.12"
   node: "20"
@@ -176,17 +176,17 @@ mount:
 
 **Type**: String
 **Required**: Yes
-**Default**: `"/workspace"`
-**Fixed**: Yes
+**Default**: Same as `mount.host`
 
-Path where your project directory is mounted inside the VM.
+Path where your project directory is mounted inside the VM. By default, this matches the host path so that Claude Code sessions are unique per project directory.
 
 ```yaml
 mount:
-  guest: /workspace
+  host: /Users/yourname/projects/myapp
+  guest: /Users/yourname/projects/myapp
 ```
 
-**Note**: This value is fixed at `/workspace` and should not be changed. All shells and provisioning scripts assume this location.
+**Note**: Using the same path on both host and guest ensures Claude Code's session storage (keyed by project path) is unique per project, avoiding session collisions across VMs.
 
 ---
 
@@ -418,7 +418,7 @@ vm:
   disk: 20GiB
 mount:
   host: /Users/yourname/projects/myproject
-  guest: /workspace
+  guest: /Users/yourname/projects/myproject
 environment:
   python: null
   node: null
@@ -444,7 +444,7 @@ vm:
   disk: 20GiB
 mount:
   host: /Users/yourname/projects/flask-app
-  guest: /workspace
+  guest: /Users/yourname/projects/flask-app
 environment:
   python: "3.12"
   node: null
@@ -472,7 +472,7 @@ vm:
   disk: 20GiB
 mount:
   host: /Users/yourname/projects/express-api
-  guest: /workspace
+  guest: /Users/yourname/projects/express-api
 environment:
   python: null
   node: "20"
@@ -500,7 +500,7 @@ vm:
   disk: 40GiB
 mount:
   host: /Users/yourname/projects/fullstack-app
-  guest: /workspace
+  guest: /Users/yourname/projects/fullstack-app
 environment:
   python: "3.12"
   node: "20"
@@ -531,7 +531,7 @@ vm:
   disk: 60GiB
 mount:
   host: /Users/yourname/projects/ml-project
-  guest: /workspace
+  guest: /Users/yourname/projects/ml-project
 environment:
   python: "3.12"
   node: null
@@ -690,7 +690,7 @@ clauded
 
 ### Mount Path Issues
 
-**Symptom**: `/workspace` is empty inside VM.
+**Symptom**: Project directory is empty inside VM.
 
 **Cause**: `mount.host` path doesn't exist or is incorrect.
 
@@ -698,6 +698,7 @@ clauded
 ```yaml
 mount:
   host: /correct/absolute/path/to/project
+  guest: /correct/absolute/path/to/project
 ```
 
 ---
@@ -737,7 +738,7 @@ vm:
 | `vm.memory` | string | Yes | `"8GiB"` | `<N>GiB` |
 | `vm.disk` | string | Yes | `"20GiB"` | `<N>GiB` |
 | `mount.host` | string | Yes | auto-generated | absolute path |
-| `mount.guest` | string | Yes | `"/workspace"` | `"/workspace"` (fixed) |
+| `mount.guest` | string | Yes | same as host | absolute path |
 | `environment.python` | string\|null | No | `null` | `"3.10"`, `"3.11"`, `"3.12"`, `null` |
 | `environment.node` | string\|null | No | `null` | `"18"`, `"20"`, `"22"`, `null` |
 | `environment.tools` | list | No | `[]` | `docker`, `git`, `aws-cli`, `gh` |

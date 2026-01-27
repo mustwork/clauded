@@ -10,7 +10,7 @@
 - Automatic project detection (languages, versions, frameworks, databases)
 - Declarative configuration via `.clauded.yaml`
 - Automatic provisioning of Python, Node.js, Java, Kotlin, Rust, Go, databases, and developer tools
-- Project directory mounting at `/workspace` in VMs
+- Project directory mounting at matching path in VMs
 - Reprovisionable environments for stack updates
 - Customizable VM resources (CPU, memory, disk)
 
@@ -115,7 +115,7 @@
 - Input: `Config` object with VM settings and environment selections
 - Process:
   1. Generate Lima YAML config with vmType=vz, Ubuntu Jammy image, CPU/memory/disk settings
-  2. Configure virtiofs mount: host project path → /workspace
+  2. Configure virtiofs mount: host project path → same path in guest
   3. Execute `limactl start <vm-name> --tty=false <lima-config-path>`
 - Output: Running Lima VM with project directory mounted
 
@@ -136,8 +136,8 @@
 
 **Shell Access**
 - Input: VM name
-- Process: Execute `limactl shell <vm-name> --workdir /workspace`
-- Output: Interactive shell session at /workspace
+- Process: Execute `limactl shell <vm-name> --workdir <project-path>`
+- Output: Interactive shell session at project directory
 
 ### 2. Configuration Management
 
@@ -151,7 +151,7 @@ vm:
   disk: <size>GiB
 mount:
   host: <absolute-path>
-  guest: /workspace
+  guest: <absolute-path>  # same as host
 environment:
   python: "<version>|null"
   node: "<version>|null"
@@ -179,7 +179,7 @@ environment:
 - VM name: MD5(project_path)[:8] prefixed with "clauded-"
 - Defaults: 4 CPUs, 8GiB memory, 20GiB disk
 - Host mount: absolute path to current project directory
-- Guest mount: fixed at /workspace
+- Guest mount: same as host mount (ensures unique Claude Code sessions per project)
 
 **Config Persistence**
 - Save: YAML serialization to `.clauded.yaml` in project root
@@ -274,7 +274,7 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
    - If missing: Create VM, provision with Ansible
 4. Check if VM is running
    - If stopped: Start VM
-5. Enter shell at /workspace
+5. Enter shell at project directory
 
 **--destroy Workflow**
 1. Check if VM exists
@@ -451,7 +451,7 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 - ✓ Destroy VM and optionally remove config
 - ✓ Provision VM with selected tools/databases/frameworks
 - ✓ Reprovision existing VM after config changes
-- ✓ Enter interactive shell at /workspace
+- ✓ Enter interactive shell at project directory
 - ✓ Mount project directory read-write in VM
 - ✓ Install Python version specified in config
 - ✓ Install Node.js version specified in config
