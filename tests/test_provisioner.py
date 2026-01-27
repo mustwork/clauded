@@ -291,10 +291,10 @@ class TestProvisionerGetRoles:
             "python",
             "uv",  # Auto-installed with Python
             "poetry",  # Auto-installed with Python
+            "java",  # Java before Maven/Gradle (they need JAVA_HOME)
+            "kotlin",
             "maven",  # Auto-installed with Java/Kotlin
             "gradle",  # Auto-installed with Java/Kotlin
-            "java",
-            "kotlin",
             "rust",
             "go",
             "docker",

@@ -64,6 +64,8 @@
 
 - name: Verify Gradle installation
   command: /opt/gradle/current/bin/gradle --version
+  environment:
+    JAVA_HOME: "{{ java_home }}"
   register: gradle_version_output
   changed_when: false
 

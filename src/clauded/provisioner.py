@@ -86,13 +86,14 @@ class Provisioner:
             roles.append("uv")
             roles.append("poetry")
         # node is already included by default for npm
+        # Java/Kotlin: install Java first (Kotlin and build tools need it)
         if self.config.java or self.config.kotlin:
-            roles.append("maven")
-            roles.append("gradle")
-        if self.config.java:
             roles.append("java")
         if self.config.kotlin:
             roles.append("kotlin")
+        if self.config.java or self.config.kotlin:
+            roles.append("maven")
+            roles.append("gradle")
         if self.config.rust:
             roles.append("rust")
         if self.config.go:

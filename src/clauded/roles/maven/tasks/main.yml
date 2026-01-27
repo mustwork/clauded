@@ -63,6 +63,8 @@
 
 - name: Verify Maven installation
   command: /opt/maven/current/bin/mvn --version
+  environment:
+    JAVA_HOME: "{{ java_home }}"
   register: maven_version_output
   changed_when: false
 

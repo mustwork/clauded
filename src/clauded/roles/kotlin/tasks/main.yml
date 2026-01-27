@@ -45,6 +45,8 @@
 
 - name: Verify Kotlin installation
   command: kotlin -version
+  environment:
+    JAVA_HOME: "{{ java_home }}"
   register: kotlin_version_output
   changed_when: false
 

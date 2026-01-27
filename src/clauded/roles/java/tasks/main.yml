@@ -26,11 +26,19 @@
     state: present
     update_cache: yes
 
+- name: Determine JDK architecture suffix
+  set_fact:
+    jdk_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+
 - name: Set JAVA_HOME environment variable
   lineinfile:
     path: /etc/environment
-    line: "JAVA_HOME=/usr/lib/jvm/temurin-{{ java_version }}-jdk-arm64"
+    line: "JAVA_HOME=/usr/lib/jvm/temurin-{{ java_version }}-jdk-{{ jdk_arch }}"
     create: yes
+
+- name: Set java_home fact for other roles
+  set_fact:
+    java_home: "/usr/lib/jvm/temurin-{{ java_version }}-jdk-{{ jdk_arch }}"
 
 - name: Verify Java installation
   command: java -version
