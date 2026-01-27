@@ -203,8 +203,8 @@ class TestCliNoConfig:
                     MockVM.return_value = mock_vm
 
                     with patch("clauded.cli.Provisioner"):
-                        # This will try to run the wizard
-                        runner.invoke(main, [])
+                        # This will try to run the wizard with --no-detect flag
+                        runner.invoke(main, ["--no-detect"])
 
                         mock_wizard.run.assert_called_once()
 

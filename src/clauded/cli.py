@@ -6,6 +6,9 @@ import click
 
 from . import wizard
 from .config import Config
+from .detect import detect
+from .detect.cli_integration import display_detection_json
+from .detect.wizard_integration import run_with_detection
 from .lima import LimaVM
 from .provisioner import Provisioner
 
@@ -17,13 +20,37 @@ from .provisioner import Provisioner
 @click.option("--reprovision", is_flag=True, help="Re-run provisioning on the VM")
 @click.option("--stop", is_flag=True, help="Stop the VM without entering shell")
 @click.option("--edit", is_flag=True, help="Edit VM configuration and reprovision")
-def main(destroy: bool, reprovision: bool, stop: bool, edit: bool) -> None:
+@click.option(
+    "--detect",
+    "detect_only",
+    is_flag=True,
+    help="Run detection only and output results without starting wizard",
+)
+@click.option(
+    "--no-detect",
+    is_flag=True,
+    help="Skip auto-detection and use default wizard values",
+)
+def main(
+    destroy: bool,
+    reprovision: bool,
+    stop: bool,
+    edit: bool,
+    detect_only: bool = False,
+    no_detect: bool = False,
+) -> None:
     """clauded - Isolated, per-project Lima VMs.
 
     Run in any directory to create or connect to a project-specific VM.
     """
     config_path = Path.cwd() / ".clauded.yaml"
     project_path = Path.cwd().resolve()
+
+    # Handle --detect (detection-only mode)
+    if detect_only:
+        detection_result = detect(project_path)
+        display_detection_json(detection_result)
+        return
 
     # Handle --destroy
     if destroy:
@@ -90,10 +117,15 @@ def main(destroy: bool, reprovision: bool, stop: bool, edit: bool) -> None:
         vm.shell()
         return
 
-    # No config? Run wizard
+    # No config? Run wizard (with or without detection)
     if not config_path.exists():
         try:
-            config = wizard.run(project_path)
+            if no_detect:
+                # Skip detection, use default wizard
+                config = wizard.run(project_path)
+            else:
+                # Run wizard with detection-based defaults
+                config = run_with_detection(project_path)
             config.save(config_path)
             click.echo("\nCreated .clauded.yaml")
         except KeyboardInterrupt:

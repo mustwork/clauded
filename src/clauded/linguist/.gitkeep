@@ -1,0 +1,13 @@
+# Linguist Data Directory
+
+This directory contains vendored copies of GitHub Linguist YAML files:
+- languages.yml: Extension → language mapping, interpreter names, language metadata
+- heuristics.yml: Disambiguation rules for ambiguous extensions
+- vendor.yml: Paths to exclude from detection (node_modules, vendor, etc.)
+
+These files are fetched from: https://github.com/github-linguist/linguist
+
+Update process:
+1. Fetch latest files from Linguist repository
+2. Place in this directory
+3. No code changes required - detection logic loads these files directly
