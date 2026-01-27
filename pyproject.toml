@@ -76,3 +76,13 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.151.2",
+    "mypy>=1.19.1",
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "ruff>=0.14.14",
+    "types-pyyaml>=6.0.12.20250915",
+]
