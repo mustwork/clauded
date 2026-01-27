@@ -66,6 +66,9 @@
 
 - name: Verify Rust installation
   command: /usr/local/cargo/bin/rustc --version
+  environment:
+    RUSTUP_HOME: /usr/local/rustup
+    CARGO_HOME: /usr/local/cargo
   register: rust_version_output
   changed_when: false
 
