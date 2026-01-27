@@ -1,6 +1,7 @@
 """Main CLI entry point for clauded."""
 
 import logging
+import subprocess
 import sys
 from pathlib import Path
 
@@ -23,16 +24,19 @@ def _reset_terminal() -> None:
     escape sequences or modify terminal settings.
     """
     if sys.stdin.isatty():
+        # Use stty sane for comprehensive terminal reset
+        try:
+            subprocess.run(["stty", "sane"], check=False, capture_output=True)
+        except FileNotFoundError:
+            pass
+
+        # Also flush any pending input
         try:
             import termios
 
-            # Get current terminal attributes
             fd = sys.stdin.fileno()
-            attrs = termios.tcgetattr(fd)
-            # Set them again to reset any weird state
-            termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
-        except (ImportError, termios.error):
-            # termios not available or error - skip reset
+            termios.tcflush(fd, termios.TCIFLUSH)
+        except (ImportError, OSError):
             pass
 
 
@@ -136,9 +140,10 @@ def main(
 
         if not vm.is_running():
             vm.start(debug=debug)
-            # Reset terminal state after limactl - it may output escape sequences
-            # that interfere with questionary's interactive prompts
-            _reset_terminal()
+
+        # Always reset terminal state before running wizard - limactl operations
+        # may output escape sequences that interfere with questionary's prompts
+        _reset_terminal()
 
         try:
             new_config = wizard.run_edit(config, project_path)

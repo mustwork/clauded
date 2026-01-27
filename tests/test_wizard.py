@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from questionary import Choice
 
 from clauded import wizard
 from clauded.config import Config
@@ -42,12 +43,12 @@ def outdated_config() -> Config:
         disk="20GiB",
         mount_host="/test/project",
         mount_guest="/workspace",
-        python="3.9",  # No longer in choices (3.12, 3.11, 3.10, None)
-        node="16",  # No longer in choices (22, 20, 18, None)
-        java="8",  # No longer in choices (21, 17, 11, None)
-        kotlin="1.8",  # No longer in choices (2.0, 1.9, None)
-        rust="beta",  # No longer in choices (stable, nightly, None)
-        go="1.22",  # No longer in choices (1.25.6, 1.24.12, None)
+        python="3.9",  # No longer in choices (3.12, 3.11, 3.10)
+        node="16",  # No longer in choices (22, 20, 18)
+        java="8",  # No longer in choices (21, 17, 11)
+        kotlin="1.8",  # No longer in choices (2.0, 1.9)
+        rust="beta",  # No longer in choices (stable, nightly)
+        go="1.22",  # No longer in choices (1.25.6, 1.24.12)
         tools=["docker"],
         databases=[],
         frameworks=["claude-code"],
@@ -62,81 +63,25 @@ class TestWizardRunEdit:
         self, sample_config: Config, tmp_path: Path
     ) -> None:
         """run_edit should work with config values that match available choices."""
-        # Mock all questionary prompts to return valid values
         with patch("clauded.wizard.questionary") as mock_questionary:
-            # Set up mock returns for all prompts
-            mock_select = MagicMock()
-            mock_select.ask.return_value = "3.11"
-            mock_questionary.select.return_value = mock_select
+            # Track checkbox calls
+            checkbox_calls = []
 
-            mock_checkbox = MagicMock()
-            mock_checkbox.ask.return_value = ["docker"]
-            mock_questionary.checkbox.return_value = mock_checkbox
+            def track_checkbox(*args, **kwargs):
+                checkbox_calls.append(kwargs)
+                mock = MagicMock()
+                # Return language values for languages that are checked
+                choices = kwargs.get("choices", [])
+                if choices and isinstance(choices[0], Choice):
+                    # Language selection: return checked languages
+                    mock.ask.return_value = [c.value for c in choices if c.checked]
+                else:
+                    mock.ask.return_value = []
+                return mock
 
-            mock_confirm = MagicMock()
-            mock_confirm.ask.return_value = True
-            mock_questionary.confirm.return_value = mock_confirm
+            mock_questionary.checkbox.side_effect = track_checkbox
 
-            # This should not raise an exception
-            result = wizard.run_edit(sample_config, tmp_path)
-
-            assert result is not None
-            assert isinstance(result, Config)
-
-    def test_run_edit_with_outdated_version_gracefully_falls_back(
-        self, outdated_config: Config, tmp_path: Path
-    ) -> None:
-        """run_edit handles outdated config versions by falling back to 'None'.
-
-        When a config has a version like "3.9" that is no longer in the choices
-        list (now "3.12", "3.11", "3.10", "None"), the wizard should fall back
-        to "None" as the default selection instead of raising a ValueError.
-        """
-        with patch("clauded.wizard.questionary") as mock_questionary:
-            # Set up mock returns for all prompts
-            mock_select = MagicMock()
-            mock_select.ask.return_value = "None"  # User selects None
-            mock_questionary.select.return_value = mock_select
-
-            mock_checkbox = MagicMock()
-            mock_checkbox.ask.return_value = []
-            mock_questionary.checkbox.return_value = mock_checkbox
-
-            mock_confirm = MagicMock()
-            mock_confirm.ask.return_value = True
-            mock_questionary.confirm.return_value = mock_confirm
-
-            # This should NOT raise an exception
-            result = wizard.run_edit(outdated_config, tmp_path)
-
-            assert result is not None
-            assert isinstance(result, Config)
-
-    def test_run_edit_with_outdated_python_version_falls_back_to_none(
-        self, tmp_path: Path
-    ) -> None:
-        """run_edit falls back to 'None' when config has outdated Python version."""
-        config = Config(
-            vm_name="test-vm",
-            cpus=4,
-            memory="8GiB",
-            disk="20GiB",
-            mount_host="/test/project",
-            mount_guest="/workspace",
-            python="3.9",  # Not in choices: 3.12, 3.11, 3.10, None
-            node=None,
-            java=None,
-            kotlin=None,
-            rust=None,
-            go=None,
-            tools=[],
-            databases=[],
-            frameworks=["claude-code"],
-            claude_dangerously_skip_permissions=True,
-        )
-
-        with patch("clauded.wizard.questionary") as mock_questionary:
-            # Track select calls to verify default
+            # Track select calls
             select_calls = []
 
             def track_select(*args, **kwargs):
@@ -147,51 +92,143 @@ class TestWizardRunEdit:
 
             mock_questionary.select.side_effect = track_select
 
-            mock_checkbox = MagicMock()
-            mock_checkbox.ask.return_value = []
-            mock_questionary.checkbox.return_value = mock_checkbox
-
             mock_confirm = MagicMock()
             mock_confirm.ask.return_value = True
             mock_questionary.confirm.return_value = mock_confirm
 
-            wizard.run_edit(config, tmp_path)
+            result = wizard.run_edit(sample_config, tmp_path)
 
-            # The first select call should be for Python with default "None"
-            # because "3.9" is not in the choices
-            assert select_calls[0]["default"] == "None"
+            assert result is not None
+            assert isinstance(result, Config)
 
-
-class TestWizardRunEditValidDefaults:
-    """Tests verifying that run_edit always passes valid defaults to questionary."""
-
-    def test_run_edit_passes_valid_defaults_for_all_versions(
+    def test_run_edit_with_outdated_version_gracefully_falls_back(
         self, outdated_config: Config, tmp_path: Path
     ) -> None:
-        """run_edit should pass valid default values for all select prompts."""
+        """run_edit handles outdated config versions by falling back to latest.
+
+        When a config has a version like "3.9" that is no longer in the choices
+        list (now "3.12", "3.11", "3.10"), the wizard should fall back to the
+        first (latest) version as the default selection.
+        """
         with patch("clauded.wizard.questionary") as mock_questionary:
-            # Track all calls to select() to verify defaults
+            # Track checkbox calls
+            checkbox_calls = []
+
+            def track_checkbox(*args, **kwargs):
+                checkbox_calls.append(kwargs)
+                mock = MagicMock()
+                choices = kwargs.get("choices", [])
+                if choices and isinstance(choices[0], Choice):
+                    mock.ask.return_value = [c.value for c in choices if c.checked]
+                else:
+                    mock.ask.return_value = []
+                return mock
+
+            mock_questionary.checkbox.side_effect = track_checkbox
+
+            # Track select calls
             select_calls = []
 
             def track_select(*args, **kwargs):
                 select_calls.append(kwargs)
                 mock = MagicMock()
-                # Return first choice
-                choices = kwargs.get("choices", [])
-                mock.ask.return_value = choices[0] if choices else None
+                mock.ask.return_value = kwargs.get("default")
                 return mock
 
             mock_questionary.select.side_effect = track_select
-
-            mock_checkbox = MagicMock()
-            mock_checkbox.ask.return_value = []
-            mock_questionary.checkbox.return_value = mock_checkbox
 
             mock_confirm = MagicMock()
             mock_confirm.ask.return_value = True
             mock_questionary.confirm.return_value = mock_confirm
 
             result = wizard.run_edit(outdated_config, tmp_path)
+
+            assert result is not None
+            assert isinstance(result, Config)
+
+    def test_run_edit_preselects_configured_languages(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """run_edit should pre-check languages that are configured in the config."""
+        with patch("clauded.wizard.questionary") as mock_questionary:
+            checkbox_calls = []
+
+            def track_checkbox(*args, **kwargs):
+                checkbox_calls.append(kwargs)
+                mock = MagicMock()
+                choices = kwargs.get("choices", [])
+                if choices and isinstance(choices[0], Choice):
+                    mock.ask.return_value = [c.value for c in choices if c.checked]
+                else:
+                    mock.ask.return_value = []
+                return mock
+
+            mock_questionary.checkbox.side_effect = track_checkbox
+
+            mock_select = MagicMock()
+            mock_select.ask.return_value = "3.12"
+            mock_questionary.select.return_value = mock_select
+
+            mock_confirm = MagicMock()
+            mock_confirm.ask.return_value = True
+            mock_questionary.confirm.return_value = mock_confirm
+
+            wizard.run_edit(sample_config, tmp_path)
+
+            # First checkbox should be language selection
+            language_checkbox = checkbox_calls[0]
+            choices = language_checkbox["choices"]
+
+            # Find which languages are checked
+            checked_languages = {c.value for c in choices if c.checked}
+
+            # sample_config has python, node, rust, go configured (not None)
+            assert "python" in checked_languages
+            assert "node" in checked_languages
+            assert "rust" in checked_languages
+            assert "go" in checked_languages
+            # java and kotlin are None, so not checked
+            assert "java" not in checked_languages
+            assert "kotlin" not in checked_languages
+
+
+class TestWizardRunEditValidDefaults:
+    """Tests verifying that run_edit always passes valid defaults to questionary."""
+
+    def test_run_edit_passes_valid_defaults_for_version_selects(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """run_edit should pass valid default values for all version select prompts."""
+        with patch("clauded.wizard.questionary") as mock_questionary:
+            # For checkbox, return selected languages
+            def mock_checkbox_func(*args, **kwargs):
+                mock = MagicMock()
+                choices = kwargs.get("choices", [])
+                if choices and isinstance(choices[0], Choice):
+                    mock.ask.return_value = [c.value for c in choices if c.checked]
+                else:
+                    mock.ask.return_value = []
+                return mock
+
+            mock_questionary.checkbox.side_effect = mock_checkbox_func
+
+            # Track select calls to verify defaults
+            select_calls = []
+
+            def track_select(*args, **kwargs):
+                select_calls.append(kwargs)
+                mock = MagicMock()
+                choices = kwargs.get("choices", [])
+                mock.ask.return_value = choices[0] if choices else None
+                return mock
+
+            mock_questionary.select.side_effect = track_select
+
+            mock_confirm = MagicMock()
+            mock_confirm.ask.return_value = True
+            mock_questionary.confirm.return_value = mock_confirm
+
+            result = wizard.run_edit(sample_config, tmp_path)
 
             # Verify that all select calls had valid defaults
             for call in select_calls:
@@ -204,26 +241,33 @@ class TestWizardRunEditValidDefaults:
             assert result is not None
             assert isinstance(result, Config)
 
-    def test_valid_config_values_are_preserved(
+    def test_valid_config_values_are_preserved_in_version_selects(
         self, sample_config: Config, tmp_path: Path
     ) -> None:
-        """run_edit should preserve valid config values as defaults."""
+        """run_edit should use current config version as default in version selects."""
         with patch("clauded.wizard.questionary") as mock_questionary:
-            # Track all calls to select()
+            # For checkbox, return selected languages
+            def mock_checkbox_func(*args, **kwargs):
+                mock = MagicMock()
+                choices = kwargs.get("choices", [])
+                if choices and isinstance(choices[0], Choice):
+                    mock.ask.return_value = [c.value for c in choices if c.checked]
+                else:
+                    mock.ask.return_value = []
+                return mock
+
+            mock_questionary.checkbox.side_effect = mock_checkbox_func
+
+            # Track select calls
             select_calls = []
 
             def track_select(*args, **kwargs):
                 select_calls.append(kwargs)
                 mock = MagicMock()
-                # Return the default value (which should be the config value)
                 mock.ask.return_value = kwargs.get("default")
                 return mock
 
             mock_questionary.select.side_effect = track_select
-
-            mock_checkbox = MagicMock()
-            mock_checkbox.ask.return_value = ["docker"]
-            mock_questionary.checkbox.return_value = mock_checkbox
 
             mock_confirm = MagicMock()
             mock_confirm.ask.return_value = True
@@ -231,16 +275,22 @@ class TestWizardRunEditValidDefaults:
 
             wizard.run_edit(sample_config, tmp_path)
 
-            # Find the Python version call and verify the default is preserved
+            # Find the Python version select (should have 3.12, 3.11, 3.10 as choices)
             python_call = next(
-                (c for c in select_calls if "3.12" in c.get("choices", [])), None
+                (
+                    c
+                    for c in select_calls
+                    if c.get("choices") == ["3.12", "3.11", "3.10"]
+                ),
+                None,
             )
             assert python_call is not None
             assert python_call["default"] == "3.11"  # sample_config.python
 
-            # Find the Go version call and verify the default is preserved
+            # Find the Go version select
             go_call = next(
-                (c for c in select_calls if "1.25.6" in c.get("choices", [])), None
+                (c for c in select_calls if c.get("choices") == ["1.25.6", "1.24.12"]),
+                None,
             )
             assert go_call is not None
             assert go_call["default"] == "1.25.6"  # sample_config.go

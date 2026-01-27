@@ -96,14 +96,38 @@ def run_with_detection(
 
     answers: dict[str, str | list[str]] = {}
 
-    # Language version choices and display names
+    # Language version choices, display names, and package managers
     language_config: dict[str, dict[str, str | list[str]]] = {
-        "python": {"name": "Python", "versions": ["3.12", "3.11", "3.10"]},
-        "node": {"name": "Node.js", "versions": ["22", "20", "18"]},
-        "java": {"name": "Java", "versions": ["21", "17", "11"]},
-        "kotlin": {"name": "Kotlin", "versions": ["2.0", "1.9"]},
-        "rust": {"name": "Rust", "versions": ["stable", "nightly"]},
-        "go": {"name": "Go", "versions": ["1.25.6", "1.24.12"]},
+        "python": {
+            "name": "Python",
+            "versions": ["3.12", "3.11", "3.10"],
+            "label": "Python (uv, uvx, pip, pipx)",
+        },
+        "node": {
+            "name": "Node.js",
+            "versions": ["22", "20", "18"],
+            "label": "Node.js (npm, npx)",
+        },
+        "java": {
+            "name": "Java",
+            "versions": ["21", "17", "11"],
+            "label": "Java (maven, gradle)",
+        },
+        "kotlin": {
+            "name": "Kotlin",
+            "versions": ["2.0", "1.9"],
+            "label": "Kotlin (maven, gradle)",
+        },
+        "rust": {
+            "name": "Rust",
+            "versions": ["stable", "nightly"],
+            "label": "Rust (cargo)",
+        },
+        "go": {
+            "name": "Go",
+            "versions": ["1.25.6", "1.24.12"],
+            "label": "Go (go mod)",
+        },
     }
 
     # Languages - single checkbox for all
@@ -111,14 +135,14 @@ def run_with_detection(
         "Select languages:",
         choices=[
             Choice(
-                str(language_config[lang]["name"]),
+                str(language_config[lang]["label"]),
                 value=lang,
                 checked=defaults.get(lang) != "None",
             )
             for lang in language_config
         ],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if selected_languages is None:
@@ -143,7 +167,7 @@ def run_with_detection(
                 default=default_version if default_version in versions else versions[0],
                 use_indicator=True,
                 style=WIZARD_STYLE,
-                instruction="(enter/→ next, ← previous)",
+                instruction="(enter to confirm)",
             ).ask()
 
             if version is None:
@@ -163,7 +187,7 @@ def run_with_detection(
             Choice("gh", checked="gh" in detected_tools),
         ],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if answers["tools"] is None:
@@ -182,7 +206,7 @@ def run_with_detection(
             Choice("mysql", checked="mysql" in detected_databases),
         ],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if answers["databases"] is None:
@@ -199,7 +223,7 @@ def run_with_detection(
             Choice("playwright", checked="playwright" in detected_frameworks),
         ],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if additional_frameworks is None:

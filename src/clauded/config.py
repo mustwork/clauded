@@ -83,9 +83,9 @@ class Config:
             kotlin=data["environment"].get("kotlin"),
             rust=data["environment"].get("rust"),
             go=data["environment"].get("go"),
-            tools=data["environment"].get("tools", []),
-            databases=data["environment"].get("databases", []),
-            frameworks=data["environment"].get("frameworks", []),
+            tools=data["environment"].get("tools") or [],
+            databases=data["environment"].get("databases") or [],
+            frameworks=data["environment"].get("frameworks") or [],
             claude_dangerously_skip_permissions=data.get("claude", {}).get(
                 "dangerously_skip_permissions", True
             ),

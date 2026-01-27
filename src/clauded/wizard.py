@@ -34,85 +34,84 @@ def run(project_path: Path) -> Config:
 
     print("\n  clauded - VM Environment Setup\n")
 
-    answers = {}
+    answers: dict[str, str | list[str] | bool] = {}
 
-    # Python version (default: 3.12)
-    answers["python"] = questionary.select(
-        "Python version?",
-        choices=["3.12", "3.11", "3.10", "None"],
-        default="3.12",
-        use_indicator=True,
+    # Language version choices, display names, and package managers
+    language_config: dict[str, dict[str, str | list[str]]] = {
+        "python": {
+            "name": "Python",
+            "versions": ["3.12", "3.11", "3.10"],
+            "label": "Python (uv, uvx, pip, pipx)",
+        },
+        "node": {
+            "name": "Node.js",
+            "versions": ["22", "20", "18"],
+            "label": "Node.js (npm, npx)",
+        },
+        "java": {
+            "name": "Java",
+            "versions": ["21", "17", "11"],
+            "label": "Java (maven, gradle)",
+        },
+        "kotlin": {
+            "name": "Kotlin",
+            "versions": ["2.0", "1.9"],
+            "label": "Kotlin (maven, gradle)",
+        },
+        "rust": {
+            "name": "Rust",
+            "versions": ["stable", "nightly"],
+            "label": "Rust (cargo)",
+        },
+        "go": {
+            "name": "Go",
+            "versions": ["1.25.6", "1.24.12"],
+            "label": "Go (go mod)",
+        },
+    }
+
+    # Default languages to pre-select
+    default_languages = {"python", "node"}
+
+    # Languages - checkbox to select which to include
+    selected_languages = questionary.checkbox(
+        "Select languages:",
+        choices=[
+            Choice(
+                str(language_config[lang]["label"]),
+                value=lang,
+                checked=lang in default_languages,
+            )
+            for lang in language_config
+        ],
         style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
-    if answers["python"] is None:  # User cancelled
+    if selected_languages is None:
         raise KeyboardInterrupt()
 
-    # Node version (default: 20)
-    answers["node"] = questionary.select(
-        "Node.js version?",
-        choices=["22", "20", "18", "None"],
-        default="20",
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
+    # For each selected language, ask for version (default to first/latest)
+    for lang in language_config:
+        if lang in selected_languages:
+            lang_cfg = language_config[lang]
+            versions = lang_cfg["versions"]
+            assert isinstance(versions, list)
 
-    if answers["node"] is None:
-        raise KeyboardInterrupt()
+            version = questionary.select(
+                f"{lang_cfg['name']} version?",
+                choices=versions,
+                default=versions[0],
+                use_indicator=True,
+                style=WIZARD_STYLE,
+                instruction="(enter to confirm)",
+            ).ask()
 
-    # Java version (default: 21)
-    answers["java"] = questionary.select(
-        "Java version?",
-        choices=["21", "17", "11", "None"],
-        default="21",
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
-
-    if answers["java"] is None:
-        raise KeyboardInterrupt()
-
-    # Kotlin version (default: 2.0)
-    answers["kotlin"] = questionary.select(
-        "Kotlin version?",
-        choices=["2.0", "1.9", "None"],
-        default="2.0",
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
-
-    if answers["kotlin"] is None:
-        raise KeyboardInterrupt()
-
-    # Rust version (default: stable)
-    answers["rust"] = questionary.select(
-        "Rust version?",
-        choices=["stable", "nightly", "None"],
-        default="stable",
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
-
-    if answers["rust"] is None:
-        raise KeyboardInterrupt()
-
-    # Go version (default: 1.25.6)
-    answers["go"] = questionary.select(
-        "Go version?",
-        choices=["1.25.6", "1.24.12", "None"],
-        default="1.25.6",
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
-
-    if answers["go"] is None:
-        raise KeyboardInterrupt()
+            if version is None:
+                raise KeyboardInterrupt()
+            answers[lang] = version
+        else:
+            answers[lang] = "None"
 
     # Tools (multi-select, default: docker)
     # Note: git and npm are always installed via common and node roles
@@ -125,7 +124,7 @@ def run(project_path: Path) -> Config:
             Choice("gh", checked=False),
         ],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if answers["tools"] is None:
@@ -136,7 +135,7 @@ def run(project_path: Path) -> Config:
         "Select databases:",
         choices=["postgresql", "redis", "mysql"],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if answers["databases"] is None:
@@ -149,7 +148,7 @@ def run(project_path: Path) -> Config:
             Choice("playwright", checked=False),
         ],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if additional_frameworks is None:
@@ -191,91 +190,87 @@ def run_edit(config: Config, project_path: Path) -> Config:
     print("\n  clauded - Edit VM Configuration\n")
     print("  (VM resources cannot be changed without recreation)\n")
 
-    answers = {}
+    answers: dict[str, str | list[str] | bool] = {}
 
-    # Python version - pre-select current value
-    python_choices = ["3.12", "3.11", "3.10", "None"]
-    answers["python"] = questionary.select(
-        "Python version?",
-        choices=python_choices,
-        default=_get_valid_default(config.python, python_choices),
-        use_indicator=True,
+    # Language version choices, display names, and package managers
+    language_config: dict[str, dict[str, str | list[str]]] = {
+        "python": {
+            "name": "Python",
+            "versions": ["3.12", "3.11", "3.10"],
+            "label": "Python (uv, uvx, pip, pipx)",
+        },
+        "node": {
+            "name": "Node.js",
+            "versions": ["22", "20", "18"],
+            "label": "Node.js (npm, npx)",
+        },
+        "java": {
+            "name": "Java",
+            "versions": ["21", "17", "11"],
+            "label": "Java (maven, gradle)",
+        },
+        "kotlin": {
+            "name": "Kotlin",
+            "versions": ["2.0", "1.9"],
+            "label": "Kotlin (maven, gradle)",
+        },
+        "rust": {
+            "name": "Rust",
+            "versions": ["stable", "nightly"],
+            "label": "Rust (cargo)",
+        },
+        "go": {
+            "name": "Go",
+            "versions": ["1.25.6", "1.24.12"],
+            "label": "Go (go mod)",
+        },
+    }
+
+    # Languages - checkbox to select which to include (pre-check currently configured)
+    selected_languages = questionary.checkbox(
+        "Select languages:",
+        choices=[
+            Choice(
+                str(language_config[lang]["label"]),
+                value=lang,
+                checked=getattr(config, lang) is not None,
+            )
+            for lang in language_config
+        ],
         style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
-    if answers["python"] is None:
+    if selected_languages is None:
         raise KeyboardInterrupt()
 
-    # Node version - pre-select current value
-    node_choices = ["22", "20", "18", "None"]
-    answers["node"] = questionary.select(
-        "Node.js version?",
-        choices=node_choices,
-        default=_get_valid_default(config.node, node_choices),
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
+    # For each selected language, ask for version (default to current or latest)
+    for lang in language_config:
+        if lang in selected_languages:
+            lang_cfg = language_config[lang]
+            versions = lang_cfg["versions"]
+            assert isinstance(versions, list)
 
-    if answers["node"] is None:
-        raise KeyboardInterrupt()
+            # Get current version, default to first (latest) if not set or invalid
+            current_version = getattr(config, lang)
+            default_version = (
+                current_version if current_version in versions else versions[0]
+            )
 
-    # Java version - pre-select current value
-    java_choices = ["21", "17", "11", "None"]
-    answers["java"] = questionary.select(
-        "Java version?",
-        choices=java_choices,
-        default=_get_valid_default(config.java, java_choices),
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
+            version = questionary.select(
+                f"{lang_cfg['name']} version?",
+                choices=versions,
+                default=default_version,
+                use_indicator=True,
+                style=WIZARD_STYLE,
+                instruction="(enter to confirm)",
+            ).ask()
 
-    if answers["java"] is None:
-        raise KeyboardInterrupt()
-
-    # Kotlin version - pre-select current value
-    kotlin_choices = ["2.0", "1.9", "None"]
-    answers["kotlin"] = questionary.select(
-        "Kotlin version?",
-        choices=kotlin_choices,
-        default=_get_valid_default(config.kotlin, kotlin_choices),
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
-
-    if answers["kotlin"] is None:
-        raise KeyboardInterrupt()
-
-    # Rust version - pre-select current value
-    rust_choices = ["stable", "nightly", "None"]
-    answers["rust"] = questionary.select(
-        "Rust version?",
-        choices=rust_choices,
-        default=_get_valid_default(config.rust, rust_choices),
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
-
-    if answers["rust"] is None:
-        raise KeyboardInterrupt()
-
-    # Go version - pre-select current value
-    go_choices = ["1.25.6", "1.24.12", "None"]
-    answers["go"] = questionary.select(
-        "Go version?",
-        choices=go_choices,
-        default=_get_valid_default(config.go, go_choices),
-        use_indicator=True,
-        style=WIZARD_STYLE,
-        instruction="(enter/→ next, ← previous)",
-    ).ask()
-
-    if answers["go"] is None:
-        raise KeyboardInterrupt()
+            if version is None:
+                raise KeyboardInterrupt()
+            answers[lang] = version
+        else:
+            answers[lang] = "None"
 
     # Tools - pre-check current selections
     # Note: git and npm are always installed via common and node roles
@@ -288,7 +283,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
             Choice("gh", checked="gh" in config.tools),
         ],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if answers["tools"] is None:
@@ -303,7 +298,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
             Choice("mysql", checked="mysql" in config.databases),
         ],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if answers["databases"] is None:
@@ -316,7 +311,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
             Choice("playwright", checked="playwright" in config.frameworks),
         ],
         style=WIZARD_STYLE,
-        instruction="(space to select, enter/→ next, ← previous)",
+        instruction="(space to select, enter to confirm)",
     ).ask()
 
     if additional_frameworks is None:
