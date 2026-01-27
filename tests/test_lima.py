@@ -175,39 +175,37 @@ class TestLimaVMGenerateLimaConfig:
     def test_mounts_home_directories_when_exist(
         self, sample_config: Config, tmp_path: Path
     ) -> None:
-        """Mounts ~/.claude and ~/.git when they exist."""
+        """Mounts ~/.claude when it exists."""
         vm = LimaVM(sample_config)
 
-        # Create test directories
+        # Create test directory
         claude_dir = tmp_path / ".claude"
-        git_dir = tmp_path / ".git"
         claude_dir.mkdir()
-        git_dir.mkdir()
 
-        with patch("clauded.lima.Path.home", return_value=tmp_path):
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+        ):
             config = vm._generate_lima_config()
 
-        assert len(config["mounts"]) == 3
+        assert len(config["mounts"]) == 2
 
         # Check .claude mount
         claude_mount = config["mounts"][1]
         assert claude_mount["location"] == str(claude_dir)
-        assert claude_mount["mountPoint"] == "/home/lima.linux/.claude"
+        assert claude_mount["mountPoint"] == "/home/testuser.linux/.claude"
         assert claude_mount["writable"] is False
-
-        # Check .git mount
-        git_mount = config["mounts"][2]
-        assert git_mount["location"] == str(git_dir)
-        assert git_mount["mountPoint"] == "/home/lima.linux/.git"
-        assert git_mount["writable"] is False
 
     def test_skips_home_directories_when_not_exist(
         self, sample_config: Config, tmp_path: Path
     ) -> None:
-        """Does not mount ~/.claude and ~/.git when they don't exist."""
+        """Does not mount ~/.claude when it doesn't exist."""
         vm = LimaVM(sample_config)
 
-        with patch("clauded.lima.Path.home", return_value=tmp_path):
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+        ):
             config = vm._generate_lima_config()
 
         assert len(config["mounts"]) == 1
@@ -222,11 +220,14 @@ class TestLimaVMGenerateLimaConfig:
         claude_dir = tmp_path / ".claude"
         claude_dir.mkdir()
 
-        with patch("clauded.lima.Path.home", return_value=tmp_path):
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+        ):
             config = vm._generate_lima_config()
 
         assert len(config["mounts"]) == 2
-        assert config["mounts"][1]["mountPoint"] == "/home/lima.linux/.claude"
+        assert config["mounts"][1]["mountPoint"] == "/home/testuser.linux/.claude"
 
     def test_mount_points_must_be_absolute_paths(
         self, sample_config: Config, tmp_path: Path
@@ -234,13 +235,14 @@ class TestLimaVMGenerateLimaConfig:
         """Lima requires mount points to be absolute paths, not starting with ~."""
         vm = LimaVM(sample_config)
 
-        # Create test directories
+        # Create test directory
         claude_dir = tmp_path / ".claude"
-        git_dir = tmp_path / ".git"
         claude_dir.mkdir()
-        git_dir.mkdir()
 
-        with patch("clauded.lima.Path.home", return_value=tmp_path):
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+        ):
             config = vm._generate_lima_config()
 
         # All mount points must be absolute paths (not starting with ~)
@@ -263,16 +265,64 @@ class TestLimaVMGenerateLimaConfig:
         assert config["containerd"]["system"] is False
         assert config["containerd"]["user"] is False
 
-    def test_includes_provision_script(self, sample_config: Config) -> None:
+    def test_includes_provision_script(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
         """Generated config includes basic provisioning script."""
         vm = LimaVM(sample_config)
 
-        config = vm._generate_lima_config()
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+        ):
+            config = vm._generate_lima_config()
 
-        assert len(config["provision"]) == 1
+        assert len(config["provision"]) >= 1
         assert config["provision"][0]["mode"] == "system"
         assert "apt-get update" in config["provision"][0]["script"]
         assert "ca-certificates" in config["provision"][0]["script"]
+
+    def test_provisions_gitconfig_when_exists(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """Copies .gitconfig content to VM via provision script."""
+        vm = LimaVM(sample_config)
+
+        # Create .gitconfig file
+        gitconfig = tmp_path / ".gitconfig"
+        gitconfig.write_text("[user]\n\tname = Test User\n\temail = test@example.com\n")
+
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+        ):
+            config = vm._generate_lima_config()
+
+        # Should have 2 provision scripts: system + gitconfig
+        assert len(config["provision"]) == 2
+
+        # Check gitconfig provision
+        gitconfig_provision = config["provision"][1]
+        assert gitconfig_provision["mode"] == "user"
+        assert "~/.gitconfig" in gitconfig_provision["script"]
+        assert "Test User" in gitconfig_provision["script"]
+        assert "test@example.com" in gitconfig_provision["script"]
+
+    def test_no_gitconfig_provision_when_not_exists(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """Does not add gitconfig provision when file doesn't exist."""
+        vm = LimaVM(sample_config)
+
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+        ):
+            config = vm._generate_lima_config()
+
+        # Should only have the system provision script
+        assert len(config["provision"]) == 1
+        assert config["provision"][0]["mode"] == "system"
 
 
 class TestLimaVMCommands:

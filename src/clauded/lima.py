@@ -116,16 +116,28 @@ class LimaVM:
                 }
             )
 
-        # Mount .gitconfig file if it exists
+        # Build provision scripts
+        provision = [
+            {
+                "mode": "system",
+                "script": (
+                    "apt-get update && "
+                    "apt-get install -y ca-certificates curl git python3-pip"
+                ),
+            }
+        ]
+
+        # Copy .gitconfig content to VM if it exists
+        # (Lima mounts only support directories, not individual files)
         gitconfig = home / ".gitconfig"
         if gitconfig.exists():
-            mounts.append(
-                {
-                    "location": str(gitconfig),
-                    "mountPoint": f"{guest_home}/.gitconfig",
-                    "writable": False,
-                }
+            gitconfig_content = gitconfig.read_text()
+            # Use heredoc to write the file content
+            script = (
+                f"cat > ~/.gitconfig << 'GITCONFIG_EOF'\n"
+                f"{gitconfig_content}GITCONFIG_EOF"
             )
+            provision.append({"mode": "user", "script": script})
 
         return {
             "vmType": "vz",
@@ -146,13 +158,5 @@ class LimaVM:
             },
             "mountType": "virtiofs",
             "mounts": mounts,
-            "provision": [
-                {
-                    "mode": "system",
-                    "script": (
-                        "apt-get update && "
-                        "apt-get install -y ca-certificates curl git python3-pip"
-                    ),
-                }
-            ],
+            "provision": provision,
         }
