@@ -84,26 +84,36 @@ def detect_databases(project_path: Path) -> list[DetectedItem]:
         Redis: redis image, redis-py/ioredis deps, REDIS_URL
         MySQL: mysql/mariadb image, mysql-connector deps, DATABASE_URL with mysql://
     """
+    logger.debug(f"Detecting databases in {project_path}")
     databases = []
 
     try:
-        databases.extend(parse_docker_compose(project_path))
+        logger.debug("  Parsing docker-compose files...")
+        compose_dbs = parse_docker_compose(project_path)
+        logger.debug(f"    Found {len(compose_dbs)} databases from docker-compose")
+        databases.extend(compose_dbs)
     except Exception as e:
         logger.warning(f"Error parsing docker-compose files: {e}")
 
     try:
-        databases.extend(parse_env_files(project_path))
+        logger.debug("  Parsing environment files...")
+        env_dbs = parse_env_files(project_path)
+        logger.debug(f"    Found {len(env_dbs)} databases from env files")
+        databases.extend(env_dbs)
     except Exception as e:
         logger.warning(f"Error parsing environment files: {e}")
 
     try:
-        databases.extend(detect_orm_adapters(project_path))
+        logger.debug("  Detecting ORM adapters...")
+        orm_dbs = detect_orm_adapters(project_path)
+        logger.debug(f"    Found {len(orm_dbs)} databases from ORM adapters")
+        databases.extend(orm_dbs)
     except Exception as e:
         logger.warning(f"Error detecting ORM adapters: {e}")
 
     logger.debug(f"Detected {len(databases)} database items before deduplication")
     result = deduplicate_databases(databases)
-    logger.debug(f"Detected {len(result)} unique databases")
+    logger.debug(f"Detected {len(result)} unique databases after deduplication")
     return result
 
 

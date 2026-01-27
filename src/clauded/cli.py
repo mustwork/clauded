@@ -1,5 +1,6 @@
 """Main CLI entry point for clauded."""
 
+import logging
 from pathlib import Path
 
 import click
@@ -31,6 +32,11 @@ from .provisioner import Provisioner
     is_flag=True,
     help="Skip auto-detection and use default wizard values",
 )
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Enable debug logging for detection process",
+)
 def main(
     destroy: bool,
     reprovision: bool,
@@ -38,17 +44,25 @@ def main(
     edit: bool,
     detect_only: bool = False,
     no_detect: bool = False,
+    debug: bool = False,
 ) -> None:
     """clauded - Isolated, per-project Lima VMs.
 
     Run in any directory to create or connect to a project-specific VM.
     """
+    # Configure debug logging for detection
+    if debug:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="[DEBUG] %(name)s: %(message)s",
+        )
+
     config_path = Path.cwd() / ".clauded.yaml"
     project_path = Path.cwd().resolve()
 
     # Handle --detect (detection-only mode)
     if detect_only:
-        detection_result = detect(project_path)
+        detection_result = detect(project_path, debug=debug)
         display_detection_json(detection_result)
         return
 
@@ -125,7 +139,7 @@ def main(
                 config = wizard.run(project_path)
             else:
                 # Run wizard with detection-based defaults
-                config = run_with_detection(project_path)
+                config = run_with_detection(project_path, debug=debug)
             config.save(config_path)
             click.echo("\nCreated .clauded.yaml")
         except KeyboardInterrupt:

@@ -10,11 +10,15 @@ import questionary
 from questionary import Choice
 
 from ..config import Config
+from . import detect
 from .result import DetectionResult
 
 
 def run_with_detection(
-    project_path: Path, detection: DetectionResult | None = None
+    project_path: Path,
+    detection: DetectionResult | None = None,
+    *,
+    debug: bool = False,
 ) -> Config:
     """Run interactive wizard with detection-based defaults.
 
@@ -40,42 +44,37 @@ def run_with_detection(
       Algorithm:
         1. Print wizard header
         2. Display detection summary if detection provided
-        3. For each runtime (Python, Node, Java, Kotlin, Rust, Go):
-           a. Determine default value from detection or static default
-           b. Present questionary select with default
-           c. Store answer
-        4. For tools:
-           a. Determine which tools to pre-check from detection
-           b. Present questionary checkbox with checked items
-           c. Store answer
-        5. For databases:
-           a. Determine which databases to pre-check from detection
-           b. Present questionary checkbox with checked items
-           c. Store answer
-        6. For frameworks:
-           a. Determine which frameworks to pre-check from detection
-           b. Always include claude-code
-           c. Present questionary checkbox with checked items
-           c. Store answer
-        7. Optionally ask for VM resource customization
-        8. Return Config.from_wizard(answers, project_path)
+        3. Languages (single checkbox screen):
+           a. Show all languages with latest versions
+           b. Pre-check detected languages
+           c. Install latest version for each selected language
+        4. Tools, databases, frameworks: checkbox with detection-based defaults
+        5. Optionally ask for VM resource customization
+        6. Return Config.from_wizard(answers, project_path)
     """
     from .cli_integration import create_wizard_defaults, display_detection_summary
 
     print("\n  clauded - VM Environment Setup\n")
 
+    # Run detection if not provided
+    if detection is None:
+        detection = detect(project_path, debug=debug)
+
     # Create defaults from detection if provided
-    if detection:
+    has_detection = detection and (
+        detection.languages or detection.versions or detection.frameworks
+    )
+    if has_detection:
         display_detection_summary(detection)
         defaults = create_wizard_defaults(detection)
     else:
         defaults_dict: dict[str, str | list[str]] = {
-            "python": "3.12",
-            "node": "20",
-            "java": "21",
-            "kotlin": "2.0",
-            "rust": "stable",
-            "go": "1.22",
+            "python": "None",
+            "node": "None",
+            "java": "None",
+            "kotlin": "None",
+            "rust": "None",
+            "go": "None",
             "tools": [],
             "databases": [],
             "frameworks": ["claude-code"],
@@ -87,65 +86,58 @@ def run_with_detection(
 
     answers: dict[str, str | list[str]] = {}
 
-    # Python version
-    answers["python"] = questionary.select(
-        "Python version?",
-        choices=["3.12", "3.11", "3.10", "None"],
-        default=str(defaults.get("python", "3.12")),
+    # Language version choices and display names
+    language_config: dict[str, dict[str, str | list[str]]] = {
+        "python": {"name": "Python", "versions": ["3.12", "3.11", "3.10"]},
+        "node": {"name": "Node.js", "versions": ["22", "20", "18"]},
+        "java": {"name": "Java", "versions": ["21", "17", "11"]},
+        "kotlin": {"name": "Kotlin", "versions": ["2.0", "1.9"]},
+        "rust": {"name": "Rust", "versions": ["stable", "nightly"]},
+        "go": {"name": "Go", "versions": ["1.22", "1.21", "1.20"]},
+    }
+
+    # Languages - single checkbox for all
+    selected_languages = questionary.checkbox(
+        "Select languages:",
+        choices=[
+            Choice(
+                str(language_config[lang]["name"]),
+                value=lang,
+                checked=defaults.get(lang) != "None",
+            )
+            for lang in language_config
+        ],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
-    if answers["python"] is None:
+    if selected_languages is None:
         raise KeyboardInterrupt()
 
-    # Node version
-    answers["node"] = questionary.select(
-        "Node.js version?",
-        choices=["22", "20", "18", "None"],
-        default=str(defaults.get("node", "20")),
-    ).ask()
+    # For each selected language, ask for version (default to detected)
+    for lang in language_config:
+        if lang in selected_languages:
+            config = language_config[lang]
+            versions = config["versions"]
+            assert isinstance(versions, list)
+            default_val = defaults.get(lang, versions[0])
+            default_version = (
+                str(default_val) if not isinstance(default_val, list) else versions[0]
+            )
+            if default_version == "None":
+                default_version = versions[0]
 
-    if answers["node"] is None:
-        raise KeyboardInterrupt()
+            version = questionary.select(
+                f"{config['name']} version?",
+                choices=versions,
+                default=default_version if default_version in versions else versions[0],
+                instruction="(enter/→ next, ← previous)",
+            ).ask()
 
-    # Java version
-    answers["java"] = questionary.select(
-        "Java version?",
-        choices=["21", "17", "11", "None"],
-        default=str(defaults.get("java", "21")),
-    ).ask()
-
-    if answers["java"] is None:
-        raise KeyboardInterrupt()
-
-    # Kotlin version
-    answers["kotlin"] = questionary.select(
-        "Kotlin version?",
-        choices=["2.0", "1.9", "None"],
-        default=str(defaults.get("kotlin", "2.0")),
-    ).ask()
-
-    if answers["kotlin"] is None:
-        raise KeyboardInterrupt()
-
-    # Rust version
-    answers["rust"] = questionary.select(
-        "Rust version?",
-        choices=["stable", "nightly", "None"],
-        default=str(defaults.get("rust", "stable")),
-    ).ask()
-
-    if answers["rust"] is None:
-        raise KeyboardInterrupt()
-
-    # Go version
-    answers["go"] = questionary.select(
-        "Go version?",
-        choices=["1.22", "1.21", "1.20", "None"],
-        default=str(defaults.get("go", "1.22")),
-    ).ask()
-
-    if answers["go"] is None:
-        raise KeyboardInterrupt()
+            if version is None:
+                raise KeyboardInterrupt()
+            answers[lang] = version
+        else:
+            answers[lang] = "None"
 
     # Tools
     tools_default = defaults.get("tools", [])
@@ -157,6 +149,7 @@ def run_with_detection(
             Choice("aws-cli", checked="aws-cli" in detected_tools),
             Choice("gh", checked="gh" in detected_tools),
         ],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
     if answers["tools"] is None:
@@ -174,6 +167,7 @@ def run_with_detection(
             Choice("redis", checked="redis" in detected_databases),
             Choice("mysql", checked="mysql" in detected_databases),
         ],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
     if answers["databases"] is None:
@@ -189,6 +183,7 @@ def run_with_detection(
         choices=[
             Choice("playwright", checked="playwright" in detected_frameworks),
         ],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
     if additional_frameworks is None:

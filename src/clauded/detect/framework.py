@@ -13,24 +13,23 @@ from .utils import extract_package_name, is_safe_path, safe_read_text
 logger = logging.getLogger(__name__)
 
 # Framework and tool mappings
+# Frameworks are detected for informational display
 PYTHON_FRAMEWORKS = {"django", "flask", "fastapi"}
-PYTHON_TOOLS = {"pytest", "poetry", "uv"}
 NODE_FRAMEWORKS = {"react", "vue", "angular", "express", "next", "nest"}
-NODE_TOOLS = {"playwright", "jest", "webpack", "eslint", "prettier"}
 JAVA_FRAMEWORKS = {"spring-boot", "quarkus"}
 KOTLIN_FRAMEWORKS = {"spring-boot", "ktor"}
 RUST_FRAMEWORKS = {"actix", "rocket", "tokio"}
 GO_FRAMEWORKS = {"gin", "echo", "fiber"}
-BUILD_TOOLS = {"gradle", "maven"}
+# NOTE: Build tools (gradle, maven, uv, poetry) are NOT detected here
+# because they are auto-installed by provisioner.py based on language selection.
+# Only optional tools that require explicit user selection are detected.
+OPTIONAL_TOOLS = {"playwright", "docker"}
 
-# Package name to framework/tool name mappings
+# Package name to framework name mappings (frameworks only, not build tools)
 PYTHON_PACKAGE_MAPPING = {
     "django": "django",
     "flask": "flask",
     "fastapi": "fastapi",
-    "pytest": "pytest",
-    "poetry": "poetry",
-    "uv": "uv",
 }
 
 NODE_PACKAGE_MAPPING = {
@@ -41,11 +40,7 @@ NODE_PACKAGE_MAPPING = {
     "next": "next",
     "nest": "nest",
     "@nestjs/core": "nest",
-    "playwright": "playwright",
-    "jest": "jest",
-    "webpack": "webpack",
-    "eslint": "eslint",
-    "prettier": "prettier",
+    "playwright": "playwright",  # Optional tool, detected for wizard pre-selection
 }
 
 JAVA_ARTIFACT_MAPPING = {
@@ -139,31 +134,57 @@ def detect_frameworks_and_tools(
     # Collect all items from each ecosystem
     all_items: list[DetectedItem] = []
 
-    all_items.extend(parse_python_dependencies(project_path))
-    all_items.extend(parse_node_dependencies(project_path))
-    all_items.extend(parse_java_dependencies(project_path))
-    all_items.extend(parse_kotlin_dependencies(project_path))
-    all_items.extend(parse_rust_dependencies(project_path))
-    all_items.extend(parse_go_dependencies(project_path))
-    all_items.extend(detect_build_tools(project_path))
+    logger.debug("Parsing Python dependencies...")
+    python_items = parse_python_dependencies(project_path)
+    logger.debug(f"  Found {len(python_items)} Python items")
+    all_items.extend(python_items)
 
-    # Check for Docker
+    logger.debug("Parsing Node dependencies...")
+    node_items = parse_node_dependencies(project_path)
+    logger.debug(f"  Found {len(node_items)} Node items")
+    all_items.extend(node_items)
+
+    logger.debug("Parsing Java dependencies...")
+    java_items = parse_java_dependencies(project_path)
+    logger.debug(f"  Found {len(java_items)} Java items")
+    all_items.extend(java_items)
+
+    logger.debug("Parsing Kotlin dependencies...")
+    kotlin_items = parse_kotlin_dependencies(project_path)
+    logger.debug(f"  Found {len(kotlin_items)} Kotlin items")
+    all_items.extend(kotlin_items)
+
+    logger.debug("Parsing Rust dependencies...")
+    rust_items = parse_rust_dependencies(project_path)
+    logger.debug(f"  Found {len(rust_items)} Rust items")
+    all_items.extend(rust_items)
+
+    logger.debug("Parsing Go dependencies...")
+    go_items = parse_go_dependencies(project_path)
+    logger.debug(f"  Found {len(go_items)} Go items")
+    all_items.extend(go_items)
+
+    # Detect optional tools (docker, playwright)
     docker_item = detect_docker(project_path)
     if docker_item:
         all_items.append(docker_item)
 
-    # Separate frameworks and tools
+    # Separate frameworks and optional tools
+    # NOTE: Build tools (gradle, maven, uv, poetry) are NOT detected here
+    # because they are auto-installed by provisioner based on language selection
+    all_frameworks = (
+        PYTHON_FRAMEWORKS
+        | NODE_FRAMEWORKS
+        | JAVA_FRAMEWORKS
+        | KOTLIN_FRAMEWORKS
+        | RUST_FRAMEWORKS
+        | GO_FRAMEWORKS
+    )
+
     for item in all_items:
-        if item.name in (
-            PYTHON_FRAMEWORKS
-            | NODE_FRAMEWORKS
-            | JAVA_FRAMEWORKS
-            | KOTLIN_FRAMEWORKS
-            | RUST_FRAMEWORKS
-            | GO_FRAMEWORKS
-        ):
+        if item.name in all_frameworks:
             frameworks.append(item)
-        else:
+        elif item.name in OPTIONAL_TOOLS:
             tools.append(item)
 
     return frameworks, tools
@@ -724,85 +745,3 @@ def detect_docker(project_path: Path) -> DetectedItem | None:
         )
 
     return None
-
-
-def detect_build_tools(project_path: Path) -> list[DetectedItem]:
-    """Detect build tools from wrapper scripts or manifest files.
-
-    CONTRACT:
-      Inputs:
-        - project_path: directory path
-
-      Outputs:
-        - collection of DetectedItem objects for build tools (gradle, maven)
-        - empty collection if no build tools detected
-
-      Invariants:
-        - Gradle: detected from gradlew or build.gradle files
-        - Maven: detected from mvnw or pom.xml
-        - High confidence if wrapper scripts present
-
-      Algorithm:
-        1. Check for gradlew script or build.gradle file
-        2. Check for mvnw script or pom.xml file
-        3. Return collection of detected build tools
-    """
-    items: list[DetectedItem] = []
-
-    # Check for Gradle
-    gradlew = project_path / "gradlew"
-    build_gradle = project_path / "build.gradle"
-    build_gradle_kts = project_path / "build.gradle.kts"
-
-    if gradlew.exists() and is_safe_path(gradlew, project_path):
-        items.append(
-            DetectedItem(
-                name="gradle",
-                confidence="high",
-                source_file=str(gradlew),
-                source_evidence="gradlew",
-            )
-        )
-    elif build_gradle.exists() and is_safe_path(build_gradle, project_path):
-        items.append(
-            DetectedItem(
-                name="gradle",
-                confidence="high",
-                source_file=str(build_gradle),
-                source_evidence="build.gradle",
-            )
-        )
-    elif build_gradle_kts.exists() and is_safe_path(build_gradle_kts, project_path):
-        items.append(
-            DetectedItem(
-                name="gradle",
-                confidence="high",
-                source_file=str(build_gradle_kts),
-                source_evidence="build.gradle.kts",
-            )
-        )
-
-    # Check for Maven
-    mvnw = project_path / "mvnw"
-    pom_xml = project_path / "pom.xml"
-
-    if mvnw.exists() and is_safe_path(mvnw, project_path):
-        items.append(
-            DetectedItem(
-                name="maven",
-                confidence="high",
-                source_file=str(mvnw),
-                source_evidence="mvnw",
-            )
-        )
-    elif pom_xml.exists() and is_safe_path(pom_xml, project_path):
-        items.append(
-            DetectedItem(
-                name="maven",
-                confidence="high",
-                source_file=str(pom_xml),
-                source_evidence="pom.xml",
-            )
-        )
-
-    return items

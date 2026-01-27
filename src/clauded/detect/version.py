@@ -101,9 +101,16 @@ def detect_versions(project_path: Path) -> dict[str, VersionSpec]:
         ("rust", parse_rust_version),
         ("go", parse_go_version),
     ]:
+        logger.debug(f"  Checking {runtime} version...")
         spec = parser(project_path)
         if spec:
+            logger.debug(
+                f"    Found {runtime} {spec.version} "
+                f"({spec.constraint_type}) from {spec.source_file}"
+            )
             versions[runtime] = spec
+        else:
+            logger.debug(f"    No {runtime} version found")
 
     return versions
 

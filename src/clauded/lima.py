@@ -94,14 +94,17 @@ class LimaVM:
         ]
 
         # Add read-only mounts for home directory config (if they exist)
+        # Lima requires absolute paths for mountPoint (not tilde-prefixed)
+        # The default Lima VM user is 'lima' with home at /home/lima.linux/
         home = Path.home()
+        guest_home = "/home/lima.linux"
         for dirname in [".claude", ".git"]:
             dirpath = home / dirname
             if dirpath.exists():
                 mounts.append(
                     {
                         "location": str(dirpath),
-                        "mountPoint": f"~/{dirname}",
+                        "mountPoint": f"{guest_home}/{dirname}",
                         "writable": False,
                     }
                 )

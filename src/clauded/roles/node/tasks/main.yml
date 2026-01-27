@@ -24,3 +24,29 @@
 - name: Display Node.js version
   debug:
     msg: "Node.js version: {{ node_version_output.stdout }}"
+
+# Install additional package managers
+- name: Install yarn globally
+  npm:
+    name: yarn
+    global: yes
+    state: present
+
+- name: Install pnpm globally
+  npm:
+    name: pnpm
+    global: yes
+    state: present
+
+- name: Install bun
+  shell: |
+    curl -fsSL https://bun.sh/install | bash
+  args:
+    creates: /root/.bun/bin/bun
+
+- name: Create bun symlink
+  file:
+    src: /root/.bun/bin/bun
+    dest: /usr/local/bin/bun
+    state: link
+  ignore_errors: yes

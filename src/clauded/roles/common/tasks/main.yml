@@ -9,6 +9,7 @@
     name:
       - ca-certificates
       - curl
+      - direnv
       - git
       - gnupg
       - lsb-release

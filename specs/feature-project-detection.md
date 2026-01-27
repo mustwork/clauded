@@ -512,11 +512,40 @@ else:  # low
 **Description:**
 No automated tests validate the complete workflow from CLI entry point through detection to Config creation. All 347 tests verify components in isolation.
 
-**Missing Test Scenarios:**
-1. `clauded --detect` outputs valid JSON
-2. `clauded --no-detect` bypasses detection
-3. `run_with_detection()` → wizard defaults → Config creation
-4. Detection results pre-populate questionary prompts
+**E2E Test Scenarios to Implement:**
+
+| # | Scenario | Validates |
+|---|----------|-----------|
+| 1 | Python Django + PostgreSQL detection | FR-1 to FR-5: Full detection flow |
+| 2 | Node.js React + Playwright + Docker | FR-2 to FR-4, FR-6: Multi-tool detection |
+| 3 | Multi-language (Java + TypeScript) | FR-2 to FR-4: Multi-language/framework |
+| 4 | CLI `--detect` flag (detection-only mode) | FR-7: Detection report mode |
+| 5 | Wizard integration with detection results | FR-6: Pre-populated defaults |
+| 6 | Malformed manifest graceful degradation | NFR-2: Reliability |
+| 7 | CLI `--no-detect` flag bypasses detection | FR-6: Opt-out behavior |
+| 8 | Vendor directory exclusion (node_modules, .venv) | FR-1: Vendor patterns |
+
+**Test Scenario Details:**
+
+**Scenario 1: Python Django Project**
+- Setup: `pyproject.toml` with django, `.python-version` with 3.12, `docker-compose.yml` with postgres
+- Expected: Python (high), version 3.12, django (high), postgresql (high)
+
+**Scenario 2: Node.js React Project**
+- Setup: `package.json` with react/playwright/engines.node, `.nvmrc` with 20, `Dockerfile`
+- Expected: JavaScript (high), version 20, react (high), playwright (medium), docker (high)
+
+**Scenario 3: Multi-Language Project**
+- Setup: `pom.xml` with spring-boot, `.java-version`, `package.json` with angular, `.nvmrc`
+- Expected: Java (high), TypeScript (high), versions for both, spring-boot + angular
+
+**Scenario 5: Wizard Integration**
+- Setup: Python project with fastapi, postgres, redis
+- Expected: Wizard pre-selects Python 3.11, pre-checks fastapi, postgres, redis
+
+**Scenario 6: Graceful Degradation**
+- Setup: Invalid pyproject.toml, valid .python-version, valid .py files
+- Expected: Partial results (Python detected, version detected, frameworks empty)
 
 **Evidence:**
 - `test_detect_integration.py` - Tests utility functions only
@@ -524,30 +553,7 @@ No automated tests validate the complete workflow from CLI entry point through d
 - No test file for E2E workflow
 
 **Remediation:**
-Create `tests/test_e2e_detection_workflow.py`:
-```python
-def test_complete_detection_wizard_config_flow(tmp_path):
-    """E2E: detection → wizard → Config creation."""
-    # Setup: Create project with known files
-    (tmp_path / ".python-version").write_text("3.12")
-    (tmp_path / "pyproject.toml").write_text('[project]\ndependencies=["django"]')
-
-    # Run detection
-    result = detect(tmp_path)
-
-    # Create wizard defaults
-    defaults = create_wizard_defaults(result)
-
-    # Verify defaults match detection
-    assert defaults["python"] == "3.12"
-    assert "django" in str(result.frameworks)
-
-    # Mock wizard and verify Config
-    with patch("questionary.select") as mock_select:
-        mock_select.return_value.ask.return_value = "3.12"
-        config = run_with_detection(tmp_path, result)
-        assert config.python == "3.12"
-```
+Create `tests/test_e2e_detection_workflow.py` implementing all 8 scenarios.
 
 **Files to Create:**
 - `tests/test_e2e_detection_workflow.py`

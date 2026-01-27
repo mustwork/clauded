@@ -7,6 +7,7 @@
 **In Scope:**
 - Per-project VM lifecycle management (create, start, stop, destroy)
 - Interactive wizard-based environment configuration
+- Automatic project detection (languages, versions, frameworks, databases)
 - Declarative configuration via `.clauded.yaml`
 - Automatic provisioning of Python, Node.js, Java, Kotlin, Rust, Go, databases, and developer tools
 - Project directory mounting at `/workspace` in VMs
@@ -98,6 +99,13 @@
 - Multi-select for frameworks (claude-code, playwright)
 - Optional VM resource customization
 - Return populated `Config` object
+
+**`detect/` module**
+- Automatic language detection using GitHub Linguist data
+- Version detection from manifest files (.python-version, package.json, go.mod, etc.)
+- Framework and tool detection from dependency manifests
+- Database detection from docker-compose and environment files
+- Pre-population of wizard defaults based on detection results
 
 ## Core Functionality
 
@@ -259,13 +267,14 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 ### 4. CLI Workflows
 
 **Default Workflow (no flags)**
-1. Check if `.clauded.yaml` exists
-   - If missing: Run wizard, generate config, save to `.clauded.yaml`
-2. Check if VM exists (via `limactl list`)
+1. Run project detection (unless `--no-detect` flag provided)
+2. Check if `.clauded.yaml` exists
+   - If missing: Run wizard with detection results, generate config, save to `.clauded.yaml`
+3. Check if VM exists (via `limactl list`)
    - If missing: Create VM, provision with Ansible
-3. Check if VM is running
+4. Check if VM is running
    - If stopped: Start VM
-4. Enter shell at /workspace
+5. Enter shell at /workspace
 
 **--destroy Workflow**
 1. Check if VM exists
@@ -284,6 +293,23 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 2. Load `.clauded.yaml`
 3. Re-run Ansible provisioning with current config
 4. Enter shell
+
+**--edit Workflow**
+1. Load existing `.clauded.yaml`
+2. Run wizard with current config values pre-selected
+3. Save updated config
+4. Re-run Ansible provisioning
+5. Enter shell
+
+**--detect Workflow**
+1. Run project detection
+2. Output detection results (languages, versions, frameworks, databases)
+3. Exit without creating VM or running wizard
+
+**--no-detect Flag**
+- Skip automatic project detection
+- Use static defaults in wizard
+- Can be combined with other workflows
 
 ## Security Model
 
@@ -352,6 +378,10 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 - `--destroy`: Destroy VM and optionally remove config
 - `--stop`: Stop VM without entering shell
 - `--reprovision`: Re-run Ansible provisioning
+- `--edit`: Edit configuration and reprovision
+- `--detect`: Run detection only and output results
+- `--no-detect`: Skip automatic project detection
+- `--debug`: Enable debug logging for detection
 
 **Exit Codes**:
 - 0: Success
@@ -429,7 +459,9 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 - ✓ Install Kotlin version specified in config
 - ✓ Install Rust version specified in config
 - ✓ Install Go version specified in config
-- ✓ Support all 16 Ansible roles
+- ✓ Support all 21 Ansible roles
+- ✓ Detect project languages and versions from files
+- ✓ Pre-populate wizard defaults based on detection
 
 ### Non-Functional
 

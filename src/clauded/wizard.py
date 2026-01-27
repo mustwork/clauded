@@ -20,6 +20,7 @@ def run(project_path: Path) -> Config:
         "Python version?",
         choices=["3.12", "3.11", "3.10", "None"],
         default="3.12",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["python"] is None:  # User cancelled
@@ -30,6 +31,7 @@ def run(project_path: Path) -> Config:
         "Node.js version?",
         choices=["22", "20", "18", "None"],
         default="20",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["node"] is None:
@@ -40,6 +42,7 @@ def run(project_path: Path) -> Config:
         "Java version?",
         choices=["21", "17", "11", "None"],
         default="21",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["java"] is None:
@@ -50,6 +53,7 @@ def run(project_path: Path) -> Config:
         "Kotlin version?",
         choices=["2.0", "1.9", "None"],
         default="2.0",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["kotlin"] is None:
@@ -60,6 +64,7 @@ def run(project_path: Path) -> Config:
         "Rust version?",
         choices=["stable", "nightly", "None"],
         default="stable",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["rust"] is None:
@@ -70,6 +75,7 @@ def run(project_path: Path) -> Config:
         "Go version?",
         choices=["1.22", "1.21", "1.20", "None"],
         default="1.22",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["go"] is None:
@@ -85,6 +91,7 @@ def run(project_path: Path) -> Config:
             Choice("aws-cli", checked=False),
             Choice("gh", checked=False),
         ],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
     if answers["tools"] is None:
@@ -94,6 +101,7 @@ def run(project_path: Path) -> Config:
     answers["databases"] = questionary.checkbox(
         "Select databases:",
         choices=["postgresql", "redis", "mysql"],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
     if answers["databases"] is None:
@@ -105,6 +113,7 @@ def run(project_path: Path) -> Config:
         choices=[
             Choice("playwright", checked=False),
         ],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
     if additional_frameworks is None:
@@ -143,6 +152,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Python version?",
         choices=["3.12", "3.11", "3.10", "None"],
         default=config.python if config.python else "None",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["python"] is None:
@@ -153,6 +163,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Node.js version?",
         choices=["22", "20", "18", "None"],
         default=config.node if config.node else "None",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["node"] is None:
@@ -163,6 +174,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Java version?",
         choices=["21", "17", "11", "None"],
         default=config.java if config.java else "None",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["java"] is None:
@@ -173,6 +185,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Kotlin version?",
         choices=["2.0", "1.9", "None"],
         default=config.kotlin if config.kotlin else "None",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["kotlin"] is None:
@@ -183,6 +196,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Rust version?",
         choices=["stable", "nightly", "None"],
         default=config.rust if config.rust else "None",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["rust"] is None:
@@ -193,6 +207,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Go version?",
         choices=["1.22", "1.21", "1.20", "None"],
         default=config.go if config.go else "None",
+        instruction="(enter/→ next, ← previous)",
     ).ask()
 
     if answers["go"] is None:
@@ -208,6 +223,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
             Choice("aws-cli", checked="aws-cli" in config.tools),
             Choice("gh", checked="gh" in config.tools),
         ],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
     if answers["tools"] is None:
@@ -221,6 +237,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
             Choice("redis", checked="redis" in config.databases),
             Choice("mysql", checked="mysql" in config.databases),
         ],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
     if answers["databases"] is None:
@@ -232,6 +249,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
         choices=[
             Choice("playwright", checked="playwright" in config.frameworks),
         ],
+        instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
     if additional_frameworks is None:

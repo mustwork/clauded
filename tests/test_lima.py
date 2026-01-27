@@ -191,13 +191,13 @@ class TestLimaVMGenerateLimaConfig:
         # Check .claude mount
         claude_mount = config["mounts"][1]
         assert claude_mount["location"] == str(claude_dir)
-        assert claude_mount["mountPoint"] == "~/.claude"
+        assert claude_mount["mountPoint"] == "/home/lima.linux/.claude"
         assert claude_mount["writable"] is False
 
         # Check .git mount
         git_mount = config["mounts"][2]
         assert git_mount["location"] == str(git_dir)
-        assert git_mount["mountPoint"] == "~/.git"
+        assert git_mount["mountPoint"] == "/home/lima.linux/.git"
         assert git_mount["writable"] is False
 
     def test_skips_home_directories_when_not_exist(
@@ -225,7 +225,33 @@ class TestLimaVMGenerateLimaConfig:
             config = vm._generate_lima_config()
 
         assert len(config["mounts"]) == 2
-        assert config["mounts"][1]["mountPoint"] == "~/.claude"
+        assert config["mounts"][1]["mountPoint"] == "/home/lima.linux/.claude"
+
+    def test_mount_points_must_be_absolute_paths(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """Lima requires mount points to be absolute paths, not starting with ~."""
+        vm = LimaVM(sample_config)
+
+        # Create test directories
+        claude_dir = tmp_path / ".claude"
+        git_dir = tmp_path / ".git"
+        claude_dir.mkdir()
+        git_dir.mkdir()
+
+        with patch("clauded.lima.Path.home", return_value=tmp_path):
+            config = vm._generate_lima_config()
+
+        # All mount points must be absolute paths (not starting with ~)
+        for mount in config["mounts"]:
+            mount_point = mount["mountPoint"]
+            assert not mount_point.startswith("~"), (
+                f"mountPoint '{mount_point}' must not start with '~' - "
+                "Lima requires absolute paths"
+            )
+            assert mount_point.startswith(
+                "/"
+            ), f"mountPoint '{mount_point}' must be an absolute path"
 
     def test_disables_containerd(self, sample_config: Config) -> None:
         """Generated config disables containerd."""

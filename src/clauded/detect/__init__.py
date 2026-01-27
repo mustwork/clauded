@@ -20,6 +20,7 @@ Usage:
     has_docker = result.is_tool_detected("docker")
 """
 
+import logging
 import time
 from pathlib import Path
 
@@ -29,8 +30,12 @@ from .linguist import detect_languages
 from .result import DetectionResult, ScanStats
 from .version import detect_versions
 
+logger = logging.getLogger(__name__)
 
-def detect(project_path: Path, *, no_detect: bool = False) -> DetectionResult:
+
+def detect(
+    project_path: Path, *, no_detect: bool = False, debug: bool = False
+) -> DetectionResult:
     """Detect project characteristics from files in project_path.
 
     Orchestrates all detection strategies and consolidates results.
@@ -68,22 +73,54 @@ def detect(project_path: Path, *, no_detect: bool = False) -> DetectionResult:
         6. Return complete DetectionResult
     """
     if no_detect:
+        logger.debug("Detection skipped (no_detect=True)")
         return DetectionResult()
 
     if not project_path.exists() or not project_path.is_dir():
+        logger.debug(f"Project path invalid: {project_path}")
         return DetectionResult()
 
+    logger.debug(f"Starting detection in {project_path}")
     start_time = time.perf_counter()
 
     # Run all detection strategies
     # Language detection also gathers file scan statistics
+    logger.debug("Running language detection...")
     file_stats: dict[str, int] = {}
     languages = detect_languages(project_path, scan_stats=file_stats)
+    logger.debug(
+        f"Language detection complete: {len(languages)} languages found "
+        f"({file_stats.get('files_scanned', 0)} files scanned, "
+        f"{file_stats.get('files_excluded', 0)} excluded)"
+    )
+    for lang in languages:
+        logger.debug(f"  - {lang.name}: {lang.confidence} ({lang.byte_count} bytes)")
+
+    logger.debug("Running version detection...")
     versions = detect_versions(project_path)
+    logger.debug(f"Version detection complete: {len(versions)} versions found")
+    for runtime, spec in versions.items():
+        logger.debug(f"  - {runtime}: {spec.version} (from {spec.source_file})")
+
+    logger.debug("Running framework and tool detection...")
     frameworks, tools = detect_frameworks_and_tools(project_path)
+    logger.debug(
+        f"Framework/tool detection complete: "
+        f"{len(frameworks)} frameworks, {len(tools)} tools"
+    )
+    for fw in frameworks:
+        logger.debug(f"  - Framework: {fw.name} ({fw.confidence})")
+    for tool in tools:
+        logger.debug(f"  - Tool: {tool.name} ({tool.confidence})")
+
+    logger.debug("Running database detection...")
     databases = detect_databases(project_path)
+    logger.debug(f"Database detection complete: {len(databases)} databases found")
+    for db in databases:
+        logger.debug(f"  - {db.name}: {db.confidence} (from {db.source_file})")
 
     duration_ms = int((time.perf_counter() - start_time) * 1000)
+    logger.debug(f"Detection completed in {duration_ms}ms")
 
     scan_stats = ScanStats(
         files_scanned=file_stats.get("files_scanned", 0),

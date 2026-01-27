@@ -11,6 +11,7 @@ class DetectedLanguage:
     name: str
     confidence: Literal["high", "medium", "low"]
     byte_count: int
+    file_count: int
     source_files: list[str] = field(default_factory=list)
 
 

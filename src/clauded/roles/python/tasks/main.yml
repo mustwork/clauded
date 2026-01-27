@@ -51,3 +51,13 @@
     curl -sS https://bootstrap.pypa.io/get-pip.py | python{{ python_version }}
   args:
     creates: /usr/local/bin/pip3
+
+- name: Install pipx for isolated CLI tool installation
+  pip:
+    name: pipx
+    state: present
+    executable: pip3
+
+- name: Ensure pipx path is configured
+  shell: pipx ensurepath
+  changed_when: false

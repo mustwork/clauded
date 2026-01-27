@@ -87,6 +87,7 @@ class TestDetectedLanguageProperties:
             name=name,
             confidence=confidence,
             byte_count=byte_count,
+            file_count=1,
             source_files=[],
         )
         assert lang.confidence in ["high", "medium", "low"]
@@ -104,6 +105,7 @@ class TestDetectedLanguageProperties:
             name=name,
             confidence=confidence,
             byte_count=byte_count,
+            file_count=1,
             source_files=[],
         )
         assert lang.byte_count > 0
@@ -122,6 +124,7 @@ class TestDetectedLanguageProperties:
             name=name,
             confidence=confidence,
             byte_count=byte_count,
+            file_count=len(source_files),
             source_files=source_files,
         )
         assert isinstance(lang.source_files, list)

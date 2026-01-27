@@ -66,7 +66,7 @@ def display_detection_summary(result: DetectionResult) -> None:
                     confidence_marker = " (suggestion)"
                 click.echo(
                     f"  • {lang.name}{confidence_marker}{primary_marker} - "
-                    f"{len(lang.source_files)} files, {size_kb:.0f}KB"
+                    f"{lang.file_count} files, {size_kb:.0f}KB"
                 )
             click.echo()
 
@@ -226,46 +226,49 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
 
       Outputs:
         - dictionary with keys matching wizard answer structure:
-          * python: detected Python version or None
-          * node: detected Node version or None
-          * java: detected Java version or None
-          * kotlin: detected Kotlin version or None
-          * rust: detected Rust version or None
-          * go: detected Go version or None
-          * tools_checked: list of tool names to pre-check
-          * databases_checked: list of database names to pre-check
-          * frameworks_checked: list of framework names to pre-check
+          * python: detected Python version or latest if language detected
+          * node: detected Node version or latest if language detected
+          * java: detected Java version or latest if language detected
+          * kotlin: detected Kotlin version or latest if language detected
+          * rust: detected Rust version or latest if language detected
+          * go: detected Go version or latest if language detected
+          * tools: list of tool names to pre-check
+          * databases: list of database names to pre-check
+          * frameworks: list of framework names to pre-check
 
       Invariants:
         - All keys present (None if not detected)
         - Version strings normalized to match wizard choices
+        - When language detected but no version found, uses latest version
         - Never raises exceptions
 
-      Properties:
-        - Version normalization examples:
-          * "3.12.0" → "3.12"
-          * "20.10.0" → "20"
-          * "stable" → "stable" (Rust)
-          * "1.22.3" → "1.22" (Go)
-
       Algorithm:
-        1. Extract detected versions from result.versions
-        2. Normalize version strings to match wizard choice formats:
-           a. Python: major.minor only (3.12, 3.11, 3.10)
-           b. Node: major only (22, 20, 18)
-           c. Java: major only (21, 17, 11)
-           d. Kotlin: major.minor (2.0, 1.9)
-           e. Rust: channel (stable, nightly)
-           f. Go: major.minor (1.22, 1.21, 1.20)
+        1. Map detected languages to runtime names
+        2. For each runtime:
+           a. If version detected, normalize and use it
+           b. Else if language detected, use latest version
+           c. Else use "None"
         3. Extract tool names from result.tools (confidence high or medium)
         4. Extract database names from result.databases (confidence high or medium)
-        5. Extract framework names from result.frameworks (confidence high or medium)
+        5. Extract framework names from result.frameworks
         6. Return dictionary with all keys
     """
     try:
         from .wizard_integration import normalize_version_for_choice
 
-        # Define wizard choices for each runtime
+        # Map Linguist language names to runtime keys
+        # These are the language names from GitHub Linguist data
+        language_to_runtime = {
+            "Python": "python",
+            "JavaScript": "node",
+            "TypeScript": "node",
+            "Java": "java",
+            "Kotlin": "kotlin",
+            "Rust": "rust",
+            "Go": "go",
+        }
+
+        # Define wizard choices for each runtime (first choice is latest)
         runtime_choices = {
             "python": ["3.12", "3.11", "3.10", "None"],
             "node": ["22", "20", "18", "None"],
@@ -275,15 +278,27 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
             "go": ["1.22", "1.21", "1.20", "None"],
         }
 
-        # Extract and normalize versions
+        # Build set of detected languages (high/medium confidence)
+        detected_runtimes: set[str] = set()
+        for lang in result.languages:
+            if lang.confidence in ("high", "medium"):
+                runtime = language_to_runtime.get(lang.name)
+                if runtime:
+                    detected_runtimes.add(runtime)
+
+        # Extract and normalize versions, using latest when language detected
         defaults: dict[str, str | list[str]] = {}
         for runtime, choices in runtime_choices.items():
             version_spec = result.versions.get(runtime)
             if version_spec:
+                # Have explicit version - normalize it
                 normalized = normalize_version_for_choice(
                     version_spec.version, runtime, choices
                 )
-                defaults[runtime] = normalized if normalized else "None"
+                defaults[runtime] = normalized if normalized else choices[0]
+            elif runtime in detected_runtimes:
+                # Language detected but no version - use latest
+                defaults[runtime] = choices[0]
             else:
                 defaults[runtime] = "None"
 

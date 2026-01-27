@@ -222,6 +222,46 @@ Ansible-based installation of tools, databases, and frameworks.
 - [ ] `claude` command is available
 - [ ] Claude Code is accessible system-wide
 
+#### [Implemented] Story: Install Java Version
+
+**As a** Java Developer, **I want** my chosen Java version (11, 17, 21) to be installed and set as default, **so that** I can develop without environment mismatch issues.
+
+**Acceptance Criteria**:
+- [ ] Selected Java version is installed via Adoptium/Temurin
+- [ ] `java --version` shows selected version
+- [ ] Java is set as system default
+- [ ] Maven and Gradle support the installed version
+
+#### [Implemented] Story: Install Kotlin Version
+
+**As a** Kotlin Developer, **I want** my chosen Kotlin version (1.9, 2.0) to be installed, **so that** I have the correct compiler for my project.
+
+**Acceptance Criteria**:
+- [ ] Selected Kotlin version is downloaded from GitHub releases
+- [ ] `kotlin -version` shows selected version
+- [ ] Kotlin compiler is accessible system-wide
+- [ ] Works with Gradle and Maven
+
+#### [Implemented] Story: Install Rust Version
+
+**As a** Rust Developer, **I want** my chosen Rust version (stable, nightly) to be installed via rustup, **so that** I have the correct toolchain for my project.
+
+**Acceptance Criteria**:
+- [ ] Rustup is installed
+- [ ] Selected Rust version/channel is installed
+- [ ] `rustc --version` shows selected version
+- [ ] Cargo is available for package management
+
+#### [Implemented] Story: Install Go Version
+
+**As a** Go Developer, **I want** my chosen Go version (1.20, 1.21, 1.22) to be installed, **so that** I have the correct runtime for my project.
+
+**Acceptance Criteria**:
+- [ ] Selected Go version is downloaded from go.dev
+- [ ] `go version` shows selected version
+- [ ] Go is accessible system-wide
+- [ ] Go modules work correctly
+
 ---
 
 ### Epic 4: Project Onboarding and Initialization
@@ -361,11 +401,134 @@ Update environments without destroying VMs.
 
 ---
 
+### Epic 7: Automatic Project Detection
+
+Intelligent detection of languages, versions, frameworks, and databases to pre-populate wizard defaults.
+
+#### [Implemented] Story: Detect Project Languages
+
+**As a** Developer, **I want** my project's programming languages to be automatically detected, **so that** the wizard pre-selects the correct runtimes.
+
+**Acceptance Criteria**:
+- [ ] Detects Python from .py files
+- [ ] Detects JavaScript/TypeScript from .js/.ts files
+- [ ] Detects Java from .java files
+- [ ] Detects Kotlin from .kt files
+- [ ] Detects Rust from .rs files and Cargo.toml
+- [ ] Detects Go from .go files and go.mod
+- [ ] Uses GitHub Linguist data for accurate classification
+
+#### [Implemented] Story: Detect Runtime Versions
+
+**As a** Developer, **I want** my project's required runtime versions to be automatically detected from version files, **so that** the wizard pre-fills the correct versions.
+
+**Acceptance Criteria**:
+- [ ] Reads Python version from .python-version
+- [ ] Reads Node version from .nvmrc
+- [ ] Reads Go version from go.mod
+- [ ] Reads Rust channel from rust-toolchain.toml
+- [ ] Parses .tool-versions for any supported runtime
+- [ ] Extracts requires-python from pyproject.toml
+- [ ] Extracts engines.node from package.json
+
+#### [Implemented] Story: Detect Frameworks and Tools
+
+**As a** Developer, **I want** my project's frameworks and tools to be automatically detected from dependencies, **so that** the wizard pre-checks relevant options.
+
+**Acceptance Criteria**:
+- [ ] Detects Django/Flask/FastAPI from Python dependencies
+- [ ] Detects React/Vue/Angular from JavaScript dependencies
+- [ ] Detects Playwright from any ecosystem's dependencies
+- [ ] Detects Docker from Dockerfile or docker-compose presence
+- [ ] Detects AWS CLI from AWS SDK dependencies
+- [ ] Detects GitHub CLI from .github/ directory or gh dependencies
+
+#### [Implemented] Story: Detect Databases
+
+**As a** Developer, **I want** my project's required databases to be automatically detected, **so that** the wizard pre-checks the correct databases.
+
+**Acceptance Criteria**:
+- [ ] Detects PostgreSQL from docker-compose services
+- [ ] Detects Redis from docker-compose services
+- [ ] Detects MySQL from docker-compose services
+- [ ] Detects databases from ORM adapter dependencies
+- [ ] Detects databases from environment variable patterns
+
+#### [Implemented] Story: View Detection Results
+
+**As a** DevOps Engineer, **I want** to use `clauded --detect` to see what was detected without starting the wizard, **so that** I can verify detection accuracy or debug issues.
+
+**Acceptance Criteria**:
+- [ ] `clauded --detect` runs detection only
+- [ ] Outputs detected languages with confidence scores
+- [ ] Outputs detected versions with source files
+- [ ] Outputs detected frameworks, tools, and databases
+- [ ] Exits without creating VM or running wizard
+
+#### [Implemented] Story: Skip Detection When Needed
+
+**As a** Developer, **I want** to use `--no-detect` to bypass automatic detection, **so that** I can manually configure everything when detection is inaccurate.
+
+**Acceptance Criteria**:
+- [ ] `clauded --no-detect` skips detection phase
+- [ ] Wizard uses static defaults instead of detected values
+- [ ] All wizard options remain fully configurable
+- [ ] Works with all other CLI workflows
+
+---
+
+### Epic 8: Detection System Enhancements
+
+Future enhancements to detection system for additional manifest formats.
+
+#### [Planned] Story: Detect Python Version from setup.py
+
+**As a** Python Developer using setup.py, **I want** my Python version requirement to be detected from setup.py, **so that** the wizard defaults match my project constraints.
+
+**Acceptance Criteria**:
+- [ ] Detects python_requires from setup.py
+- [ ] Parses semver constraints (>=, ~=, ==)
+- [ ] Returns VersionSpec with constraint type
+- [ ] Links to: specs/detection-enhancements-spec.md (FR-1)
+
+#### [Planned] Story: Detect Java Version from Kotlin DSL
+
+**As a** Kotlin Developer using Gradle Kotlin DSL, **I want** my Java version to be detected from build.gradle.kts, **so that** the wizard defaults match my build configuration.
+
+**Acceptance Criteria**:
+- [ ] Detects sourceCompatibility from build.gradle.kts
+- [ ] Parses JavaVersion.VERSION_XX syntax
+- [ ] Returns VersionSpec with exact version
+- [ ] Links to: specs/detection-enhancements-spec.md (FR-2)
+
+#### [Planned] Story: Detect Frameworks from Groovy Gradle
+
+**As a** Java/Kotlin Developer using Groovy Gradle, **I want** my frameworks to be detected from build.gradle, **so that** the wizard suggests relevant tools.
+
+**Acceptance Criteria**:
+- [ ] Detects Spring Boot from build.gradle dependencies
+- [ ] Detects Ktor from build.gradle dependencies
+- [ ] Returns DetectedItem list with confidence scores
+- [ ] Links to: specs/detection-enhancements-spec.md (FR-3)
+
+#### [Planned] Story: Detect MongoDB Database
+
+**As a** Developer using MongoDB, **I want** MongoDB to be detected from my project files, **so that** the wizard offers MongoDB installation.
+
+**Acceptance Criteria**:
+- [ ] Detects MongoDB from docker-compose
+- [ ] Detects MongoDB from .env MONGODB_URI variables
+- [ ] Detects MongoDB from pymongo/mongoose dependencies
+- [ ] Returns DetectedItem with confidence score
+- [ ] Links to: specs/detection-enhancements-spec.md (FR-4)
+
+---
+
 ## Feature Implementation Status Summary
 
-- **Total Stories**: 31
-- **Implemented**: 31
+- **Total Stories**: 42
+- **Implemented**: 36
 - **In Progress**: 0
-- **Planned**: 0
+- **Planned**: 6 (Detection Enhancements - Epic 8)
 
-All core features are fully implemented. The project is feature-complete for its v0.1.0 scope.
+The project is feature-complete for v0.1.0 scope. Epic 8 stories represent planned enhancements documented in specs/detection-enhancements-spec.md.

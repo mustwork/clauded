@@ -10,7 +10,9 @@ Tests verify that:
 6. Functions handle malformed manifests gracefully
 7. Confidence levels correctly distinguish production vs dev dependencies
 8. Docker detection correctly identifies Dockerfile and compose files
-9. Build tools correctly identified from manifests and wrapper scripts
+
+Note: Build tools (gradle, maven, uv, poetry) are NOT detected - they are
+auto-installed by provisioner based on language selection.
 """
 
 import json
@@ -23,7 +25,6 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from clauded.detect.framework import (
-    detect_build_tools,
     detect_docker,
     detect_frameworks_and_tools,
     parse_go_dependencies,
@@ -35,11 +36,9 @@ from clauded.detect.framework import (
 )
 from clauded.detect.result import DetectedItem
 
-# Supported framework and tool names
+# Supported framework and tool names (frameworks only, not build tools)
 PYTHON_FRAMEWORKS = {"django", "flask", "fastapi"}
-PYTHON_TOOLS = {"pytest", "poetry", "uv"}
 NODE_FRAMEWORKS = {"react", "vue", "angular", "express", "next", "nest"}
-NODE_TOOLS = {"playwright", "jest", "webpack", "eslint", "prettier"}
 JAVA_FRAMEWORKS = {"spring-boot", "quarkus"}
 KOTLIN_FRAMEWORKS = {"spring-boot", "ktor"}
 RUST_FRAMEWORKS = {"actix", "rocket", "tokio"}
@@ -52,8 +51,8 @@ ALL_FRAMEWORKS = (
     | RUST_FRAMEWORKS
     | GO_FRAMEWORKS
 )
-BUILD_TOOLS = {"gradle", "maven"}
-ALL_TOOLS = PYTHON_TOOLS | NODE_TOOLS | BUILD_TOOLS | {"docker", "aws-cli", "gh"}
+# Only optional tools that require explicit user selection
+OPTIONAL_TOOLS = {"playwright", "docker"}
 CONFIDENCE_LEVELS = ["high", "medium", "low"]  # List for Hypothesis
 
 
@@ -61,7 +60,7 @@ CONFIDENCE_LEVELS = ["high", "medium", "low"]  # List for Hypothesis
 @st.composite
 def detected_items_strategy(draw: Any) -> DetectedItem:
     """Generate valid DetectedItem objects."""
-    name = draw(st.sampled_from(sorted(ALL_FRAMEWORKS | ALL_TOOLS)))
+    name = draw(st.sampled_from(sorted(ALL_FRAMEWORKS | OPTIONAL_TOOLS)))
     confidence = draw(st.sampled_from(CONFIDENCE_LEVELS))
     source_file = draw(st.just(f"/tmp/manifest_{name}_{confidence}.txt"))
     source_evidence = draw(st.just(name))
@@ -135,13 +134,11 @@ name = "test-project"
 dependencies = [
     "django>=4.0",
     "flask>=2.0",
-    "pytest>=7.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "poetry>=1.0",
-    "uv>=0.1",
+    "fastapi>=0.100",
 ]
 """)
     return pyproject
@@ -154,8 +151,7 @@ def python_requirements_txt(temp_project_dir: Path) -> Path:
     req_file.write_text("""
 django>=4.0
 flask>=2.0
-pytest>=7.0
-poetry>=1.0
+fastapi>=0.100
 """)
     return req_file
 
@@ -173,7 +169,6 @@ def node_package_json(temp_project_dir: Path) -> Path:
                     "express": "^4.18.0",
                 },
                 "devDependencies": {
-                    "jest": "^29.0.0",
                     "playwright": "^1.40.0",
                 },
             }
@@ -304,27 +299,16 @@ class TestParsePythonDependencies:
         assert len(flask_items) > 0
         assert flask_items[0].confidence == "high"
 
-    def test_detects_pytest_from_pyproject_toml(
+    def test_detects_fastapi_from_optional_dependencies(
         self, python_pyproject_toml: Path
     ) -> None:
-        """Detects pytest from pyproject.toml dependencies."""
+        """Detects FastAPI from optional dependencies as medium confidence."""
         project_path = python_pyproject_toml.parent
         items = parse_python_dependencies(project_path)
 
-        pytest_items = [item for item in items if item.name == "pytest"]
-        assert len(pytest_items) > 0
-        assert pytest_items[0].confidence == "high"
-
-    def test_detects_poetry_from_optional_dependencies(
-        self, python_pyproject_toml: Path
-    ) -> None:
-        """Detects poetry from optional dependencies as medium confidence."""
-        project_path = python_pyproject_toml.parent
-        items = parse_python_dependencies(project_path)
-
-        poetry_items = [item for item in items if item.name == "poetry"]
-        assert len(poetry_items) > 0
-        assert poetry_items[0].confidence == "medium"
+        fastapi_items = [item for item in items if item.name == "fastapi"]
+        assert len(fastapi_items) > 0
+        assert fastapi_items[0].confidence == "medium"
 
     def test_detects_from_requirements_txt_fallback(
         self, python_requirements_txt: Path
@@ -361,12 +345,12 @@ class TestParsePythonDependencies:
             assert item.confidence in CONFIDENCE_LEVELS
 
     def test_all_items_have_valid_names(self, python_pyproject_toml: Path) -> None:
-        """All returned items have names in supported Python frameworks/tools."""
+        """All returned items have names in supported Python frameworks."""
         project_path = python_pyproject_toml.parent
         items = parse_python_dependencies(project_path)
 
         for item in items:
-            assert item.name in (PYTHON_FRAMEWORKS | PYTHON_TOOLS)
+            assert item.name in PYTHON_FRAMEWORKS
 
     def test_source_evidence_matches_package_name(
         self, python_pyproject_toml: Path
@@ -379,9 +363,6 @@ class TestParsePythonDependencies:
             assert item.source_evidence in (
                 "django",
                 "flask",
-                "pytest",
-                "poetry",
-                "uv",
                 "fastapi",
             )
 
@@ -408,15 +389,6 @@ class TestParseNodeDependencies:
         assert len(express_items) > 0
         assert express_items[0].confidence == "high"
 
-    def test_detects_jest_from_dev_dependencies(self, node_package_json: Path) -> None:
-        """Detects Jest from devDependencies as medium confidence."""
-        project_path = node_package_json.parent
-        items = parse_node_dependencies(project_path)
-
-        jest_items = [item for item in items if item.name == "jest"]
-        assert len(jest_items) > 0
-        assert jest_items[0].confidence == "medium"
-
     def test_detects_playwright_from_dev_dependencies(
         self, node_package_json: Path
     ) -> None:
@@ -426,6 +398,7 @@ class TestParseNodeDependencies:
 
         playwright_items = [item for item in items if item.name == "playwright"]
         assert len(playwright_items) > 0
+        assert playwright_items[0].confidence == "medium"
 
     def test_source_file_points_to_package_json(self, node_package_json: Path) -> None:
         """source_file points to package.json."""
@@ -450,12 +423,12 @@ class TestParseNodeDependencies:
             assert item.confidence in CONFIDENCE_LEVELS
 
     def test_all_items_have_valid_names(self, node_package_json: Path) -> None:
-        """All returned items have names in supported Node frameworks/tools."""
+        """All returned items have valid framework or tool names."""
         project_path = node_package_json.parent
         items = parse_node_dependencies(project_path)
 
         for item in items:
-            assert item.name in (NODE_FRAMEWORKS | NODE_TOOLS)
+            assert item.name in (NODE_FRAMEWORKS | {"playwright"})
 
 
 # Java dependency parsing tests
@@ -671,42 +644,6 @@ class TestDetectDocker:
         )
 
 
-# Build tools detection tests
-class TestDetectBuildTools:
-    """Test build tool detection."""
-
-    def test_detects_gradle_from_build_gradle(
-        self, kotlin_build_gradle_kts: Path
-    ) -> None:
-        """Detects Gradle from build.gradle.kts."""
-        project_path = kotlin_build_gradle_kts.parent
-        items = detect_build_tools(project_path)
-
-        gradle_items = [item for item in items if item.name == "gradle"]
-        assert len(gradle_items) > 0
-
-    def test_detects_maven_from_pom_xml(self, java_pom_xml: Path) -> None:
-        """Detects Maven from pom.xml."""
-        project_path = java_pom_xml.parent
-        items = detect_build_tools(project_path)
-
-        maven_items = [item for item in items if item.name == "maven"]
-        assert len(maven_items) > 0
-
-    def test_returns_empty_when_no_build_tools(self, temp_project_dir: Path) -> None:
-        """Returns empty list when no build tools detected."""
-        items = detect_build_tools(temp_project_dir)
-        assert items == []
-
-    def test_all_items_are_build_tools(self, java_pom_xml: Path) -> None:
-        """All returned items are recognized build tools."""
-        project_path = java_pom_xml.parent
-        items = detect_build_tools(project_path)
-
-        for item in items:
-            assert item.name in BUILD_TOOLS
-
-
 # Integration tests
 class TestDetectFrameworksAndTools:
     """Test integrated framework and tool detection."""
@@ -772,10 +709,12 @@ class TestDetectFrameworksAndTools:
         for item in frameworks:
             assert item.name in ALL_FRAMEWORKS
 
-    def test_all_tool_items_are_tools(self, python_pyproject_toml: Path) -> None:
-        """All items in tools list are actually tools."""
+    def test_all_tool_items_are_optional_tools(
+        self, python_pyproject_toml: Path
+    ) -> None:
+        """All items in tools list are optional tools (docker, playwright)."""
         project_path = python_pyproject_toml.parent
         _, tools = detect_frameworks_and_tools(project_path)
 
         for item in tools:
-            assert item.name in ALL_TOOLS
+            assert item.name in OPTIONAL_TOOLS

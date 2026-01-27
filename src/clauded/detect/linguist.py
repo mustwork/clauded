@@ -16,6 +16,59 @@ from .utils import is_safe_path
 
 logger = logging.getLogger(__name__)
 
+# Directories to skip during file scanning (build outputs, caches, VCS internals)
+SKIP_DIRECTORIES: frozenset[str] = frozenset(
+    {
+        # VCS internals
+        ".git",
+        ".hg",
+        ".svn",
+        # Build outputs
+        "build",
+        "dist",
+        "out",
+        "target",
+        "bin",
+        "obj",
+        # Python
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".tox",
+        ".nox",
+        ".eggs",
+        "*.egg-info",
+        ".venv",
+        "venv",
+        "env",
+        ".env",
+        # Node/JS
+        "node_modules",
+        ".next",
+        ".nuxt",
+        ".output",
+        ".cache",
+        ".parcel-cache",
+        # Java/Kotlin/Gradle
+        ".gradle",
+        ".m2",
+        # Rust
+        # (target already listed above)
+        # Go
+        "vendor",
+        # IDE/Editor
+        ".idea",
+        ".vscode",
+        # Coverage/docs
+        "coverage",
+        "htmlcov",
+        ".coverage",
+        "_build",
+        "site-packages",
+    }
+)
+
 # Cache for loaded data to avoid re-parsing YAML files
 _cached_data: dict[str, Any] | None = None
 
@@ -64,6 +117,21 @@ def load_linguist_data() -> dict[str, Any]:
             "heuristics": {},
             "vendor_patterns": {},
         }
+
+
+def _is_in_skip_directory(file_path: Path) -> bool:
+    """Check if file is inside a directory that should be skipped.
+
+    Args:
+        file_path: Relative path to check
+
+    Returns:
+        True if file is in a skip directory, False otherwise
+    """
+    for part in file_path.parts:
+        if part in SKIP_DIRECTORIES:
+            return True
+    return False
 
 
 def _is_excluded_by_vendor(file_path: Path, vendor_patterns: list[str]) -> bool:
@@ -268,10 +336,15 @@ def detect_languages(
         - Accuracy: matches Linguist extension mappings and heuristics
         - Idempotent: same project state yields same language list
     """
+    logger.debug("Loading Linguist data...")
     linguist_data = load_linguist_data()
     languages_map = linguist_data.get("languages", {})
     heuristics_data = linguist_data.get("heuristics", {})
     vendor_patterns = linguist_data.get("vendor_patterns", [])
+    logger.debug(
+        f"  Loaded {len(languages_map)} languages, "
+        f"{len(vendor_patterns) if vendor_patterns else 0} vendor patterns"
+    )
 
     if not vendor_patterns or not isinstance(vendor_patterns, list):
         vendor_patterns = []
@@ -325,6 +398,12 @@ def detect_languages(
 
             try:
                 rel_path = file_path.relative_to(project_path)
+
+                # Skip build directories, caches, and VCS internals
+                if _is_in_skip_directory(rel_path):
+                    files_excluded += 1
+                    continue
+
                 if _is_excluded_by_vendor(rel_path, vendor_patterns):
                     files_excluded += 1
                     continue
@@ -391,6 +470,7 @@ def detect_languages(
                 name=lang_name,
                 confidence=confidence,
                 byte_count=byte_count,
+                file_count=file_count,
                 source_files=language_files[lang_name],
             )
         )

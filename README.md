@@ -17,6 +17,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 ## Features
 
 - **Interactive Setup Wizard**: Guided prompts for languages, databases, and tools
+- **Automatic Project Detection**: Intelligently detects languages, versions, frameworks, and databases from your project files
 - **Multiple Runtime Versions**: Choose Python 3.10/3.11/3.12, Node.js 18/20/22, Java 11/17/21, Kotlin 1.9/2.0, Rust stable/nightly, and Go 1.20/1.21/1.22
 - **Database Support**: PostgreSQL, Redis, and MySQL with automatic installation
 - **Developer Tools**: Docker, AWS CLI, GitHub CLI, Git pre-installed
@@ -30,14 +31,14 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 
 ### Languages & Runtimes
 
-| Language | Versions | Notes |
-|----------|----------|-------|
-| Python | 3.10, 3.11, 3.12 | Installed via deadsnakes PPA, includes pip |
-| Node.js | 18, 20, 22 | Installed via NodeSource, includes npm |
-| Java | 11, 17, 21 | Eclipse Temurin JDK via Adoptium |
-| Kotlin | 1.9, 2.0 | Kotlin compiler from JetBrains releases |
-| Rust | stable, nightly | Installed via rustup, includes cargo |
-| Go | 1.20, 1.21, 1.22 | Official Go distribution |
+| Language | Versions | Package Managers (auto-installed) |
+|----------|----------|-----------------------------------|
+| Python | 3.10, 3.11, 3.12 | pip, pipx, uv, uvx, poetry |
+| Node.js | 18, 20, 22 | npm, npx, yarn, pnpm, bun |
+| Java | 11, 17, 21 | maven, gradle |
+| Kotlin | 1.9, 2.0 | maven, gradle |
+| Rust | stable, nightly | cargo |
+| Go | 1.20, 1.21, 1.22 | go modules (built-in) |
 
 ### Developer Tools
 
@@ -132,7 +133,23 @@ After modifying `.clauded.yaml`:
 clauded --reprovision
 ```
 
-### 5. Destroy the VM
+### 5. Edit Configuration
+
+```bash
+clauded --edit
+```
+
+Re-run the wizard to modify your configuration, then automatically reprovision the VM.
+
+### 6. Detect Project Technologies
+
+```bash
+clauded --detect
+```
+
+Show detected languages, versions, frameworks, and databases without creating a VM.
+
+### 7. Destroy the VM
 
 ```bash
 clauded --destroy
@@ -254,7 +271,9 @@ clauded/
 │   ├── lima.py            # Lima VM operations
 │   ├── provisioner.py     # Ansible integration
 │   ├── wizard.py          # Interactive setup
-│   └── roles/             # Ansible roles (16 roles)
+│   ├── detect/            # Project detection module
+│   ├── linguist/          # Vendored Linguist data
+│   └── roles/             # Ansible roles (21 roles)
 ├── tests/                 # Test suite
 ├── docs/                  # Technical documentation
 ├── specs/                 # Specifications

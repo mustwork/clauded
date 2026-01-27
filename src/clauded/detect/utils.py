@@ -26,7 +26,7 @@ def is_safe_path(file_path: Path, project_root: Path) -> bool:
     """
     # Check if path is a symlink
     if file_path.is_symlink():
-        logger.warning(f"Skipping symlinked file: {file_path}")
+        logger.debug(f"Skipping symlinked file: {file_path}")
         return False
 
     # Check if resolved path is within project boundary
