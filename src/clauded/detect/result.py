@@ -52,6 +52,7 @@ class DetectionResult:
     frameworks: list[DetectedItem] = field(default_factory=list)
     tools: list[DetectedItem] = field(default_factory=list)
     databases: list[DetectedItem] = field(default_factory=list)
+    mcp_runtimes: set[str] = field(default_factory=set)
     scan_stats: ScanStats | None = None
 
     def get_primary_language(self) -> str | None:
@@ -89,3 +90,7 @@ class DetectionResult:
     def is_framework_detected(self, framework: str) -> bool:
         """Check if a framework was detected."""
         return any(item.name == framework for item in self.frameworks)
+
+    def is_mcp_runtime_required(self, runtime: str) -> bool:
+        """Check if a runtime is required by MCP configuration."""
+        return runtime in self.mcp_runtimes

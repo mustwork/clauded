@@ -27,6 +27,7 @@ from pathlib import Path
 from .database import detect_databases
 from .framework import detect_frameworks_and_tools
 from .linguist import detect_languages
+from .mcp import MCPDetectionResult, detect_mcp_requirements
 from .result import DetectionResult, ScanStats
 from .version import detect_versions
 
@@ -119,6 +120,27 @@ def detect(
     for db in databases:
         logger.debug(f"  - {db.name}: {db.confidence} (from {db.source_file})")
 
+    logger.debug("Running MCP configuration detection...")
+    mcp_result = detect_mcp_requirements(project_path)
+    mcp_runtimes = mcp_result.get_required_runtimes()
+    mcp_tools = mcp_result.to_detected_items()
+    logger.debug(
+        f"MCP detection complete: runtimes={mcp_runtimes}, "
+        f"{len(mcp_tools)} tools from {len(mcp_result.source_files)} config files"
+    )
+    for req in mcp_result.requirements:
+        logger.debug(
+            f"  - Server '{req.server_name}': {req.command} -> "
+            f"runtime={req.runtime}, tool={req.tool}"
+        )
+
+    # Merge MCP tools into tools list (avoid duplicates by name)
+    existing_tool_names = {t.name for t in tools}
+    for mcp_tool in mcp_tools:
+        if mcp_tool.name not in existing_tool_names:
+            tools.append(mcp_tool)
+            existing_tool_names.add(mcp_tool.name)
+
     duration_ms = int((time.perf_counter() - start_time) * 1000)
     logger.debug(f"Detection completed in {duration_ms}ms")
 
@@ -134,8 +156,9 @@ def detect(
         frameworks=frameworks,
         tools=tools,
         databases=databases,
+        mcp_runtimes=mcp_runtimes,
         scan_stats=scan_stats,
     )
 
 
-__all__ = ["detect", "DetectionResult"]
+__all__ = ["detect", "DetectionResult", "MCPDetectionResult", "detect_mcp_requirements"]
