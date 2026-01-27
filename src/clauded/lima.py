@@ -48,7 +48,19 @@ class LimaVM:
             cmd = ["limactl"]
             if debug:
                 cmd.extend(["--debug", "--log-level", "debug"])
-            cmd.extend(["start", "--name", self.name, config_path])
+            # --tty=false prevents TUI prompt when stdin is devnull
+            # --timeout allows more time for apt-get during provisioning
+            cmd.extend(
+                [
+                    "start",
+                    "--tty=false",
+                    "--timeout",
+                    "20m",
+                    "--name",
+                    self.name,
+                    config_path,
+                ]
+            )
             subprocess.run(
                 cmd,
                 check=True,
@@ -63,7 +75,8 @@ class LimaVM:
         cmd = ["limactl"]
         if debug:
             cmd.extend(["--debug", "--log-level", "debug"])
-        cmd.extend(["start", self.name])
+        # --tty=false prevents TUI prompt when stdin is devnull
+        cmd.extend(["start", "--tty=false", self.name])
         subprocess.run(
             cmd,
             check=True,
@@ -107,22 +120,23 @@ class LimaVM:
             }
         ]
 
-        # Add read-only mounts for home directory config (if they exist)
+        # Mount ~/.claude directory for global and project-local settings
         # Lima requires absolute paths for mountPoint (not tilde-prefixed)
         # Lima maps the host username to the VM, so guest home is /home/<user>.linux/
         home = Path.home()
         guest_home = f"/home/{getpass.getuser()}.linux"
 
-        # Mount config directories
+        # Mount Claude settings directory (read-write to allow settings changes)
+        # Create on host if it doesn't exist so settings persist across VMs
         claude_dir = home / ".claude"
-        if claude_dir.exists():
-            mounts.append(
-                {
-                    "location": str(claude_dir),
-                    "mountPoint": f"{guest_home}/.claude",
-                    "writable": False,
-                }
-            )
+        claude_dir.mkdir(exist_ok=True)
+        mounts.append(
+            {
+                "location": str(claude_dir),
+                "mountPoint": f"{guest_home}/.claude",
+                "writable": True,
+            }
+        )
 
         # Build provision scripts
         # NOTE: Only install minimal packages needed for Ansible to connect.

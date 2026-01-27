@@ -18,7 +18,7 @@ class TestConfigFromWizard:
             "java": "21",
             "kotlin": "2.0",
             "rust": "stable",
-            "go": "1.22",
+            "go": "1.25.6",
             "tools": ["docker", "git", "aws-cli", "gradle"],
             "databases": ["postgresql", "redis"],
             "frameworks": ["playwright", "claude-code"],
@@ -34,7 +34,7 @@ class TestConfigFromWizard:
         assert config.java == "21"
         assert config.kotlin == "2.0"
         assert config.rust == "stable"
-        assert config.go == "1.22"
+        assert config.go == "1.25.6"
         assert config.tools == ["docker", "git", "aws-cli", "gradle"]
         assert config.databases == ["postgresql", "redis"]
         assert config.frameworks == ["playwright", "claude-code"]
@@ -148,7 +148,7 @@ class TestConfigSaveAndLoad:
             java="21",
             kotlin="2.0",
             rust="stable",
-            go="1.22",
+            go="1.25.6",
             tools=["docker", "git", "gradle"],
             databases=["postgresql"],
             frameworks=["claude-code"],
@@ -188,7 +188,7 @@ class TestConfigSaveAndLoad:
             java="21",
             kotlin="2.0",
             rust="stable",
-            go="1.22",
+            go="1.25.6",
             tools=["docker", "gradle"],
             databases=[],
             frameworks=["claude-code"],
@@ -212,7 +212,7 @@ class TestConfigSaveAndLoad:
         assert data["environment"]["java"] == "21"
         assert data["environment"]["kotlin"] == "2.0"
         assert data["environment"]["rust"] == "stable"
-        assert data["environment"]["go"] == "1.22"
+        assert data["environment"]["go"] == "1.25.6"
         assert data["environment"]["tools"] == ["docker", "gradle"]
         assert data["environment"]["databases"] == []
         assert data["environment"]["frameworks"] == ["claude-code"]

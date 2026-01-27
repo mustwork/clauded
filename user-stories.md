@@ -254,7 +254,7 @@ Ansible-based installation of tools, databases, and frameworks.
 
 #### [Implemented] Story: Install Go Version
 
-**As a** Go Developer, **I want** my chosen Go version (1.20, 1.21, 1.22) to be installed, **so that** I have the correct runtime for my project.
+**As a** Go Developer, **I want** my chosen Go version (1.24.12, 1.25.6) to be installed, **so that** I have the correct runtime for my project.
 
 **Acceptance Criteria**:
 - [ ] Selected Go version is downloaded from go.dev

@@ -103,7 +103,7 @@ def run_with_detection(
         "java": {"name": "Java", "versions": ["21", "17", "11"]},
         "kotlin": {"name": "Kotlin", "versions": ["2.0", "1.9"]},
         "rust": {"name": "Rust", "versions": ["stable", "nightly"]},
-        "go": {"name": "Go", "versions": ["1.22", "1.21", "1.20"]},
+        "go": {"name": "Go", "versions": ["1.25.6", "1.24.12"]},
     }
 
     # Languages - single checkbox for all
@@ -260,7 +260,7 @@ def normalize_version_for_choice(
            - Java: extract major (21 from 21 or 21.0.1)
            - Kotlin: extract major.minor (2.0 from 2.0.10)
            - Rust: use as-is (stable, nightly, or version)
-           - Go: extract major.minor (1.22 from 1.22.3)
+           - Go: find choice matching major.minor (1.25.6 from 1.25)
         2. Check if normalized version in choices list
         3. Return matching choice or None
     """
@@ -310,11 +310,19 @@ def normalize_version_for_choice(
             if "stable" in choices and clean_version and clean_version[0].isdigit():
                 return "stable"
         elif runtime == "go":
-            # Extract major.minor: "1.22.3" → "1.22"
+            # Go choices now include full patch versions (1.25.6, 1.24.12)
+            # First check if exact match
+            if clean_version in choices:
+                return clean_version
+            # Extract major.minor and find matching choice
             match = re.match(r"^(\d+\.\d+)", clean_version)
             if match:
-                normalized = match.group(1)
-                return normalized if normalized in choices else None
+                major_minor = match.group(1)
+                # Find choice that starts with this major.minor
+                for choice in choices:
+                    if choice.startswith(major_minor):
+                        return choice
+            return None
 
         return None
     except Exception:

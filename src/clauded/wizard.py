@@ -90,11 +90,11 @@ def run(project_path: Path) -> Config:
     if answers["rust"] is None:
         raise KeyboardInterrupt()
 
-    # Go version (default: 1.22)
+    # Go version (default: 1.25.6)
     answers["go"] = questionary.select(
         "Go version?",
-        choices=["1.22", "1.21", "1.20", "None"],
-        default="1.22",
+        choices=["1.25.6", "1.24.12", "None"],
+        default="1.25.6",
         use_indicator=True,
         style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
@@ -240,7 +240,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
     # Go version - pre-select current value
     answers["go"] = questionary.select(
         "Go version?",
-        choices=["1.22", "1.21", "1.20", "None"],
+        choices=["1.25.6", "1.24.12", "None"],
         default=config.go if config.go else "None",
         use_indicator=True,
         style=WIZARD_STYLE,

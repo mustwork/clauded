@@ -4,14 +4,6 @@
     name: "@anthropic-ai/claude-code"
     global: yes
 
-- name: Create Claude Code settings directory
-  file:
-    path: ~/.claude
-    state: directory
-    mode: '0755'
-  become: no
-  when: claude_dangerously_skip_permissions | default(false)
-
 - name: Configure Claude Code auto-accept permissions
   copy:
     dest: ~/.claude/settings.json
@@ -30,6 +22,7 @@
         }
       }
     mode: '0644'
+    force: no  # Preserve existing host settings if mounted
   become: no
   when: claude_dangerously_skip_permissions | default(false)
 

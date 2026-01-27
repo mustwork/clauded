@@ -18,7 +18,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 
 - **Interactive Setup Wizard**: Guided prompts for languages, databases, and tools
 - **Automatic Project Detection**: Intelligently detects languages, versions, frameworks, and databases from your project files
-- **Multiple Runtime Versions**: Choose Python 3.10/3.11/3.12, Node.js 18/20/22, Java 11/17/21, Kotlin 1.9/2.0, Rust stable/nightly, and Go 1.20/1.21/1.22
+- **Multiple Runtime Versions**: Choose Python 3.10/3.11/3.12, Node.js 18/20/22, Java 11/17/21, Kotlin 1.9/2.0, Rust stable/nightly, and Go 1.24.12/1.25.6
 - **Database Support**: PostgreSQL, Redis, and MySQL with automatic installation
 - **Developer Tools**: Docker, AWS CLI, GitHub CLI, Git pre-installed
 - **Testing Frameworks**: Playwright with browser binaries ready to use
@@ -38,7 +38,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 | Java | 11, 17, 21 | maven, gradle |
 | Kotlin | 1.9, 2.0 | maven, gradle |
 | Rust | stable, nightly | cargo |
-| Go | 1.20, 1.21, 1.22 | go modules (built-in) |
+| Go | 1.24.12, 1.25.6 | go modules (built-in) |
 
 ### Developer Tools
 
@@ -100,7 +100,7 @@ If no `.clauded.yaml` exists, the interactive wizard will guide you through setu
 ? Java version: 21
 ? Kotlin version: 2.0
 ? Rust version: stable
-? Go version: 1.22
+? Go version: 1.25.6
 ? Select tools (space to select): docker, git
 ? Select databases: postgresql, redis
 ? Select frameworks: claude-code, playwright
@@ -177,7 +177,7 @@ environment:
   java: "21"
   kotlin: "2.0"
   rust: "stable"
-  go: "1.22"
+  go: "1.25.6"
   tools:
     - docker
     - git

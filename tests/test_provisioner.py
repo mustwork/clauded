@@ -24,7 +24,7 @@ def full_config() -> Config:
         java="21",
         kotlin="2.0",
         rust="stable",
-        go="1.22",
+        go="1.25.6",
         tools=["docker", "aws-cli", "gh"],
         databases=["postgresql", "redis", "mysql"],
         frameworks=["playwright", "claude-code"],
@@ -450,16 +450,16 @@ class TestProvisionerGeneratePlaybook:
 
         playbook = provisioner._generate_playbook()
 
-        assert playbook[0]["vars"]["go_version"] == "1.22"
+        assert playbook[0]["vars"]["go_version"] == "1.25.6"
 
     def test_play_defaults_go_version_when_none(self, minimal_config: Config) -> None:
-        """Go version defaults to 1.22 when None."""
+        """Go version defaults to 1.25.6 when None."""
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
         playbook = provisioner._generate_playbook()
 
-        assert playbook[0]["vars"]["go_version"] == "1.22"
+        assert playbook[0]["vars"]["go_version"] == "1.25.6"
 
     def test_play_includes_roles(self, full_config: Config) -> None:
         """Play includes roles from _get_roles()."""

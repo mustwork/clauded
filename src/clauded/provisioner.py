@@ -137,7 +137,7 @@ class Provisioner:
                     "java_version": self.config.java or "21",
                     "kotlin_version": self.config.kotlin or "2.0",
                     "rust_version": self.config.rust or "stable",
-                    "go_version": self.config.go or "1.22",
+                    "go_version": self.config.go or "1.25.6",
                     "claude_dangerously_skip_permissions": (
                         self.config.claude_dangerously_skip_permissions
                     ),
