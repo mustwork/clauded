@@ -1,5 +1,6 @@
 """Tests for clauded.lima module."""
 
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -287,6 +288,7 @@ class TestLimaVMCommands:
         mock_run.assert_called_once_with(
             ["limactl", "start", "clauded-test1234"],
             check=True,
+            stdin=subprocess.DEVNULL,
         )
 
     def test_stop_calls_limactl_stop(self, sample_config: Config) -> None:

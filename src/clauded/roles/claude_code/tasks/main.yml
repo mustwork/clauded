@@ -4,13 +4,32 @@
     name: "@anthropic-ai/claude-code"
     global: yes
 
-- name: Configure Claude Code to skip permissions
+- name: Create Claude Code settings directory
+  file:
+    path: /root/.claude
+    state: directory
+    mode: '0755'
+  when: claude_auto_accept_permissions | default(true)
+
+- name: Configure Claude Code auto-accept permissions
   copy:
-    dest: /etc/profile.d/claude.sh
+    dest: /root/.claude/settings.json
     content: |
-      export CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS=1
+      {
+        "permissions": {
+          "allow": [
+            "Bash(*)",
+            "Read(*)",
+            "Write(*)",
+            "Edit(*)",
+            "WebFetch(*)",
+            "Grep(*)",
+            "Glob(*)"
+          ]
+        }
+      }
     mode: '0644'
-  when: claude_dangerously_skip_permissions | default(true)
+  when: claude_auto_accept_permissions | default(true)
 
 - name: Verify Claude Code installation
   command: claude --version

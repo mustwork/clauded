@@ -47,6 +47,7 @@ class LimaVM:
             subprocess.run(
                 ["limactl", "start", "--name", self.name, config_path],
                 check=True,
+                stdin=subprocess.DEVNULL,
             )
         finally:
             Path(config_path).unlink(missing_ok=True)
@@ -54,7 +55,11 @@ class LimaVM:
     def start(self) -> None:
         """Start an existing VM."""
         print(f"\nStarting VM '{self.name}'...")
-        subprocess.run(["limactl", "start", self.name], check=True)
+        subprocess.run(
+            ["limactl", "start", self.name],
+            check=True,
+            stdin=subprocess.DEVNULL,
+        )
 
     def stop(self) -> None:
         """Stop the VM."""

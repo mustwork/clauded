@@ -26,6 +26,11 @@
     msg: "Node.js version: {{ node_version_output.stdout }}"
 
 # Install additional package managers
+- name: Install unzip (required by bun installer)
+  apt:
+    name: unzip
+    state: present
+
 - name: Install yarn globally
   npm:
     name: yarn

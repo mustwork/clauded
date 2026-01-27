@@ -362,6 +362,7 @@ environment:
 - **Command**: `claude`
 - **What it does**: AI-assisted development CLI
 - **Use cases**: Code generation, refactoring, debugging with Claude AI
+- **Auto-accept**: See [Claude Code Permissions](#claude-code-permissions) below
 
 #### `playwright`
 - **Package**: `playwright` (npm)
@@ -371,6 +372,47 @@ environment:
 - **Use cases**: End-to-end testing, browser automation
 
 **Default Selection**: `claude-code` is pre-selected in the wizard.
+
+---
+
+### Claude Code Permissions
+
+When `claude-code` is installed, clauded configures it to auto-accept common tool permissions. This is done via Claude Code's native settings file (`/root/.claude/settings.json`), not environment variables.
+
+**Configured Permissions**:
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "WebFetch(*)",
+      "Grep(*)",
+      "Glob(*)"
+    ]
+  }
+}
+```
+
+**Design Decision**: We chose the settings file approach over the `CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS` environment variable for these reasons:
+
+1. **Scope isolation**: Environment variables set in `/etc/profile.d/` or `/etc/bash.bashrc` affect all shell sessions on the system. If the host machine runs Claude Code outside the VM (e.g., in the project directory), those env vars could leak through shared shell configurations. The settings file approach only affects Claude Code running as root inside the VM.
+
+2. **Granular control**: The settings file allows specifying exactly which tools are allowed (Bash, Read, Write, etc.) rather than blanket permission bypass. This provides a safer foundation if more restrictive policies are needed later.
+
+3. **Claude-native configuration**: The settings file is the intended configuration mechanism for Claude Code, making it more maintainable and less likely to break with future Claude Code updates.
+
+**Disabling Auto-Accept**:
+
+To require manual confirmation for all Claude Code operations, set the Ansible variable:
+
+```yaml
+claude_auto_accept_permissions: false
+```
+
+This skips the settings file creation, leaving Claude Code with its default interactive permission prompts.
 
 ---
 
