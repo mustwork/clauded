@@ -1,6 +1,7 @@
 """Main CLI entry point for clauded."""
 
 import logging
+import sys
 from pathlib import Path
 
 import click
@@ -12,6 +13,27 @@ from .detect.cli_integration import display_detection_json
 from .detect.wizard_integration import run_with_detection
 from .lima import LimaVM
 from .provisioner import Provisioner
+
+
+def _reset_terminal() -> None:
+    """Reset terminal to a sane state after subprocess calls.
+
+    This ensures the terminal is in the correct mode for interactive
+    questionary prompts after running limactl commands that may output
+    escape sequences or modify terminal settings.
+    """
+    if sys.stdin.isatty():
+        try:
+            import termios
+
+            # Get current terminal attributes
+            fd = sys.stdin.fileno()
+            attrs = termios.tcgetattr(fd)
+            # Set them again to reset any weird state
+            termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
+        except (ImportError, termios.error):
+            # termios not available or error - skip reset
+            pass
 
 
 @click.command()
@@ -114,6 +136,9 @@ def main(
 
         if not vm.is_running():
             vm.start(debug=debug)
+            # Reset terminal state after limactl - it may output escape sequences
+            # that interfere with questionary's interactive prompts
+            _reset_terminal()
 
         try:
             new_config = wizard.run_edit(config, project_path)

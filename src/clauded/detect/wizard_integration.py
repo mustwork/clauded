@@ -13,13 +13,13 @@ from ..config import Config
 from . import detect
 from .result import DetectionResult
 
-# Custom style: no text inversion, only circle indicators
+# Custom style: no text inversion, use cyan highlighting and circle indicators
 WIZARD_STYLE = Style(
     [
-        ("highlighted", "noreverse"),  # Disable text inversion
-        ("selected", "noreverse"),  # Disable inversion for checked items
-        ("pointer", "noreverse fg:cyan"),  # Pointer without inversion
-        ("answer", "fg:green"),  # Submitted answer
+        ("highlighted", "noreverse fg:ansibrightcyan"),  # Cyan text, no inversion
+        ("selected", "noreverse fg:ansibrightcyan"),  # Cyan for checked items
+        ("pointer", "noreverse fg:ansicyan bold"),  # Bold cyan pointer
+        ("answer", "fg:ansigreen"),  # Green submitted answer
     ]
 )
 

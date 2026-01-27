@@ -7,15 +7,26 @@ from questionary import Choice, Style
 
 from .config import Config
 
-# Custom style: no text inversion, only circle indicators
+# Custom style: no text inversion, use cyan highlighting and circle indicators
 WIZARD_STYLE = Style(
     [
-        ("highlighted", "noreverse"),  # Disable text inversion
-        ("selected", "noreverse"),  # Disable inversion for checked items
-        ("pointer", "noreverse fg:cyan"),  # Pointer without inversion
-        ("answer", "fg:green"),  # Submitted answer
+        ("highlighted", "noreverse fg:ansibrightcyan"),  # Cyan text, no inversion
+        ("selected", "noreverse fg:ansibrightcyan"),  # Cyan for checked items
+        ("pointer", "noreverse fg:ansicyan bold"),  # Bold cyan pointer
+        ("answer", "fg:ansigreen"),  # Green submitted answer
     ]
 )
+
+
+def _get_valid_default(value: str | None, choices: list[str]) -> str:
+    """Return value if it's in choices, otherwise return 'None'.
+
+    This handles the case where a config has an old version that's no longer
+    in the available choices (e.g., Go "1.22" when choices are now "1.25.6", "1.24.12").
+    """
+    if value and value in choices:
+        return value
+    return "None"
 
 
 def run(project_path: Path) -> Config:
@@ -183,10 +194,11 @@ def run_edit(config: Config, project_path: Path) -> Config:
     answers = {}
 
     # Python version - pre-select current value
+    python_choices = ["3.12", "3.11", "3.10", "None"]
     answers["python"] = questionary.select(
         "Python version?",
-        choices=["3.12", "3.11", "3.10", "None"],
-        default=config.python if config.python else "None",
+        choices=python_choices,
+        default=_get_valid_default(config.python, python_choices),
         use_indicator=True,
         style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
@@ -196,10 +208,11 @@ def run_edit(config: Config, project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     # Node version - pre-select current value
+    node_choices = ["22", "20", "18", "None"]
     answers["node"] = questionary.select(
         "Node.js version?",
-        choices=["22", "20", "18", "None"],
-        default=config.node if config.node else "None",
+        choices=node_choices,
+        default=_get_valid_default(config.node, node_choices),
         use_indicator=True,
         style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
@@ -209,10 +222,11 @@ def run_edit(config: Config, project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     # Java version - pre-select current value
+    java_choices = ["21", "17", "11", "None"]
     answers["java"] = questionary.select(
         "Java version?",
-        choices=["21", "17", "11", "None"],
-        default=config.java if config.java else "None",
+        choices=java_choices,
+        default=_get_valid_default(config.java, java_choices),
         use_indicator=True,
         style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
@@ -222,10 +236,11 @@ def run_edit(config: Config, project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     # Kotlin version - pre-select current value
+    kotlin_choices = ["2.0", "1.9", "None"]
     answers["kotlin"] = questionary.select(
         "Kotlin version?",
-        choices=["2.0", "1.9", "None"],
-        default=config.kotlin if config.kotlin else "None",
+        choices=kotlin_choices,
+        default=_get_valid_default(config.kotlin, kotlin_choices),
         use_indicator=True,
         style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
@@ -235,10 +250,11 @@ def run_edit(config: Config, project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     # Rust version - pre-select current value
+    rust_choices = ["stable", "nightly", "None"]
     answers["rust"] = questionary.select(
         "Rust version?",
-        choices=["stable", "nightly", "None"],
-        default=config.rust if config.rust else "None",
+        choices=rust_choices,
+        default=_get_valid_default(config.rust, rust_choices),
         use_indicator=True,
         style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
@@ -248,10 +264,11 @@ def run_edit(config: Config, project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     # Go version - pre-select current value
+    go_choices = ["1.25.6", "1.24.12", "None"]
     answers["go"] = questionary.select(
         "Go version?",
-        choices=["1.25.6", "1.24.12", "None"],
-        default=config.go if config.go else "None",
+        choices=go_choices,
+        default=_get_valid_default(config.go, go_choices),
         use_indicator=True,
         style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
