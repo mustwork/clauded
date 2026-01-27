@@ -147,6 +147,16 @@ def run(project_path: Path) -> Config:
     # Always include claude-code
     answers["frameworks"] = ["claude-code"] + additional_frameworks
 
+    # Claude Code permissions - default is to skip (auto-accept all)
+    answers["claude_dangerously_skip_permissions"] = questionary.confirm(
+        "Auto-accept Claude Code permission prompts in VM?",
+        default=True,
+        style=WIZARD_STYLE,
+    ).ask()
+
+    if answers["claude_dangerously_skip_permissions"] is None:
+        raise KeyboardInterrupt()
+
     # VM resources
     if questionary.confirm("Customize VM resources?", default=False).ask():
         answers["cpus"] = questionary.text("CPUs:", default="4").ask()
@@ -296,6 +306,16 @@ def run_edit(config: Config, project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     answers["frameworks"] = ["claude-code"] + additional_frameworks
+
+    # Claude Code permissions - pre-select current value
+    answers["claude_dangerously_skip_permissions"] = questionary.confirm(
+        "Auto-accept Claude Code permission prompts in VM?",
+        default=config.claude_dangerously_skip_permissions,
+        style=WIZARD_STYLE,
+    ).ask()
+
+    if answers["claude_dangerously_skip_permissions"] is None:
+        raise KeyboardInterrupt()
 
     # Preserve VM resources from original config (cannot be changed without recreation)
     answers["cpus"] = str(config.cpus)

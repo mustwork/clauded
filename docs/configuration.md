@@ -377,42 +377,31 @@ environment:
 
 ### Claude Code Permissions
 
-When `claude-code` is installed, clauded configures it to auto-accept common tool permissions. This is done via Claude Code's native settings file (`/root/.claude/settings.json`), not environment variables.
+When `claude-code` is installed, clauded can configure it to auto-accept all tool permission prompts inside the VM. This is controlled by the `claude.dangerously_skip_permissions` setting.
 
-**Configured Permissions**:
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(*)",
-      "Read(*)",
-      "Write(*)",
-      "Edit(*)",
-      "WebFetch(*)",
-      "Grep(*)",
-      "Glob(*)"
-    ]
-  }
-}
-```
+**Default**: Enabled (`true`) — Claude Code will not prompt for tool permissions inside the VM.
 
-**Design Decision**: We chose the settings file approach over the `CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS` environment variable for these reasons:
-
-1. **Scope isolation**: Environment variables set in `/etc/profile.d/` or `/etc/bash.bashrc` affect all shell sessions on the system. If the host machine runs Claude Code outside the VM (e.g., in the project directory), those env vars could leak through shared shell configurations. The settings file approach only affects Claude Code running as root inside the VM.
-
-2. **Granular control**: The settings file allows specifying exactly which tools are allowed (Bash, Read, Write, etc.) rather than blanket permission bypass. This provides a safer foundation if more restrictive policies are needed later.
-
-3. **Claude-native configuration**: The settings file is the intended configuration mechanism for Claude Code, making it more maintainable and less likely to break with future Claude Code updates.
-
-**Disabling Auto-Accept**:
-
-To require manual confirmation for all Claude Code operations, set the Ansible variable:
-
+**Configuration**:
 ```yaml
-claude_auto_accept_permissions: false
+claude:
+  dangerously_skip_permissions: true   # Skip all permission prompts (default)
+  # dangerously_skip_permissions: false  # Require manual confirmation
 ```
 
-This skips the settings file creation, leaving Claude Code with its default interactive permission prompts.
+**Implementation**: When enabled, clauded creates `/etc/profile.d/claude.sh` in the VM with:
+```bash
+export CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS=true
+```
+
+**Design Decision**: We use the environment variable via `/etc/profile.d/` for these reasons:
+
+1. **VM-only scope**: The `/etc/profile.d/` directory is part of the VM filesystem (not mounted from host), so this setting only affects Claude Code running inside the VM. The host's Claude Code remains unaffected.
+
+2. **Complete coverage**: The environment variable skips ALL permission prompts, covering all current and future tools without requiring manual updates.
+
+3. **Idempotent**: Re-provisioning correctly enables or disables the setting based on current configuration.
+
+**Wizard Option**: The wizard prompts "Auto-accept Claude Code permission prompts in VM?" with default `Yes`. This can also be changed via `clauded --edit`.
 
 ---
 
