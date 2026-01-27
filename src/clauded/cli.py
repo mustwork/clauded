@@ -35,7 +35,7 @@ from .provisioner import Provisioner
 @click.option(
     "--debug",
     is_flag=True,
-    help="Enable debug logging for detection process",
+    help="Enable debug logging for detection and verbose Ansible output",
 )
 def main(
     destroy: bool,
@@ -119,7 +119,7 @@ def main(
             new_config = wizard.run_edit(config, project_path)
             new_config.save(config_path)
             click.echo("\nUpdated .clauded.yaml")
-            provisioner = Provisioner(new_config, vm)
+            provisioner = Provisioner(new_config, vm, debug=debug)
             provisioner.run()
         except KeyboardInterrupt:
             click.echo("\nEdit cancelled.")
@@ -153,14 +153,14 @@ def main(
     # VM doesn't exist? Create and provision
     if not vm.exists():
         vm.create()
-        provisioner = Provisioner(config, vm)
+        provisioner = Provisioner(config, vm, debug=debug)
         provisioner.run()
     elif not vm.is_running():
         # VM exists but stopped? Start it
         vm.start()
     elif reprovision:
         # VM running and --reprovision? Re-run provisioning
-        provisioner = Provisioner(config, vm)
+        provisioner = Provisioner(config, vm, debug=debug)
         provisioner.run()
 
     # Enter Claude Code

@@ -28,10 +28,11 @@ def _find_ansible_playbook() -> str:
 class Provisioner:
     """Generates and runs Ansible playbooks for VM provisioning."""
 
-    def __init__(self, config: Config, vm: LimaVM):
+    def __init__(self, config: Config, vm: LimaVM, *, debug: bool = False):
         self.config = config
         self.vm = vm
         self.roles_path = Path(__file__).parent / "roles"
+        self.debug = debug
 
     def run(self) -> None:
         """Run the provisioning playbook."""
@@ -64,18 +65,18 @@ class Provisioner:
                 "ANSIBLE_CONFIG": str(ansible_cfg_path),
             }
 
-            subprocess.run(
-                [
-                    _find_ansible_playbook(),
-                    "-i",
-                    str(inventory_path),
-                    str(playbook_path),
-                    "--ssh-extra-args",
-                    f"-F {lima_ssh_config}",
-                ],
-                env=env,
-                check=True,
-            )
+            cmd = [
+                _find_ansible_playbook(),
+                "-i",
+                str(inventory_path),
+                str(playbook_path),
+                "--ssh-extra-args",
+                f"-F {lima_ssh_config}",
+            ]
+            if self.debug:
+                cmd.append("-vv")
+
+            subprocess.run(cmd, env=env, check=True)
 
     def _get_roles(self) -> list[str]:
         """Determine which roles to include based on config."""
