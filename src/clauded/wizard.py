@@ -3,9 +3,19 @@
 from pathlib import Path
 
 import questionary
-from questionary import Choice
+from questionary import Choice, Style
 
 from .config import Config
+
+# Custom style: no text inversion, only circle indicators
+WIZARD_STYLE = Style(
+    [
+        ("highlighted", "noreverse"),  # Disable text inversion
+        ("selected", "noreverse"),  # Disable inversion for checked items
+        ("pointer", "noreverse fg:cyan"),  # Pointer without inversion
+        ("answer", "fg:green"),  # Submitted answer
+    ]
+)
 
 
 def run(project_path: Path) -> Config:
@@ -20,6 +30,8 @@ def run(project_path: Path) -> Config:
         "Python version?",
         choices=["3.12", "3.11", "3.10", "None"],
         default="3.12",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -31,6 +43,8 @@ def run(project_path: Path) -> Config:
         "Node.js version?",
         choices=["22", "20", "18", "None"],
         default="20",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -42,6 +56,8 @@ def run(project_path: Path) -> Config:
         "Java version?",
         choices=["21", "17", "11", "None"],
         default="21",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -53,6 +69,8 @@ def run(project_path: Path) -> Config:
         "Kotlin version?",
         choices=["2.0", "1.9", "None"],
         default="2.0",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -64,6 +82,8 @@ def run(project_path: Path) -> Config:
         "Rust version?",
         choices=["stable", "nightly", "None"],
         default="stable",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -75,6 +95,8 @@ def run(project_path: Path) -> Config:
         "Go version?",
         choices=["1.22", "1.21", "1.20", "None"],
         default="1.22",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -91,6 +113,7 @@ def run(project_path: Path) -> Config:
             Choice("aws-cli", checked=False),
             Choice("gh", checked=False),
         ],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
@@ -101,6 +124,7 @@ def run(project_path: Path) -> Config:
     answers["databases"] = questionary.checkbox(
         "Select databases:",
         choices=["postgresql", "redis", "mysql"],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
@@ -113,6 +137,7 @@ def run(project_path: Path) -> Config:
         choices=[
             Choice("playwright", checked=False),
         ],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
@@ -152,6 +177,8 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Python version?",
         choices=["3.12", "3.11", "3.10", "None"],
         default=config.python if config.python else "None",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -163,6 +190,8 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Node.js version?",
         choices=["22", "20", "18", "None"],
         default=config.node if config.node else "None",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -174,6 +203,8 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Java version?",
         choices=["21", "17", "11", "None"],
         default=config.java if config.java else "None",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -185,6 +216,8 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Kotlin version?",
         choices=["2.0", "1.9", "None"],
         default=config.kotlin if config.kotlin else "None",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -196,6 +229,8 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Rust version?",
         choices=["stable", "nightly", "None"],
         default=config.rust if config.rust else "None",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -207,6 +242,8 @@ def run_edit(config: Config, project_path: Path) -> Config:
         "Go version?",
         choices=["1.22", "1.21", "1.20", "None"],
         default=config.go if config.go else "None",
+        use_indicator=True,
+        style=WIZARD_STYLE,
         instruction="(enter/→ next, ← previous)",
     ).ask()
 
@@ -223,6 +260,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
             Choice("aws-cli", checked="aws-cli" in config.tools),
             Choice("gh", checked="gh" in config.tools),
         ],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
@@ -237,6 +275,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
             Choice("redis", checked="redis" in config.databases),
             Choice("mysql", checked="mysql" in config.databases),
         ],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
@@ -249,6 +288,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
         choices=[
             Choice("playwright", checked="playwright" in config.frameworks),
         ],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 

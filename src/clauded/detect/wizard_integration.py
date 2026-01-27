@@ -7,11 +7,21 @@ and uses them to pre-populate defaults and pre-check multi-select items.
 from pathlib import Path
 
 import questionary
-from questionary import Choice
+from questionary import Choice, Style
 
 from ..config import Config
 from . import detect
 from .result import DetectionResult
+
+# Custom style: no text inversion, only circle indicators
+WIZARD_STYLE = Style(
+    [
+        ("highlighted", "noreverse"),  # Disable text inversion
+        ("selected", "noreverse"),  # Disable inversion for checked items
+        ("pointer", "noreverse fg:cyan"),  # Pointer without inversion
+        ("answer", "fg:green"),  # Submitted answer
+    ]
+)
 
 
 def run_with_detection(
@@ -107,6 +117,7 @@ def run_with_detection(
             )
             for lang in language_config
         ],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
@@ -130,6 +141,8 @@ def run_with_detection(
                 f"{config['name']} version?",
                 choices=versions,
                 default=default_version if default_version in versions else versions[0],
+                use_indicator=True,
+                style=WIZARD_STYLE,
                 instruction="(enter/→ next, ← previous)",
             ).ask()
 
@@ -149,6 +162,7 @@ def run_with_detection(
             Choice("aws-cli", checked="aws-cli" in detected_tools),
             Choice("gh", checked="gh" in detected_tools),
         ],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
@@ -167,6 +181,7 @@ def run_with_detection(
             Choice("redis", checked="redis" in detected_databases),
             Choice("mysql", checked="mysql" in detected_databases),
         ],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
@@ -183,6 +198,7 @@ def run_with_detection(
         choices=[
             Choice("playwright", checked="playwright" in detected_frameworks),
         ],
+        style=WIZARD_STYLE,
         instruction="(space to select, enter/→ next, ← previous)",
     ).ask()
 
