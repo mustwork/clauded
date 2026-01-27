@@ -1,5 +1,6 @@
 """Lima VM lifecycle management."""
 
+import getpass
 import subprocess
 import tempfile
 from pathlib import Path
@@ -100,19 +101,31 @@ class LimaVM:
 
         # Add read-only mounts for home directory config (if they exist)
         # Lima requires absolute paths for mountPoint (not tilde-prefixed)
-        # The default Lima VM user is 'lima' with home at /home/lima.linux/
+        # Lima maps the host username to the VM, so guest home is /home/<user>.linux/
         home = Path.home()
-        guest_home = "/home/lima.linux"
-        for dirname in [".claude", ".git"]:
-            dirpath = home / dirname
-            if dirpath.exists():
-                mounts.append(
-                    {
-                        "location": str(dirpath),
-                        "mountPoint": f"{guest_home}/{dirname}",
-                        "writable": False,
-                    }
-                )
+        guest_home = f"/home/{getpass.getuser()}.linux"
+
+        # Mount config directories
+        claude_dir = home / ".claude"
+        if claude_dir.exists():
+            mounts.append(
+                {
+                    "location": str(claude_dir),
+                    "mountPoint": f"{guest_home}/.claude",
+                    "writable": False,
+                }
+            )
+
+        # Mount .gitconfig file if it exists
+        gitconfig = home / ".gitconfig"
+        if gitconfig.exists():
+            mounts.append(
+                {
+                    "location": str(gitconfig),
+                    "mountPoint": f"{guest_home}/.gitconfig",
+                    "writable": False,
+                }
+            )
 
         return {
             "vmType": "vz",

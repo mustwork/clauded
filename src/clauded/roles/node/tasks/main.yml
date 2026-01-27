@@ -47,11 +47,21 @@
   shell: |
     curl -fsSL https://bun.sh/install | bash
   args:
-    creates: /root/.bun/bin/bun
+    creates: /opt/bun/bin/bun
+  environment:
+    BUN_INSTALL: /opt/bun
 
 - name: Create bun symlink
   file:
-    src: /root/.bun/bin/bun
+    src: /opt/bun/bin/bun
     dest: /usr/local/bin/bun
     state: link
+    force: yes
+
+- name: Create bunx symlink
+  file:
+    src: /opt/bun/bin/bunx
+    dest: /usr/local/bin/bunx
+    state: link
+    force: yes
   ignore_errors: yes

@@ -6,14 +6,15 @@
 
 - name: Create Claude Code settings directory
   file:
-    path: /root/.claude
+    path: ~/.claude
     state: directory
     mode: '0755'
-  when: claude_auto_accept_permissions | default(true)
+  become: no
+  when: claude_dangerously_skip_permissions | default(false)
 
 - name: Configure Claude Code auto-accept permissions
   copy:
-    dest: /root/.claude/settings.json
+    dest: ~/.claude/settings.json
     content: |
       {
         "permissions": {
@@ -29,7 +30,8 @@
         }
       }
     mode: '0644'
-  when: claude_auto_accept_permissions | default(true)
+  become: no
+  when: claude_dangerously_skip_permissions | default(false)
 
 - name: Verify Claude Code installation
   command: claude --version

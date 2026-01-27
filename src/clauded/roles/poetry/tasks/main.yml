@@ -1,24 +1,33 @@
 ---
+- name: Create pipx directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /opt/pipx
+    - /opt/pipx/bin
+
 - name: Install pipx for Poetry installation
   pip:
     name: pipx
     executable: pip3
 
-- name: Ensure pipx path is set
-  command: pipx ensurepath
-  changed_when: false
-
 - name: Install Poetry via pipx
   shell: |
     pipx install poetry
   args:
-    creates: /root/.local/bin/poetry
+    creates: /opt/pipx/bin/poetry
+  environment:
+    PIPX_HOME: /opt/pipx
+    PIPX_BIN_DIR: /opt/pipx/bin
 
 - name: Create symlink for poetry
   file:
-    src: /root/.local/bin/poetry
+    src: /opt/pipx/bin/poetry
     dest: /usr/local/bin/poetry
     state: link
+    force: yes
 
 - name: Verify Poetry installation
   command: poetry --version
