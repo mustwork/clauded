@@ -195,6 +195,27 @@ environment:
 
 See [docs/configuration.md](docs/configuration.md) for full configuration reference.
 
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDED_APT_MIRROR` | `http://archive.ubuntu.com/ubuntu` | Ubuntu apt mirror URL for faster package downloads |
+
+**Regional mirrors for faster provisioning:**
+
+```bash
+# Germany
+export CLAUDED_APT_MIRROR="http://de.archive.ubuntu.com/ubuntu"
+
+# US
+export CLAUDED_APT_MIRROR="http://us.archive.ubuntu.com/ubuntu"
+
+# UK
+export CLAUDED_APT_MIRROR="http://gb.archive.ubuntu.com/ubuntu"
+```
+
+Add to your `.envrc` for automatic loading with direnv.
+
 ## Development
 
 ### Setup

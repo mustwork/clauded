@@ -1,4 +1,17 @@
 ---
+- name: Force apt to use IPv4
+  copy:
+    dest: /etc/apt/apt.conf.d/99force-ipv4
+    content: 'Acquire::ForceIPv4 "true";'
+    mode: "0644"
+
+- name: Configure apt mirror
+  replace:
+    path: /etc/apt/sources.list
+    regexp: 'http://archive\.ubuntu\.com/ubuntu'
+    replace: "{{ apt_mirror }}"
+  when: apt_mirror != "http://archive.ubuntu.com/ubuntu"
+
 - name: Update apt cache
   apt:
     update_cache: yes

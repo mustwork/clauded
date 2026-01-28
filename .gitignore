@@ -25,3 +25,4 @@ lima.REJECTED.yaml
 .claude/
 .exploration/
 .hypothesis/
+.envrc

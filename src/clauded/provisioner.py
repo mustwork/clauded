@@ -141,6 +141,9 @@ class Provisioner:
                     "claude_dangerously_skip_permissions": (
                         self.config.claude_dangerously_skip_permissions
                     ),
+                    "apt_mirror": os.environ.get(
+                        "CLAUDED_APT_MIRROR", "http://archive.ubuntu.com/ubuntu"
+                    ),
                 },
                 "roles": self._get_roles(),
             }
