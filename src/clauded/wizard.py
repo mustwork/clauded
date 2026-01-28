@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import questionary
-from questionary import Choice, Style
+from questionary import Choice, Separator, Style
 
 from .config import Config
 
@@ -113,49 +113,39 @@ def run(project_path: Path) -> Config:
         else:
             answers[lang] = "None"
 
-    # Tools (multi-select, default: docker)
+    # Tools, databases, and frameworks combined (multi-select with separators)
     # Note: git and npm are always installed via common and node roles
     # Note: uv/poetry auto-installed with Python, maven/gradle with Java/Kotlin
-    answers["tools"] = questionary.checkbox(
-        "Select tools:",
+    selections = questionary.checkbox(
+        "Select tools, databases, and frameworks:",
         choices=[
+            Separator("── Tools ──"),
             Choice("docker", checked=True),
             Choice("aws-cli", checked=False),
             Choice("gh", checked=False),
-        ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
-
-    if answers["tools"] is None:
-        raise KeyboardInterrupt()
-
-    # Databases (multi-select, no defaults)
-    answers["databases"] = questionary.checkbox(
-        "Select databases:",
-        choices=["postgresql", "redis", "mysql"],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
-
-    if answers["databases"] is None:
-        raise KeyboardInterrupt()
-
-    # Additional frameworks (multi-select) - claude-code is always included
-    additional_frameworks = questionary.checkbox(
-        "Additional frameworks:",
-        choices=[
+            Separator("── Databases ──"),
+            Choice("postgresql", checked=False),
+            Choice("redis", checked=False),
+            Choice("mysql", checked=False),
+            Separator("── Frameworks ──"),
             Choice("playwright", checked=False),
         ],
         style=WIZARD_STYLE,
         instruction="(space to select, enter to confirm)",
     ).ask()
 
-    if additional_frameworks is None:
+    if selections is None:
         raise KeyboardInterrupt()
 
+    # Split selections into tools, databases, and frameworks
+    tool_options = {"docker", "aws-cli", "gh"}
+    database_options = {"postgresql", "redis", "mysql"}
+    answers["tools"] = [s for s in selections if s in tool_options]
+    answers["databases"] = [s for s in selections if s in database_options]
     # Always include claude-code
-    answers["frameworks"] = ["claude-code"] + additional_frameworks
+    answers["frameworks"] = ["claude-code"] + [
+        s for s in selections if s not in tool_options and s not in database_options
+    ]
 
     # Claude Code permissions - default is to skip (auto-accept all)
     answers["claude_dangerously_skip_permissions"] = questionary.confirm(
@@ -272,52 +262,39 @@ def run_edit(config: Config, project_path: Path) -> Config:
         else:
             answers[lang] = "None"
 
-    # Tools - pre-check current selections
+    # Tools, databases, and frameworks combined - pre-check current selections
     # Note: git and npm are always installed via common and node roles
     # Note: uv/poetry auto-installed with Python, maven/gradle with Java/Kotlin
-    answers["tools"] = questionary.checkbox(
-        "Select tools:",
+    selections = questionary.checkbox(
+        "Select tools, databases, and frameworks:",
         choices=[
+            Separator("── Tools ──"),
             Choice("docker", checked="docker" in config.tools),
             Choice("aws-cli", checked="aws-cli" in config.tools),
             Choice("gh", checked="gh" in config.tools),
-        ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
-
-    if answers["tools"] is None:
-        raise KeyboardInterrupt()
-
-    # Databases - pre-check current selections
-    answers["databases"] = questionary.checkbox(
-        "Select databases:",
-        choices=[
+            Separator("── Databases ──"),
             Choice("postgresql", checked="postgresql" in config.databases),
             Choice("redis", checked="redis" in config.databases),
             Choice("mysql", checked="mysql" in config.databases),
-        ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
-
-    if answers["databases"] is None:
-        raise KeyboardInterrupt()
-
-    # Additional frameworks - pre-check current selections (claude-code always included)
-    additional_frameworks = questionary.checkbox(
-        "Additional frameworks:",
-        choices=[
+            Separator("── Frameworks ──"),
             Choice("playwright", checked="playwright" in config.frameworks),
         ],
         style=WIZARD_STYLE,
         instruction="(space to select, enter to confirm)",
     ).ask()
 
-    if additional_frameworks is None:
+    if selections is None:
         raise KeyboardInterrupt()
 
-    answers["frameworks"] = ["claude-code"] + additional_frameworks
+    # Split selections into tools, databases, and frameworks
+    tool_options = {"docker", "aws-cli", "gh"}
+    database_options = {"postgresql", "redis", "mysql"}
+    answers["tools"] = [s for s in selections if s in tool_options]
+    answers["databases"] = [s for s in selections if s in database_options]
+    # Always include claude-code
+    answers["frameworks"] = ["claude-code"] + [
+        s for s in selections if s not in tool_options and s not in database_options
+    ]
 
     # Claude Code permissions - pre-select current value
     answers["claude_dangerously_skip_permissions"] = questionary.confirm(

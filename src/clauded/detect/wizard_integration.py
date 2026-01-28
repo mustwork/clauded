@@ -7,9 +7,10 @@ and uses them to pre-populate defaults and pre-check multi-select items.
 from pathlib import Path
 
 import questionary
-from questionary import Choice, Style
+from questionary import Choice, Separator, Style
 
 from ..config import Config
+from ..spinner import spinner
 from . import detect
 from .result import DetectionResult
 
@@ -68,7 +69,8 @@ def run_with_detection(
 
     # Run detection if not provided
     if detection is None:
-        detection = detect(project_path, debug=debug)
+        with spinner("Detecting project configuration"):
+            detection = detect(project_path, debug=debug)
 
     # Create defaults from detection if provided
     has_detection = detection and (
@@ -176,61 +178,47 @@ def run_with_detection(
         else:
             answers[lang] = "None"
 
-    # Tools
+    # Tools, databases, and frameworks combined (multi-select with separators)
     tools_default = defaults.get("tools", [])
     detected_tools = set(tools_default) if isinstance(tools_default, list) else set()
-    answers["tools"] = questionary.checkbox(
-        "Select tools:",
-        choices=[
-            Choice("docker", checked="docker" in detected_tools),
-            Choice("aws-cli", checked="aws-cli" in detected_tools),
-            Choice("gh", checked="gh" in detected_tools),
-        ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
-
-    if answers["tools"] is None:
-        raise KeyboardInterrupt()
-
-    # Databases
     databases_default = defaults.get("databases", [])
     detected_databases = (
         set(databases_default) if isinstance(databases_default, list) else set()
     )
-    answers["databases"] = questionary.checkbox(
-        "Select databases:",
-        choices=[
-            Choice("postgresql", checked="postgresql" in detected_databases),
-            Choice("redis", checked="redis" in detected_databases),
-            Choice("mysql", checked="mysql" in detected_databases),
-        ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
-
-    if answers["databases"] is None:
-        raise KeyboardInterrupt()
-
-    # Frameworks - always include claude-code
     frameworks_default = defaults.get("frameworks", ["claude-code"])
     detected_frameworks = (
         set(frameworks_default) if isinstance(frameworks_default, list) else set()
     )
-    additional_frameworks = questionary.checkbox(
-        "Additional frameworks:",
+    selections = questionary.checkbox(
+        "Select tools, databases, and frameworks:",
         choices=[
+            Separator("── Tools ──"),
+            Choice("docker", checked="docker" in detected_tools),
+            Choice("aws-cli", checked="aws-cli" in detected_tools),
+            Choice("gh", checked="gh" in detected_tools),
+            Separator("── Databases ──"),
+            Choice("postgresql", checked="postgresql" in detected_databases),
+            Choice("redis", checked="redis" in detected_databases),
+            Choice("mysql", checked="mysql" in detected_databases),
+            Separator("── Frameworks ──"),
             Choice("playwright", checked="playwright" in detected_frameworks),
         ],
         style=WIZARD_STYLE,
         instruction="(space to select, enter to confirm)",
     ).ask()
 
-    if additional_frameworks is None:
+    if selections is None:
         raise KeyboardInterrupt()
 
+    # Split selections into tools, databases, and frameworks
+    tool_options = {"docker", "aws-cli", "gh"}
+    database_options = {"postgresql", "redis", "mysql"}
+    answers["tools"] = [s for s in selections if s in tool_options]
+    answers["databases"] = [s for s in selections if s in database_options]
     # Always include claude-code
-    answers["frameworks"] = ["claude-code"] + additional_frameworks
+    answers["frameworks"] = ["claude-code"] + [
+        s for s in selections if s not in tool_options and s not in database_options
+    ]
 
     # VM resources
     if questionary.confirm("Customize VM resources?", default=False).ask():
