@@ -158,10 +158,28 @@ def run(project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     # VM resources
-    if questionary.confirm("Customize VM resources?", default=False).ask():
-        answers["cpus"] = questionary.text("CPUs:", default="4").ask()
-        answers["memory"] = questionary.text("Memory:", default="8GiB").ask()
-        answers["disk"] = questionary.text("Disk:", default="20GiB").ask()
+    customize_resources = questionary.confirm(
+        "Customize VM resources?", default=False
+    ).ask()
+
+    if customize_resources is None:
+        raise KeyboardInterrupt()
+
+    if customize_resources:
+        cpus = questionary.text("CPUs:", default="4").ask()
+        if cpus is None:
+            raise KeyboardInterrupt()
+        answers["cpus"] = cpus
+
+        memory = questionary.text("Memory:", default="8GiB").ask()
+        if memory is None:
+            raise KeyboardInterrupt()
+        answers["memory"] = memory
+
+        disk = questionary.text("Disk:", default="20GiB").ask()
+        if disk is None:
+            raise KeyboardInterrupt()
+        answers["disk"] = disk
     else:
         answers["cpus"] = "4"
         answers["memory"] = "8GiB"

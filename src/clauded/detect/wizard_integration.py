@@ -221,16 +221,32 @@ def run_with_detection(
     ]
 
     # VM resources
-    if questionary.confirm("Customize VM resources?", default=False).ask():
-        answers["cpus"] = questionary.text(
-            "CPUs:", default=str(defaults.get("cpus", "4"))
-        ).ask()
-        answers["memory"] = questionary.text(
+    customize_resources = questionary.confirm(
+        "Customize VM resources?", default=False
+    ).ask()
+
+    if customize_resources is None:
+        raise KeyboardInterrupt()
+
+    if customize_resources:
+        cpus = questionary.text("CPUs:", default=str(defaults.get("cpus", "4"))).ask()
+        if cpus is None:
+            raise KeyboardInterrupt()
+        answers["cpus"] = cpus
+
+        memory = questionary.text(
             "Memory:", default=str(defaults.get("memory", "8GiB"))
         ).ask()
-        answers["disk"] = questionary.text(
+        if memory is None:
+            raise KeyboardInterrupt()
+        answers["memory"] = memory
+
+        disk = questionary.text(
             "Disk:", default=str(defaults.get("disk", "20GiB"))
         ).ask()
+        if disk is None:
+            raise KeyboardInterrupt()
+        answers["disk"] = disk
     else:
         answers["cpus"] = str(defaults.get("cpus", "4"))
         answers["memory"] = str(defaults.get("memory", "8GiB"))
