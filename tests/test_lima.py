@@ -257,10 +257,10 @@ class TestLimaVMGenerateLimaConfig:
         assert config["containerd"]["system"] is False
         assert config["containerd"]["user"] is False
 
-    def test_includes_provision_script(
+    def test_no_system_provision_scripts(
         self, sample_config: Config, tmp_path: Path
     ) -> None:
-        """Generated config includes basic provisioning script."""
+        """Generated config has no system provision scripts."""
         vm = LimaVM(sample_config)
 
         with (
@@ -269,10 +269,9 @@ class TestLimaVMGenerateLimaConfig:
         ):
             config = vm._generate_lima_config()
 
-        assert len(config["provision"]) >= 1
-        assert config["provision"][0]["mode"] == "system"
-        assert "apt-get update" in config["provision"][0]["script"]
-        assert "ca-certificates" in config["provision"][0]["script"]
+        # No system provision scripts - all package installation handled by Ansible
+        system_scripts = [p for p in config["provision"] if p["mode"] == "system"]
+        assert len(system_scripts) == 0
 
     def test_provisions_gitconfig_when_exists(
         self, sample_config: Config, tmp_path: Path
@@ -290,11 +289,11 @@ class TestLimaVMGenerateLimaConfig:
         ):
             config = vm._generate_lima_config()
 
-        # Should have 2 provision scripts: system + gitconfig
-        assert len(config["provision"]) == 2
+        # Should have only the gitconfig user script (no system scripts)
+        assert len(config["provision"]) == 1
 
         # Check gitconfig provision
-        gitconfig_provision = config["provision"][1]
+        gitconfig_provision = config["provision"][0]
         assert gitconfig_provision["mode"] == "user"
         assert "~/.gitconfig" in gitconfig_provision["script"]
         assert "Test User" in gitconfig_provision["script"]
@@ -312,9 +311,8 @@ class TestLimaVMGenerateLimaConfig:
         ):
             config = vm._generate_lima_config()
 
-        # Should only have the system provision script
-        assert len(config["provision"]) == 1
-        assert config["provision"][0]["mode"] == "system"
+        # Should have no provision scripts when .gitconfig doesn't exist
+        assert len(config["provision"]) == 0
 
 
 class TestLimaVMCommands:

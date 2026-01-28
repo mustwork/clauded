@@ -261,6 +261,16 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture docum
 3. **Provisioning**: Dynamically select Ansible roles based on config and provision via SSH
 4. **Shell Access**: Enter interactive shell at your project directory
 
+### Provisioning Architecture
+
+All package installation is handled by Ansible, not Lima boot scripts. This design choice provides:
+
+- **Recoverable failures**: If provisioning fails, the VM still exists and is SSH-accessible. You can debug issues and re-run `clauded --reprovision`
+- **Faster VM boot**: Lima doesn't wait for apt-get operations during boot
+- **Single source of truth**: All environment setup logic lives in Ansible roles, not split between Lima and Ansible
+
+Ubuntu cloud images include Python by default, allowing Ansible to connect immediately after VM boot without any Lima-side provisioning.
+
 ## Project Structure
 
 ```

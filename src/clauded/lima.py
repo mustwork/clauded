@@ -138,19 +138,10 @@ class LimaVM:
             }
         )
 
-        # Build provision scripts
-        # NOTE: Only install minimal packages needed for Ansible to connect.
-        # Do NOT install python3-pip here - it pulls 64 dependencies (71.6 MB)
-        # and exceeds Lima's ~10 minute boot timeout. pip is installed during
-        # Ansible provisioning via get-pip.py (roles/python/tasks/main.yml).
-        provision = [
-            {
-                "mode": "system",
-                "script": (
-                    "apt-get update && apt-get install -y ca-certificates curl git"
-                ),
-            }
-        ]
+        # No system provision scripts - all package installation handled by Ansible.
+        # This makes Lima boot faster and failures recoverable
+        # (VM exists, can re-run Ansible).
+        provision = []
 
         # Copy .gitconfig content to VM if it exists
         # (Lima mounts only support directories, not individual files)
