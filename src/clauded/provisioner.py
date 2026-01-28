@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -124,7 +125,7 @@ class Provisioner:
 
         return roles
 
-    def _generate_playbook(self) -> list:
+    def _generate_playbook(self) -> list[dict[str, Any]]:
         """Generate the Ansible playbook."""
         return [
             {
@@ -140,9 +141,6 @@ class Provisioner:
                     "go_version": self.config.go or "1.25.6",
                     "claude_dangerously_skip_permissions": (
                         self.config.claude_dangerously_skip_permissions
-                    ),
-                    "apt_mirror": os.environ.get(
-                        "CLAUDED_APT_MIRROR", "http://archive.ubuntu.com/ubuntu"
                     ),
                 },
                 "roles": self._get_roles(),
@@ -168,6 +166,7 @@ class Provisioner:
 host_key_checking = False
 retry_files_enabled = False
 interpreter_python = auto_silent
+remote_tmp = /tmp/.ansible-${USER}
 
 [privilege_escalation]
 become_ask_pass = False

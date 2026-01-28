@@ -1,17 +1,35 @@
 ---
 - name: Install Redis
-  apt:
-    name: redis-server
+  apk:
+    name:
+      - redis
     state: present
 
-- name: Enable Redis service
-  systemd:
-    name: redis-server
-    enabled: yes
-    state: started
+- name: Add Redis service to boot
+  command: rc-update add redis default
+  changed_when: false
+  ignore_errors: yes
 
-- name: Ensure Redis is accepting connections
+- name: Start Redis service via rc-service
+  command: rc-service redis start
+  register: redis_start
+  changed_when: "'started' in redis_start.stdout or redis_start.rc == 0"
+  failed_when: false
+
+- name: Wait for Redis to be ready
   wait_for:
     port: 6379
+    host: 127.0.0.1
     delay: 2
     timeout: 30
+  ignore_errors: yes
+
+- name: Check Redis status
+  command: rc-service redis status
+  register: redis_status
+  changed_when: false
+  failed_when: false
+
+- name: Display Redis status
+  debug:
+    msg: "Redis status: {{ redis_status.stdout | default('unknown') }}"

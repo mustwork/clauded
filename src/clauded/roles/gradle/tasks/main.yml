@@ -1,6 +1,6 @@
 ---
 - name: Install required packages for Gradle installation
-  apt:
+  apk:
     name:
       - curl
       - unzip

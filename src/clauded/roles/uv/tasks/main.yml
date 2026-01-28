@@ -1,4 +1,9 @@
 ---
+- name: Install curl for uv download
+  apk:
+    name: curl
+    state: present
+
 - name: Install uv (Python package manager)
   shell: |
     curl -LsSf https://astral.sh/uv/install.sh | sh

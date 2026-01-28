@@ -1,44 +1,21 @@
 ---
-- name: Install required packages for adding repositories
-  apt:
-    name:
-      - gpg
-      - curl
-      - software-properties-common
+- name: Install OpenJDK {{ java_version }}
+  apk:
+    name: "openjdk{{ java_version }}"
     state: present
     update_cache: yes
 
-- name: Add Adoptium GPG key
-  shell: |
-    curl -fsSL "https://packages.adoptium.net/artifactory/api/gpg/key/public" | gpg --dearmor -o /usr/share/keyrings/adoptium-archive-keyring.gpg
-  args:
-    creates: /usr/share/keyrings/adoptium-archive-keyring.gpg
-
-- name: Add Adoptium repository
-  apt_repository:
-    repo: "deb [signed-by=/usr/share/keyrings/adoptium-archive-keyring.gpg] https://packages.adoptium.net/artifactory/deb {{ ansible_facts['distribution_release'] }} main"
-    filename: adoptium
-    state: present
-
-- name: Install Eclipse Temurin JDK {{ java_version }}
-  apt:
-    name: "temurin-{{ java_version }}-jdk"
-    state: present
-    update_cache: yes
-
-- name: Determine JDK architecture suffix
+- name: Determine JDK path
   set_fact:
-    jdk_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+    java_home: "/usr/lib/jvm/java-{{ java_version }}-openjdk"
 
 - name: Set JAVA_HOME environment variable
-  lineinfile:
-    path: /etc/environment
-    line: "JAVA_HOME=/usr/lib/jvm/temurin-{{ java_version }}-jdk-{{ jdk_arch }}"
-    create: yes
-
-- name: Set java_home fact for other roles
-  set_fact:
-    java_home: "/usr/lib/jvm/temurin-{{ java_version }}-jdk-{{ jdk_arch }}"
+  copy:
+    dest: /etc/profile.d/java.sh
+    content: |
+      export JAVA_HOME={{ java_home }}
+      export PATH=$JAVA_HOME/bin:$PATH
+    mode: '0644'
 
 - name: Verify Java installation
   command: java -version

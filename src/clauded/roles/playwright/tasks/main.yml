@@ -1,14 +1,30 @@
 ---
+- name: Install Playwright browser dependencies
+  apk:
+    name:
+      - chromium
+      - firefox
+      - nss
+      - freetype
+      - harfbuzz
+      - ttf-freefont
+      - font-noto
+      - libstdc++
+    state: present
+
 - name: Install Playwright globally
   npm:
     name: playwright
     global: yes
   environment:
     PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
 
-- name: Install Playwright browsers and dependencies
-  shell: npx playwright install --with-deps
-  args:
-    creates: /opt/playwright-browsers
-  environment:
-    PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+- name: Set Playwright to use system browsers
+  copy:
+    dest: /etc/profile.d/playwright.sh
+    content: |
+      export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+      export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+      export PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH=/usr/bin/firefox
+    mode: '0644'

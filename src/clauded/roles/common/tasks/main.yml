@@ -1,31 +1,50 @@
 ---
-- name: Force apt to use IPv4
-  copy:
-    dest: /etc/apt/apt.conf.d/99force-ipv4
-    content: 'Acquire::ForceIPv4 "true";'
-    mode: "0644"
-
-- name: Configure apt mirror
-  replace:
-    path: /etc/apt/sources.list
-    regexp: 'http://archive\.ubuntu\.com/ubuntu'
-    replace: "{{ apt_mirror }}"
-  when: apt_mirror != "http://archive.ubuntu.com/ubuntu"
-
-- name: Update apt cache
-  apt:
+- name: Update apk cache
+  apk:
     update_cache: yes
-    cache_valid_time: 3600
 
 - name: Install common packages
-  apt:
+  apk:
     name:
       - ca-certificates
+      - coreutils
       - curl
       - direnv
       - git
       - gnupg
-      - lsb-release
-      - build-essential
-      - software-properties-common
+      - alpine-sdk
+      - bash
+      - shadow
+      - sudo
+      - openssh
     state: present
+
+- name: Set bash as default shell for {{ ansible_user }}
+  user:
+    name: "{{ ansible_user }}"
+    shell: /bin/bash
+
+- name: Get actual remote username
+  become: no
+  command: whoami
+  register: remote_whoami
+  changed_when: false
+
+- name: Get actual home directory
+  become: no
+  shell: echo $HOME
+  register: remote_home
+  changed_when: false
+
+- name: Ensure home directory has correct ownership
+  file:
+    path: "{{ remote_home.stdout }}"
+    state: directory
+    owner: "{{ remote_whoami.stdout }}"
+    group: "{{ remote_whoami.stdout }}"
+    mode: '0755'
+
+- name: Set bash as default shell for root
+  user:
+    name: root
+    shell: /bin/bash

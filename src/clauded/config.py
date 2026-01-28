@@ -3,6 +3,7 @@
 import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -38,7 +39,7 @@ class Config:
     claude_dangerously_skip_permissions: bool = True
 
     @classmethod
-    def from_wizard(cls, answers: dict, project_path: Path) -> "Config":
+    def from_wizard(cls, answers: dict[str, Any], project_path: Path) -> "Config":
         """Create a Config from wizard answers."""
         path_hash = hashlib.md5(str(project_path).encode()).hexdigest()[:8]
         vm_name = f"clauded-{path_hash}"

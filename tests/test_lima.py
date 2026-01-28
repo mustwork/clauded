@@ -147,15 +147,14 @@ class TestLimaVMGenerateLimaConfig:
         assert config["memory"] == "8GiB"
         assert config["disk"] == "20GiB"
 
-    def test_sets_ubuntu_image(self, sample_config: Config) -> None:
-        """Generated config uses Ubuntu Jammy cloud image."""
+    def test_sets_alpine_image(self, sample_config: Config) -> None:
+        """Generated config uses Alpine Linux cloud image."""
         vm = LimaVM(sample_config)
 
         config = vm._generate_lima_config()
 
         assert len(config["images"]) == 1
-        assert "ubuntu" in config["images"][0]["location"]
-        assert "jammy" in config["images"][0]["location"]
+        assert "alpine" in config["images"][0]["location"]
         assert config["images"][0]["arch"] == "aarch64"
 
     def test_configures_virtiofs_mount(
@@ -369,8 +368,9 @@ class TestLimaVMCommands:
                 "--workdir",
                 "/path/to/project",
                 "clauded-test1234",
-                "claude",
-                "--dangerously-skip-permissions",
+                "bash",
+                "-lic",
+                "USE_BUILTIN_RIPGREP=0 claude --dangerously-skip-permissions",
             ]
         )
 
@@ -389,6 +389,8 @@ class TestLimaVMCommands:
                 "--workdir",
                 "/path/to/project",
                 "clauded-test1234",
-                "claude",
+                "bash",
+                "-lic",
+                "USE_BUILTIN_RIPGREP=0 claude",
             ]
         )

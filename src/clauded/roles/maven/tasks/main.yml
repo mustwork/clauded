@@ -1,8 +1,7 @@
 ---
 - name: Install required packages for Maven installation
-  apt:
-    name:
-      - curl
+  apk:
+    name: curl
     state: present
     update_cache: yes
 

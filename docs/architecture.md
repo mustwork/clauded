@@ -31,7 +31,7 @@
 │          │             │                                       │
 │          v             v                                       │
 │  ┌──────────────────────────────────────────────────────┐    │
-│  │  Lima VM (Ubuntu 22.04 / Apple Virtualization)       │    │
+│  │  Lima VM (Alpine Linux 3.21 / Apple Virtualization)  │    │
 │  │                                                       │    │
 │  │  <project-path> (virtiofs mount from host)            │    │
 │  │                                                       │    │
@@ -217,7 +217,7 @@ def _generate_lima_config(self) -> dict[str, Any]:
         "os": "linux",
         "arch": "aarch64",
         "images": [{
-            "location": "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-arm64.img"
+            "location": "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2"
         }],
         "cpus": self.config.vm_cpus,
         "memory": self.config.vm_memory,
@@ -547,16 +547,17 @@ After installation, `clauded` command is available system-wide.
 
 ## Performance Considerations
 
-### VM Creation (~2-5 minutes)
+### VM Creation (~1-3 minutes)
 
 **Breakdown**:
 1. Lima VM initialization: ~30-60 seconds
-2. Ubuntu image download: ~60-120 seconds (first time only)
-3. VM boot: ~15-30 seconds
-4. Ansible provisioning: ~60-180 seconds (depends on selected roles)
+2. Alpine image download: ~10-30 seconds (first time only, ~50MB)
+3. VM boot: ~10-20 seconds
+4. Ansible provisioning: ~30-90 seconds (depends on selected roles)
 
 **Optimization**:
-- Ubuntu image cached by Lima after first download
+- Alpine image cached by Lima after first download
+- apk package manager is faster than apt
 - Ansible pipelining enabled (reduces SSH round-trips)
 - Parallel package installation where possible
 
@@ -570,16 +571,16 @@ After installation, `clauded` command is available system-wide.
 - No reprovisioning needed unless explicitly requested
 - VM disk persists all installed software
 
-### Provisioning (~60-180 seconds)
+### Provisioning (~30-90 seconds)
 
 **Breakdown**:
-- APT package index update: ~10-20 seconds
-- Package downloads: ~30-120 seconds (depends on number of packages)
-- Installation and configuration: ~20-40 seconds
+- apk package index update: ~5-10 seconds
+- Package downloads: ~15-60 seconds (depends on number of packages)
+- Installation and configuration: ~10-20 seconds
 
 **Optimization**:
 - Idempotent roles skip already-installed packages
-- APT cache shared within VM
+- apk cache shared within VM
 
 ## Security Considerations
 
@@ -621,8 +622,8 @@ if "go" in self.config.tools:
 
 # src/clauded/roles/golang/tasks/main.yml
 - name: Install Go
-  apt:
-    name: golang
+  apk:
+    name: go
     state: present
 ```
 
@@ -662,7 +663,7 @@ class AWSVM(BaseVM):
 - **Fix**: `brew install lima`
 
 **Issue**: VM creation hangs
-- **Cause**: Network issues downloading Ubuntu image
+- **Cause**: Network issues downloading Alpine image
 - **Fix**: Check internet connection, retry
 
 **Issue**: Ansible provisioning fails

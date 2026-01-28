@@ -19,7 +19,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from .result import DetectedItem
 from .utils import is_safe_path, safe_read_text
@@ -203,7 +203,7 @@ def _parse_user_claude_config(config_path: Path, result: MCPDetectionResult) -> 
 
 
 def _extract_mcp_servers(
-    data: dict,
+    data: dict[str, Any],
     source_file: str,
     result: MCPDetectionResult,
     confidence: Literal["high", "medium", "low"] = "high",

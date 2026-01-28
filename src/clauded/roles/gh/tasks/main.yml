@@ -1,19 +1,7 @@
 ---
-- name: Add GitHub CLI GPG key
-  apt_key:
-    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
-    keyring: /usr/share/keyrings/githubcli-archive-keyring.gpg
-    state: present
-
-- name: Add GitHub CLI repository
-  apt_repository:
-    repo: "deb [arch=arm64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
-    filename: github-cli
-    state: present
-
 - name: Install GitHub CLI
-  apt:
-    name: gh
+  apk:
+    name: github-cli
     state: present
     update_cache: yes
 

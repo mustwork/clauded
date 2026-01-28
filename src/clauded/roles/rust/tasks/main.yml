@@ -1,9 +1,10 @@
 ---
 - name: Install required packages for Rust installation
-  apt:
+  apk:
     name:
       - curl
-      - build-essential
+      - alpine-sdk
+      - musl-dev
     state: present
     update_cache: yes
 

@@ -1,20 +1,34 @@
 ---
-- name: Download NodeSource setup script
-  get_url:
-    url: "https://deb.nodesource.com/setup_{{ node_version }}.x"
-    dest: /tmp/nodesource_setup.sh
-    mode: '0755'
+# Use nodejs-current from community which is built against compatible sqlite
 
-- name: Run NodeSource setup script
-  shell: /tmp/nodesource_setup.sh
-  args:
-    creates: /etc/apt/sources.list.d/nodesource.list
+- name: Remove any previous fnm installation
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /opt/fnm
+    - /usr/local/bin/fnm
+    - /usr/local/bin/node
+    - /usr/local/bin/npm
+    - /usr/local/bin/npx
+  ignore_errors: yes
 
-- name: Install Node.js
-  apt:
-    name: nodejs
+- name: Enable Alpine v3.21 community repository
+  lineinfile:
+    path: /etc/apk/repositories
+    line: "https://dl-cdn.alpinelinux.org/alpine/v3.21/community"
     state: present
+
+- name: Update apk cache
+  apk:
     update_cache: yes
+
+- name: Install nodejs-current and npm (has compatible sqlite)
+  apk:
+    name:
+      - nodejs-current
+      - npm
+    state: present
 
 - name: Verify Node.js installation
   command: node --version
@@ -29,11 +43,15 @@
 - name: Enable corepack
   command: corepack enable
   changed_when: false
+  ignore_errors: yes
 
-# Install additional package managers
-- name: Install unzip (required by bun installer)
-  apt:
-    name: unzip
+# Install bun
+- name: Install bun dependencies
+  apk:
+    name:
+      - unzip
+      - curl
+      - gcompat
     state: present
 
 - name: Install bun

@@ -15,9 +15,6 @@
 #   make check         Run all checks (lint, typecheck, test)
 #   make build         Build wheel
 #   make clean         Clean build artifacts
-#
-# Environment variables:
-#   CLAUDED_APT_MIRROR   Ubuntu apt mirror URL (default: http://archive.ubuntu.com/ubuntu)
 
 .PHONY: install sync dev test coverage lint format typecheck check build clean help hooks
 

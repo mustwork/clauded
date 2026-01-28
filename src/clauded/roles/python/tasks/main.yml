@@ -1,63 +1,37 @@
 ---
-- name: Install required packages for adding repositories
-  apt:
+- name: Install Python and tools
+  apk:
     name:
-      - gpg
-      - curl
+      - python3
+      - python3-dev
+      - py3-pip
+      - py3-virtualenv
     state: present
     update_cache: yes
 
-- name: Remove command-not-found to avoid apt post-invoke errors
-  apt:
-    name: command-not-found
-    state: absent
-
-- name: Create keyrings directory
+- name: Create python3 symlink
   file:
-    path: /usr/share/keyrings
-    state: directory
-    mode: '0755'
+    src: /usr/bin/python3
+    dest: /usr/bin/python
+    state: link
+    force: yes
 
-- name: Download deadsnakes GPG key
-  shell: |
-    curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" | gpg --dearmor -o /usr/share/keyrings/deadsnakes-archive-keyring.gpg
-  args:
-    creates: /usr/share/keyrings/deadsnakes-archive-keyring.gpg
-
-- name: Add deadsnakes repository
-  apt_repository:
-    repo: "deb [signed-by=/usr/share/keyrings/deadsnakes-archive-keyring.gpg] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu {{ ansible_facts['distribution_release'] }} main"
-    filename: deadsnakes
-    state: present
-
-- name: Install Python {{ python_version }}
-  apt:
-    name:
-      - "python{{ python_version }}"
-      - "python{{ python_version }}-venv"
-      - "python{{ python_version }}-dev"
-    state: present
-    update_cache: yes
-
-- name: Set Python {{ python_version }} as default
-  alternatives:
-    name: python3
-    link: /usr/bin/python3
-    path: "/usr/bin/python{{ python_version }}"
-    priority: 100
-
-- name: Ensure pip is installed
-  shell: |
-    curl -sS https://bootstrap.pypa.io/get-pip.py | python{{ python_version }}
-  args:
-    creates: /usr/local/bin/pip3
-
-- name: Install pipx for isolated CLI tool installation
+- name: Install pipx via pip
   pip:
     name: pipx
-    state: present
     executable: pip3
+    extra_args: --break-system-packages
 
 - name: Ensure pipx path is configured
   shell: pipx ensurepath
   changed_when: false
+  ignore_errors: yes
+
+- name: Verify Python installation
+  command: python3 --version
+  register: python_version_output
+  changed_when: false
+
+- name: Display Python version
+  debug:
+    msg: "Python version: {{ python_version_output.stdout }}"

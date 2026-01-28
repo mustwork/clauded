@@ -1,29 +1,79 @@
 ---
-- name: Install Claude Code CLI
-  npm:
-    name: "@anthropic-ai/claude-code"
-    global: yes
+# Alpine/musl requires libgcc, libstdc++, ripgrep and USE_BUILTIN_RIPGREP=0
+# See: https://code.claude.com/docs/en/setup
 
-- name: Configure Claude Code to skip permission prompts
+- name: Install Claude Code musl dependencies
+  apk:
+    name:
+      - libgcc
+      - libstdc++
+      - ripgrep
+    state: present
+
+- name: Get remote username
+  become: no
+  command: whoami
+  register: claude_remote_user
+  changed_when: false
+
+- name: Get remote home directory
+  become: no
+  shell: echo $HOME
+  register: claude_remote_home
+  changed_when: false
+
+- name: Create .local/bin directory for user
+  file:
+    path: "{{ claude_remote_home.stdout }}/.local/bin"
+    state: directory
+    owner: "{{ claude_remote_user.stdout }}"
+    group: "{{ claude_remote_user.stdout }}"
+    mode: '0755'
+
+- name: Download Claude Code binary directly
+  become: no
+  shell: |
+    set -e
+    GCS_BUCKET="https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases"
+    VERSION=$(curl -fsSL "$GCS_BUCKET/latest")
+    ARCH=$(uname -m)
+    case "$ARCH" in
+      aarch64|arm64) PLATFORM="linux-arm64-musl" ;;
+      x86_64) PLATFORM="linux-x64-musl" ;;
+      *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
+    esac
+    BINARY_URL="$GCS_BUCKET/$VERSION/$PLATFORM/claude"
+    curl -fsSL "$BINARY_URL" -o ~/.local/bin/claude
+    chmod +x ~/.local/bin/claude
+  args:
+    creates: "{{ claude_remote_home.stdout }}/.local/bin/claude"
+
+- name: Create Claude Code config file
+  copy:
+    dest: "{{ claude_remote_home.stdout }}/.claude.json"
+    content: "{}"
+    owner: "{{ claude_remote_user.stdout }}"
+    group: "{{ claude_remote_user.stdout }}"
+    mode: '0600'
+    force: no
+
+- name: Configure Claude Code environment for Alpine
   copy:
     dest: /etc/profile.d/claude.sh
     content: |
+      export USE_BUILTIN_RIPGREP=0
+      export PATH="$HOME/.local/bin:$PATH"
+      {% if claude_dangerously_skip_permissions | default(false) %}
       export CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS=true
+      {% endif %}
     mode: '0644'
-  when: claude_dangerously_skip_permissions | default(false)
 
-- name: Remove Claude skip permissions config when disabled
-  file:
-    path: /etc/profile.d/claude.sh
-    state: absent
-  when: not (claude_dangerously_skip_permissions | default(false))
+- name: Verify Claude Code binary exists
+  become: no
+  stat:
+    path: "{{ claude_remote_home.stdout }}/.local/bin/claude"
+  register: claude_binary
 
-- name: Verify Claude Code installation
-  command: claude --version
-  register: claude_version
-  changed_when: false
-  ignore_errors: yes
-
-- name: Display Claude Code version
+- name: Display Claude Code installation status
   debug:
-    msg: "Claude Code version: {{ claude_version.stdout | default('installed') }}"
+    msg: "Claude Code binary installed: {{ claude_binary.stat.exists | default(false) }}"

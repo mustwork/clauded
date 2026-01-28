@@ -1,26 +1,19 @@
 ---
-- name: Download AWS CLI installer
-  get_url:
-    url: "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
-    dest: /tmp/awscliv2.zip
-    mode: '0644'
+# AWS CLI v2 binary requires glibc, so on Alpine we install via pip
 
-- name: Install unzip
-  apt:
-    name: unzip
+- name: Install AWS CLI dependencies
+  apk:
+    name:
+      - py3-pip
+      - groff
+      - less
     state: present
 
-- name: Unzip AWS CLI installer
-  unarchive:
-    src: /tmp/awscliv2.zip
-    dest: /tmp
-    remote_src: yes
-    creates: /tmp/aws
-
-- name: Install AWS CLI
-  command: /tmp/aws/install
-  args:
-    creates: /usr/local/bin/aws
+- name: Install AWS CLI via pip
+  pip:
+    name: awscli
+    executable: pip3
+    extra_args: --break-system-packages
 
 - name: Verify AWS CLI installation
   command: aws --version

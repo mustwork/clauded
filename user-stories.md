@@ -150,7 +150,7 @@ Ansible-based installation of tools, databases, and frameworks.
 **As a** Python Developer, **I want** my chosen Python version (3.10, 3.11, 3.12) to be installed and set as default, **so that** I can develop without environment mismatch issues.
 
 **Acceptance Criteria**:
-- [ ] Selected Python version is installed via deadsnakes PPA
+- [ ] Selected Python version is installed via apk
 - [ ] Python is set as system default (`python3` command)
 - [ ] pip is available for the installed version
 - [ ] `python3 --version` shows selected version
@@ -160,7 +160,7 @@ Ansible-based installation of tools, databases, and frameworks.
 **As a** Node.js Developer, **I want** my chosen Node.js version (18, 20, 22) to be installed, **so that** I have the correct runtime for my project.
 
 **Acceptance Criteria**:
-- [ ] Selected Node.js version is installed via NodeSource
+- [ ] Selected Node.js version is installed via apk
 - [ ] `node --version` shows selected version
 - [ ] npm is available
 - [ ] Node.js is accessible system-wide
@@ -180,9 +180,9 @@ Ansible-based installation of tools, databases, and frameworks.
 **As a** Full-Stack Developer, **I want** PostgreSQL, Redis, and MySQL available as optional selections, **so that** I can choose the databases my project needs.
 
 **Acceptance Criteria**:
-- [ ] Can select PostgreSQL (installs postgresql + contrib + libpq-dev)
-- [ ] Can select Redis (installs redis-server)
-- [ ] Can select MySQL (installs mysql-server)
+- [ ] Can select PostgreSQL (installs postgresql + contrib + postgresql-dev)
+- [ ] Can select Redis (installs redis)
+- [ ] Can select MySQL (installs mariadb)
 - [ ] Selected databases are running and enabled
 - [ ] Database services start automatically on VM boot
 
@@ -218,16 +218,16 @@ Ansible-based installation of tools, databases, and frameworks.
 **As an** AI-Assisted Developer, **I want** Claude Code CLI pre-installed, **so that** I can use AI features in my development environment.
 
 **Acceptance Criteria**:
-- [ ] Claude Code CLI is installed via npm
-- [ ] `claude` command is available
-- [ ] Claude Code is accessible system-wide
+- [ ] Claude Code CLI is installed via native installer
+- [ ] `claude` command is available in `~/.local/bin`
+- [ ] Login shell sources `/etc/profile.d/claude.sh` for PATH and env vars
 
 #### [Implemented] Story: Install Java Version
 
 **As a** Java Developer, **I want** my chosen Java version (11, 17, 21) to be installed and set as default, **so that** I can develop without environment mismatch issues.
 
 **Acceptance Criteria**:
-- [ ] Selected Java version is installed via Adoptium/Temurin
+- [ ] Selected Java version is installed via apk (OpenJDK)
 - [ ] `java --version` shows selected version
 - [ ] Java is set as system default
 - [ ] Maven and Gradle support the installed version

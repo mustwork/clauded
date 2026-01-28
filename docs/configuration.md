@@ -205,10 +205,10 @@ environment:
 ```
 
 **Installation Details**:
-- Installed via deadsnakes PPA
+- Installed via Alpine apk
 - Set as system default (`python3` command)
 - Includes `pip` and `venv`
-- Installed packages: `python{{ version }}`, `python{{ version }}-venv`, `python{{ version }}-dev`
+- Installed packages: `python3`, `python3-dev`, `py3-pip`
 
 **Version Selection**:
 - `"3.12"`: Latest stable (recommended for new projects)
@@ -233,7 +233,7 @@ environment:
 ```
 
 **Installation Details**:
-- Installed via NodeSource repository
+- Installed via Alpine apk from edge/community repository
 - Includes `npm` and `npx`
 - System-wide installation
 
@@ -266,7 +266,7 @@ environment:
 **Available Tools**:
 
 #### `docker`
-- **Package**: `docker.io`
+- **Package**: `docker`
 - **What it does**: Installs Docker Engine
 - **Post-install**: User added to `docker` group (no sudo needed)
 - **Service**: Enabled and started automatically
@@ -286,7 +286,7 @@ environment:
 
 #### `gh`
 - **Package**: GitHub CLI
-- **Repository**: GitHub official APT repo
+- **Repository**: Alpine apk (github-cli package)
 - **What it does**: GitHub workflow automation
 - **Use cases**: PR creation, issue management, GitHub Actions
 
@@ -314,22 +314,22 @@ environment:
 **Available Databases**:
 
 #### `postgresql`
-- **Packages**: `postgresql`, `postgresql-contrib`, `libpq-dev`
-- **Service**: Enabled and started automatically
+- **Packages**: `postgresql`, `postgresql-contrib`, `postgresql-dev`
+- **Service**: Enabled and started automatically (OpenRC)
 - **Port**: 5432
 - **Post-install**: Service waits for port 5432 to be ready
 - **Use cases**: Relational database, full-text search, JSON storage
 
 #### `redis`
-- **Package**: `redis-server`
-- **Service**: Enabled and started automatically
+- **Package**: `redis`
+- **Service**: Enabled and started automatically (OpenRC)
 - **Port**: 6379
 - **Post-install**: Service waits for port 6379 to be ready
 - **Use cases**: Caching, session storage, pub/sub
 
 #### `mysql`
-- **Package**: `mysql-server`
-- **Service**: Enabled and started automatically
+- **Package**: `mariadb` (MySQL-compatible)
+- **Service**: Enabled and started automatically (OpenRC)
 - **Port**: 3306
 - **Post-install**: Service waits for port 3306 to be ready
 - **Use cases**: Relational database, legacy applications
@@ -357,11 +357,12 @@ environment:
 **Available Frameworks**:
 
 #### `claude-code`
-- **Package**: `@anthropic-ai/claude-code` (npm)
-- **Installation**: Global npm package
+- **Installation**: Native installer (`claude.ai/install.sh`), auto-updates
+- **Binary**: `~/.local/bin/claude`
 - **Command**: `claude`
 - **What it does**: AI-assisted development CLI
 - **Use cases**: Code generation, refactoring, debugging with Claude AI
+- **Alpine deps**: `libgcc`, `libstdc++`, `ripgrep`, `USE_BUILTIN_RIPGREP=0`
 - **Auto-accept**: See [Claude Code Permissions](#claude-code-permissions) below
 
 #### `playwright`
@@ -500,7 +501,7 @@ environment:
   frameworks: []
 ```
 
-This creates a bare Ubuntu VM with only base packages (from the `common` role).
+This creates a bare Alpine VM with only base packages (from the `common` role).
 
 ---
 

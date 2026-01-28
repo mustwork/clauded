@@ -1,8 +1,7 @@
 ---
-- name: Install required packages for Go installation
-  apt:
-    name:
-      - curl
+- name: Install curl for Go download
+  apk:
+    name: curl
     state: present
     update_cache: yes
 

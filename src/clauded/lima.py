@@ -4,6 +4,7 @@ import getpass
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -49,7 +50,7 @@ class LimaVM:
             if debug:
                 cmd.extend(["--debug", "--log-level", "debug"])
             # --tty=false prevents TUI prompt when stdin is devnull
-            # --timeout allows more time for apt-get during provisioning
+            # --timeout allows more time for package installation during provisioning
             cmd.extend(
                 [
                     "start",
@@ -95,23 +96,31 @@ class LimaVM:
 
     def shell(self) -> None:
         """Open the Claude Code shell in the VM."""
+        claude_cmd = "claude"
+        if self.config.claude_dangerously_skip_permissions:
+            claude_cmd += " --dangerously-skip-permissions"
+
+        # Set USE_BUILTIN_RIPGREP=0 explicitly for Alpine/musl compatibility.
+        # The native binary's bundled ripgrep doesn't work on musl.
+        full_cmd = f"USE_BUILTIN_RIPGREP=0 {claude_cmd}"
+
         cmd = [
             "limactl",
             "shell",
             "--workdir",
             self.config.mount_guest,
             self.name,
-            "claude",
+            "bash",
+            "-lic",
+            full_cmd,
         ]
-        if self.config.claude_dangerously_skip_permissions:
-            cmd.append("--dangerously-skip-permissions")
         subprocess.run(cmd)
 
     def get_ssh_config_path(self) -> Path:
         """Get the path to Lima's SSH config for this VM."""
         return Path.home() / ".lima" / self.name / "ssh.config"
 
-    def _generate_lima_config(self) -> dict:
+    def _generate_lima_config(self) -> dict[str, Any]:
         """Generate Lima YAML configuration."""
         mounts = [
             {
@@ -156,6 +165,18 @@ class LimaVM:
             )
             provision.append({"mode": "user", "script": script})
 
+        # Copy .claude.json (OAuth tokens) from host if it exists
+        # This allows sharing authentication between host and VM
+        claude_json = home / ".claude.json"
+        if claude_json.exists():
+            claude_json_content = claude_json.read_text()
+            script = (
+                f"cat > ~/.claude.json << 'CLAUDEJSON_EOF'\n"
+                f"{claude_json_content}CLAUDEJSON_EOF\n"
+                f"chmod 600 ~/.claude.json"
+            )
+            provision.append({"mode": "user", "script": script})
+
         return {
             "vmType": "vz",
             "os": "Linux",
@@ -165,7 +186,7 @@ class LimaVM:
             "disk": self.config.disk,
             "images": [
                 {
-                    "location": "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-arm64.img",
+                    "location": "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2",
                     "arch": "aarch64",
                 }
             ],

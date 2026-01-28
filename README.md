@@ -195,27 +195,6 @@ environment:
 
 See [docs/configuration.md](docs/configuration.md) for full configuration reference.
 
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CLAUDED_APT_MIRROR` | `http://archive.ubuntu.com/ubuntu` | Ubuntu apt mirror URL for faster package downloads |
-
-**Regional mirrors for faster provisioning:**
-
-```bash
-# Germany
-export CLAUDED_APT_MIRROR="http://de.archive.ubuntu.com/ubuntu"
-
-# US
-export CLAUDED_APT_MIRROR="http://us.archive.ubuntu.com/ubuntu"
-
-# UK
-export CLAUDED_APT_MIRROR="http://gb.archive.ubuntu.com/ubuntu"
-```
-
-Add to your `.envrc` for automatic loading with direnv.
-
 ## Development
 
 ### Setup
@@ -287,10 +266,10 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture docum
 All package installation is handled by Ansible, not Lima boot scripts. This design choice provides:
 
 - **Recoverable failures**: If provisioning fails, the VM still exists and is SSH-accessible. You can debug issues and re-run `clauded --reprovision`
-- **Faster VM boot**: Lima doesn't wait for apt-get operations during boot
+- **Faster VM boot**: Lima doesn't wait for package manager operations during boot
 - **Single source of truth**: All environment setup logic lives in Ansible roles, not split between Lima and Ansible
 
-Ubuntu cloud images include Python by default, allowing Ansible to connect immediately after VM boot without any Lima-side provisioning.
+Alpine Linux cloud images include Python by default, allowing Ansible to connect immediately after VM boot without any Lima-side provisioning.
 
 ## Project Structure
 

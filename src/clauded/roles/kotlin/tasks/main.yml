@@ -1,6 +1,6 @@
 ---
 - name: Install required packages for Kotlin installation
-  apt:
+  apk:
     name:
       - curl
       - unzip

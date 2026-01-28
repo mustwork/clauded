@@ -62,7 +62,7 @@
 - **Configuration**: PyYAML 6.0+
 - **VM Management**: Lima (limactl commands via subprocess)
 - **Provisioning**: Ansible 13.2+ (ansible-playbook via subprocess)
-- **Base OS**: Ubuntu Jammy 22.04 LTS (cloud image)
+- **Base OS**: Alpine Linux 3.21 (cloud image)
 - **Hypervisor**: Apple Virtualization Framework (vz)
 - **Filesystem**: virtiofs for host-guest mounting
 
@@ -81,7 +81,7 @@
 
 **`lima.py`**
 - Manage Lima VM lifecycle via `limactl` subprocess calls
-- Generate Lima YAML configuration with VM resources, Ubuntu image, and mounts
+- Generate Lima YAML configuration with VM resources, Alpine image, and mounts
 - Check VM existence and running status
 - Provide SSH config path for Ansible connectivity
 
@@ -114,7 +114,7 @@
 **VM Creation**
 - Input: `Config` object with VM settings and environment selections
 - Process:
-  1. Generate Lima YAML config with vmType=vz, Ubuntu Jammy image, CPU/memory/disk settings
+  1. Generate Lima YAML config with vmType=vz, Alpine Linux image, CPU/memory/disk settings
   2. Configure virtiofs mount: host project path → same path in guest
   3. Execute `limactl start <vm-name> --tty=false <lima-config-path>`
 - Output: Running Lima VM with project directory mounted
@@ -210,22 +210,22 @@ environment:
 
 | Role | Purpose | Key Tasks |
 |------|---------|-----------|
-| `common` | Base system packages | ca-certificates, curl, git, gnupg, build-essential |
-| `python` | Python version installation | deadsnakes PPA, python{{ python_version }}, update-alternatives |
-| `node` | Node.js installation | NodeSource repository, nodejs={{ node_version }} |
-| `java` | Java version installation | Adoptium/Temurin JDK, temurin-{{ java_version }}-jdk |
+| `common` | Base system packages | ca-certificates, coreutils, curl, git, gnupg, alpine-sdk, bash |
+| `python` | Python version installation | apk python3, python3-dev, py3-pip |
+| `node` | Node.js installation | apk nodejs-current/npm from community repository |
+| `java` | Java version installation | apk openjdk{{ java_version }} |
 | `kotlin` | Kotlin compiler installation | Download from GitHub releases, kotlin{{ kotlin_version }} |
 | `rust` | Rust toolchain installation | rustup, rustc/cargo {{ rust_version }} |
 | `go` | Go version installation | Download from go.dev, go{{ go_version }} |
-| `docker` | Docker setup | docker.io, systemd service, user group |
-| `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, libpq-dev, service enabled |
-| `redis` | Redis installation | redis-server, service enabled, port 6379 |
-| `mysql` | MySQL installation | mysql-server, service enabled, port 3306 |
+| `docker` | Docker setup | apk docker, OpenRC service, user group |
+| `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, postgresql-dev, OpenRC service |
+| `redis` | Redis installation | redis, OpenRC service, port 6379 |
+| `mysql` | MySQL installation | mariadb (MySQL-compatible), OpenRC service, port 3306 |
 | `aws_cli` | AWS CLI v2 | Download aarch64 zip, unzip, install |
-| `gh` | GitHub CLI | GPG key, apt repository, gh package |
+| `gh` | GitHub CLI | apk package installation |
 | `gradle` | Gradle build tool | Download latest, install to /opt/gradle |
 | `playwright` | Playwright testing | npm install -g playwright, playwright install |
-| `claude_code` | Claude Code CLI | npm install -g @anthropic-ai/claude-code |
+| `claude_code` | Claude Code CLI | Native installer (claude.ai/install.sh), musl deps |
 
 **Playbook Generation**
 ```yaml
@@ -337,7 +337,7 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 
 ### Performance
 
-- VM creation: ~2-5 minutes (Ubuntu image download + provisioning)
+- VM creation: ~1-3 minutes (Alpine image download + provisioning)
 - VM start: ~5-15 seconds
 - VM stop: ~2-5 seconds
 - Shell entry: <1 second for running VM
@@ -392,7 +392,7 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 **Required**:
 - Lima (`limactl` in PATH)
 - Ansible (`ansible-playbook` in PATH via uv)
-- Internet connection (for Ubuntu image download and package installation)
+- Internet connection (for Alpine image download and package installation)
 
 **Optional**:
 - Git (for version control of `.clauded.yaml`)
@@ -429,7 +429,7 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 2. **macOS-only**: Lima is macOS-specific
 3. **ARM64-only**: Hardcoded architecture in Lima config
 4. **Local VMs only**: No remote provisioning
-5. **Ubuntu Jammy**: Hardcoded base image
+5. **Alpine Linux**: Hardcoded base image
 6. **No VM migration**: VMs are tied to host machine
 
 ### Assumptions
