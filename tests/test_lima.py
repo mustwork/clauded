@@ -356,7 +356,27 @@ class TestLimaVMCommands:
         )
 
     def test_shell_calls_limactl_shell_with_claude(self, sample_config: Config) -> None:
-        """shell() calls limactl shell with claude command."""
+        """shell() calls limactl shell with claude command and skip permissions flag."""
+        vm = LimaVM(sample_config)
+
+        with patch("subprocess.run") as mock_run:
+            vm.shell()
+
+        mock_run.assert_called_once_with(
+            [
+                "limactl",
+                "shell",
+                "--workdir",
+                "/path/to/project",
+                "clauded-test1234",
+                "claude",
+                "--dangerously-skip-permissions",
+            ]
+        )
+
+    def test_shell_without_skip_permissions(self, sample_config: Config) -> None:
+        """shell() omits skip permissions flag when disabled."""
+        sample_config.claude_dangerously_skip_permissions = False
         vm = LimaVM(sample_config)
 
         with patch("subprocess.run") as mock_run:

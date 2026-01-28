@@ -95,16 +95,17 @@ class LimaVM:
 
     def shell(self) -> None:
         """Open the Claude Code shell in the VM."""
-        subprocess.run(
-            [
-                "limactl",
-                "shell",
-                "--workdir",
-                self.config.mount_guest,
-                self.name,
-                "claude",
-            ]
-        )
+        cmd = [
+            "limactl",
+            "shell",
+            "--workdir",
+            self.config.mount_guest,
+            self.name,
+            "claude",
+        ]
+        if self.config.claude_dangerously_skip_permissions:
+            cmd.append("--dangerously-skip-permissions")
+        subprocess.run(cmd)
 
     def get_ssh_config_path(self) -> Path:
         """Get the path to Lima's SSH config for this VM."""

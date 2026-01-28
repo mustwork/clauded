@@ -388,16 +388,89 @@ claude:
   # dangerously_skip_permissions: false  # Require manual confirmation
 ```
 
-**Implementation**: When enabled, clauded creates `/etc/profile.d/claude.sh` in the VM with:
+#### How clauded Enables Permission Bypass
+
+When `dangerously_skip_permissions` is enabled, clauded uses **two mechanisms** to ensure Claude Code runs without permission prompts:
+
+1. **CLI Flag**: The `--dangerously-skip-permissions` flag is passed directly to Claude Code when starting the shell:
+   ```bash
+   claude --dangerously-skip-permissions
+   ```
+
+2. **Environment Variable**: Creates `/etc/profile.d/claude.sh` in the VM with:
+   ```bash
+   export CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS=true
+   ```
+
+Using both mechanisms provides redundancy, as there are known issues with each method individually (see below).
+
+#### Alternative Configuration Methods
+
+Claude Code supports multiple ways to configure permission bypass. These can be used manually inside the VM if needed:
+
+**Via CLI flag** (most reliable):
 ```bash
-export CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS=true
+claude --dangerously-skip-permissions
 ```
 
-**Design Decision**: We use the environment variable via `/etc/profile.d/` for these reasons:
+**Via settings.json** (persistent):
+Add to `~/.claude/settings.json`:
+```json
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  }
+}
+```
+
+**Via permission-mode flag**:
+```bash
+claude --permission-mode bypassPermissions
+```
+
+#### Settings Precedence
+
+Claude Code evaluates permission settings in this order (highest to lowest priority):
+
+1. Managed settings (`/etc/claude-code/managed-settings.json`)
+2. CLI flags (`--dangerously-skip-permissions`)
+3. Local project settings (`.claude/settings.local.json`)
+4. Shared project settings (`.claude/settings.json`)
+5. User settings (`~/.claude/settings.json`)
+6. Environment variables (`CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS`)
+
+#### Known Issues
+
+There are documented issues with Claude Code's permission bypass:
+
+- **Environment variable alone may not work**: Some users report that `CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS=true` is not sufficient and prompts still appear. The CLI flag is more reliable.
+
+- **Certain tools still prompt**: There's a [known bug](https://github.com/anthropics/claude-code/issues/1498) where `--dangerously-skip-permissions` still prompts for certain tools (particularly `Search()` and `List()`). This is project-specific and persists across versions.
+
+- **Permission mode conflicts**: Using `--permission-mode plan` together with `--dangerously-skip-permissions` can cause unexpected behavior where the permission mode is ignored.
+
+If you experience persistent permission prompts despite this setting, try adding explicit permission rules to `~/.claude/settings.json`:
+```json
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash(*)",
+      "Edit(*)",
+      "Read(*)",
+      "Write(*)",
+      "Search(*)",
+      "List(*)"
+    ]
+  }
+}
+```
+
+#### Design Decisions
 
 1. **VM-only scope**: The `/etc/profile.d/` directory is part of the VM filesystem (not mounted from host), so this setting only affects Claude Code running inside the VM. The host's Claude Code remains unaffected.
 
-2. **Complete coverage**: The environment variable skips ALL permission prompts, covering all current and future tools without requiring manual updates.
+2. **Dual mechanism**: We use both CLI flag and environment variable because neither is 100% reliable on its own due to Claude Code bugs.
 
 3. **Idempotent**: Re-provisioning correctly enables or disables the setting based on current configuration.
 
