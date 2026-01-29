@@ -45,13 +45,16 @@ class TestConfigFromWizard:
         assert config.mount_guest == str(tmp_path)
 
     def test_generates_unique_vm_name_from_path(self, tmp_path: Path) -> None:
-        """VM name is generated from path hash."""
+        """VM name includes project name and path hash."""
         answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
+        # Format: clauded-{project}-{hash}
         assert config.vm_name.startswith("clauded-")
-        assert len(config.vm_name) == len("clauded-") + 8  # 8 char hash
+        parts = config.vm_name.split("-")
+        assert len(parts) >= 3  # clauded, project name part(s), hash
+        assert len(parts[-1]) == 6  # 6 char hash at end
 
     def test_different_paths_produce_different_vm_names(self) -> None:
         """Different project paths produce different VM names."""

@@ -1,11 +1,22 @@
 """Configuration management for .clauded.yaml files."""
 
 import hashlib
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+
+def _sanitize_vm_name(name: str) -> str:
+    """Sanitize a string for use in VM names (valid hostname component)."""
+    # Convert to lowercase, replace invalid chars with hyphens
+    sanitized = re.sub(r"[^a-z0-9-]", "-", name.lower())
+    # Collapse multiple hyphens and strip leading/trailing hyphens
+    sanitized = re.sub(r"-+", "-", sanitized).strip("-")
+    # Truncate to reasonable length (leaving room for prefix and hash)
+    return sanitized[:20] if sanitized else "project"
 
 
 @dataclass
@@ -24,6 +35,13 @@ class Config:
     mount_host: str = ""
     mount_guest: str = ""
 
+    @property
+    def project_name(self) -> str:
+        """Get the project name from the mount path."""
+        if self.mount_host:
+            return Path(self.mount_host).name
+        return "unknown"
+
     # Environment
     python: str | None = None
     node: str | None = None
@@ -41,8 +59,9 @@ class Config:
     @classmethod
     def from_wizard(cls, answers: dict[str, Any], project_path: Path) -> "Config":
         """Create a Config from wizard answers."""
-        path_hash = hashlib.md5(str(project_path).encode()).hexdigest()[:8]
-        vm_name = f"clauded-{path_hash}"
+        project_name = _sanitize_vm_name(project_path.name)
+        path_hash = hashlib.md5(str(project_path).encode()).hexdigest()[:6]
+        vm_name = f"clauded-{project_name}-{path_hash}"
 
         return cls(
             vm_name=vm_name,

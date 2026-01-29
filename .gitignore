@@ -6,6 +6,9 @@ dist/
 wheels/
 *.egg-info
 
+# Build-time generated
+src/clauded/_build_info.py
+
 # Virtual environments
 .venv
 

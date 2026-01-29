@@ -48,3 +48,29 @@
   user:
     name: root
     shell: /bin/bash
+
+- name: Store clauded metadata
+  copy:
+    dest: /etc/clauded.json
+    content: |
+      {
+        "project_name": "{{ clauded_project_name }}",
+        "version": "{{ clauded_version }}",
+        "commit": "{{ clauded_commit }}",
+        "provisioned": "{{ clauded_provision_timestamp }}"
+      }
+    mode: '0644'
+
+- name: Create clauded welcome message script
+  copy:
+    dest: /etc/profile.d/00-clauded-welcome.sh
+    content: |
+      # clauded VM welcome message
+      if [ -t 1 ] && [ -z "$CLAUDED_WELCOME_SHOWN" ]; then
+        export CLAUDED_WELCOME_SHOWN=1
+        echo ""
+        echo "  {{ clauded_project_name }} | clauded v{{ clauded_version }} ({{ clauded_commit }})"
+        echo "  Provisioned: {{ clauded_provision_timestamp }}"
+        echo ""
+      fi
+    mode: '0644'

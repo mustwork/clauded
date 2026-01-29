@@ -1,6 +1,7 @@
 """Lima VM lifecycle management."""
 
 import getpass
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -96,6 +97,9 @@ class LimaVM:
 
     def shell(self) -> None:
         """Open the Claude Code shell in the VM."""
+        # Display welcome message with VM metadata
+        self._print_welcome()
+
         claude_cmd = "claude"
         if self.config.claude_dangerously_skip_permissions:
             claude_cmd += " --dangerously-skip-permissions"
@@ -115,6 +119,27 @@ class LimaVM:
             full_cmd,
         ]
         subprocess.run(cmd)
+
+    def _print_welcome(self) -> None:
+        """Print welcome message with VM metadata."""
+        try:
+            result = subprocess.run(
+                ["limactl", "shell", self.name, "cat", "/etc/clauded.json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            metadata = json.loads(result.stdout)
+            print()
+            print(
+                f"  {metadata['project_name']} | "
+                f"clauded v{metadata['version']} ({metadata['commit']})"
+            )
+            print(f"  Provisioned: {metadata['provisioned']}")
+            print()
+        except Exception:
+            # Metadata not available (VM not provisioned, old version, or test env)
+            pass
 
     def get_ssh_config_path(self) -> Path:
         """Get the path to Lima's SSH config for this VM."""

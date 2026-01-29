@@ -5,13 +5,35 @@ import os
 import subprocess
 import sys
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from . import __version__
 from .config import Config
 from .lima import LimaVM
+
+try:
+    from ._build_info import __commit__
+except ImportError:
+    # Development mode - read from git
+    def _get_git_commit() -> str:
+        repo_root = Path(__file__).parent.parent.parent
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return result.stdout.strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return "unknown"
+
+    __commit__ = _get_git_commit()
 
 
 def _find_ansible_playbook() -> str:
@@ -136,6 +158,8 @@ class Provisioner:
 
     def _generate_playbook(self) -> list[dict[str, Any]]:
         """Generate the Ansible playbook."""
+        timestamp_fmt = "%Y-%m-%d %H:%M:%S UTC"
+        provision_timestamp = datetime.now(UTC).strftime(timestamp_fmt)
         return [
             {
                 "name": "Provision clauded VM",
@@ -151,6 +175,10 @@ class Provisioner:
                     "claude_dangerously_skip_permissions": (
                         self.config.claude_dangerously_skip_permissions
                     ),
+                    "clauded_version": __version__,
+                    "clauded_commit": __commit__,
+                    "clauded_provision_timestamp": provision_timestamp,
+                    "clauded_project_name": self.config.project_name,
                 },
                 "roles": self._get_roles(),
             }

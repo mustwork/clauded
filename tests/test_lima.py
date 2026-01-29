@@ -361,7 +361,8 @@ class TestLimaVMCommands:
         with patch("subprocess.run") as mock_run:
             vm.shell()
 
-        mock_run.assert_called_once_with(
+        # Last call should be the actual shell command (first call fetches metadata)
+        mock_run.assert_called_with(
             [
                 "limactl",
                 "shell",
@@ -382,7 +383,8 @@ class TestLimaVMCommands:
         with patch("subprocess.run") as mock_run:
             vm.shell()
 
-        mock_run.assert_called_once_with(
+        # Last call should be the actual shell command (first call fetches metadata)
+        mock_run.assert_called_with(
             [
                 "limactl",
                 "shell",

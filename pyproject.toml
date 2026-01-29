@@ -8,7 +8,7 @@ dependencies = [
     "click>=8.1",
     "questionary>=2.0",
     "pyyaml>=6.0",
-    "ansible>=13.2",
+    "ansible>=11.0,<12.0",  # Pin to ansible-core 2.18.x (2.19+ has module_legacy_m2c bug)
     "tomli>=2.0; python_version < '3.11'",
 ]
 
@@ -29,6 +29,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/clauded"]

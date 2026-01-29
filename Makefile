@@ -79,7 +79,7 @@ typecheck:
 check: lint typecheck test
 
 build:
-	uv build
+	uv build --wheel
 
 clean:
 	rm -rf build/ dist/ *.egg-info/ htmlcov/ .coverage .pytest_cache/ .mypy_cache/ .ruff_cache/
