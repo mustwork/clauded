@@ -200,6 +200,7 @@ def run_with_detection(
             Choice("postgresql", checked="postgresql" in detected_databases),
             Choice("redis", checked="redis" in detected_databases),
             Choice("mysql", checked="mysql" in detected_databases),
+            Choice("sqlite", checked="sqlite" in detected_databases),
             Separator("── Frameworks ──"),
             Choice("playwright", checked="playwright" in detected_frameworks),
         ],
@@ -212,7 +213,7 @@ def run_with_detection(
 
     # Split selections into tools, databases, and frameworks
     tool_options = {"docker", "aws-cli", "gh"}
-    database_options = {"postgresql", "redis", "mysql"}
+    database_options = {"postgresql", "redis", "mysql", "sqlite"}
     answers["tools"] = [s for s in selections if s in tool_options]
     answers["databases"] = [s for s in selections if s in database_options]
     # Always include claude-code

@@ -60,6 +60,13 @@ class Provisioner:
             print(f"\nProvisioning VM '{self.vm.name}'...")
             print(f"Roles: {', '.join(self._get_roles())}\n")
 
+            # Display SQLite storage disclaimer (C3)
+            if "sqlite" in self.config.databases:
+                print("⚠️  SQLite storage location:")
+                print("   • Host-mounted paths persist across VM recreations")
+                print("   • VM-local paths are ephemeral (lost on VM destroy)")
+                print("   • Configure database file location according to your needs\n")
+
             env = {
                 **os.environ,
                 "ANSIBLE_ROLES_PATH": str(self.roles_path),
@@ -116,6 +123,8 @@ class Provisioner:
             roles.append("redis")
         if "mysql" in self.config.databases:
             roles.append("mysql")
+        if "sqlite" in self.config.databases:
+            roles.append("sqlite")
 
         # Frameworks
         if "playwright" in self.config.frameworks:

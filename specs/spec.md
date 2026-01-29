@@ -95,7 +95,7 @@
 **`wizard.py`**
 - Interactive questionary prompts for Python/Node.js/Java/Kotlin/Rust/Go versions
 - Multi-select for tools (docker, git, aws-cli, gh, gradle)
-- Multi-select for databases (postgresql, redis, mysql)
+- Multi-select for databases (postgresql, redis, mysql, sqlite)
 - Multi-select for frameworks (claude-code, playwright)
 - Optional VM resource customization
 - Return populated `Config` object
@@ -104,7 +104,7 @@
 - Automatic language detection using GitHub Linguist data
 - Version detection from manifest files (.python-version, package.json, go.mod, etc.)
 - Framework and tool detection from dependency manifests
-- Database detection from docker-compose and environment files
+- Database detection from docker-compose, environment files, and project manifests (package.json, database files)
 - Pre-population of wizard defaults based on detection results
 
 ## Core Functionality
@@ -203,6 +203,7 @@ environment:
   - `postgresql` if "postgresql" in config.environment.databases
   - `redis` if "redis" in config.environment.databases
   - `mysql` if "mysql" in config.environment.databases
+  - `sqlite` if "sqlite" in config.environment.databases
   - `playwright` if "playwright" in config.environment.frameworks
   - `claude_code` if "claude-code" in config.environment.frameworks
 
@@ -221,6 +222,7 @@ environment:
 | `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, postgresql-dev, OpenRC service |
 | `redis` | Redis installation | redis, OpenRC service, port 6379 |
 | `mysql` | MySQL installation | mariadb (MySQL-compatible), OpenRC service, port 3306 |
+| `sqlite` | SQLite installation | sqlite package via apk, no service management (file-based) |
 | `aws_cli` | AWS CLI v2 | Download aarch64 zip, unzip, install |
 | `gh` | GitHub CLI | apk package installation |
 | `gradle` | Gradle build tool | Download latest, install to /opt/gradle |

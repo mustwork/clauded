@@ -571,3 +571,52 @@ class TestProvisionerRolesPath:
         common_role = provisioner.roles_path / "common"
         assert common_role.exists()
         assert (common_role / "tasks" / "main.yml").exists()
+
+
+# Backward compatibility tests for SQLite
+def test_provisioner_without_sqlite_config() -> None:
+    """Provisioner handles configs without SQLite correctly."""
+    config = Config(
+        vm_name="test-vm",
+        cpus=4,
+        memory="8GiB",
+        disk="20GiB",
+        mount_host="/tmp/test",
+        mount_guest="/tmp/test",
+        python="3.12",
+        databases=["postgresql", "redis"],
+        frameworks=["claude-code"],
+    )
+
+    from unittest.mock import MagicMock
+
+    vm = MagicMock()
+    provisioner = Provisioner(config, vm)
+    roles = provisioner._get_roles()
+
+    assert "postgresql" in roles
+    assert "redis" in roles
+    assert "sqlite" not in roles
+
+
+def test_provisioner_with_sqlite_config() -> None:
+    """Provisioner includes SQLite role when configured."""
+    config = Config(
+        vm_name="test-vm",
+        cpus=4,
+        memory="8GiB",
+        disk="20GiB",
+        mount_host="/tmp/test",
+        mount_guest="/tmp/test",
+        node="20",
+        databases=["sqlite"],
+        frameworks=["claude-code"],
+    )
+
+    from unittest.mock import MagicMock
+
+    vm = MagicMock()
+    provisioner = Provisioner(config, vm)
+    roles = provisioner._get_roles()
+
+    assert "sqlite" in roles

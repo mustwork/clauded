@@ -308,11 +308,17 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
         ]
 
         # Extract databases with high or medium confidence
-        defaults["databases"] = [
+        databases = [
             item.name
             for item in result.databases
             if item.confidence in ("high", "medium")
         ]
+
+        # Auto-select SQLite when Node.js is detected (FR5)
+        if defaults.get("node") != "None" and "sqlite" not in databases:
+            databases.append("sqlite")
+
+        defaults["databases"] = databases
 
         # Extract frameworks with high or medium confidence, always include claude-code
         frameworks = [

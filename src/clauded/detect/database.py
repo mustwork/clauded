@@ -30,11 +30,13 @@ MYSQL_ORM_ADAPTERS = {
     "mysql2",
     "mysql-connector-java",
 }
+SQLITE_ORM_ADAPTERS = {"sqlite3", "better-sqlite3"}
 
 ENV_VAR_PATTERNS = {
     "postgresql": {"DATABASE_URL", "POSTGRES_URL", "POSTGRESQL_URL"},
     "redis": {"REDIS_URL", "REDIS_HOST"},
     "mysql": {"MYSQL_URL", "DB_HOST"},
+    "sqlite": {"SQLITE_URL"},
 }
 
 
@@ -50,10 +52,10 @@ def detect_databases(project_path: Path) -> list[DetectedItem]:
         - empty collection if no database indicators found
 
       Invariants:
-        - Supported databases: postgresql, redis, mysql
+        - Supported databases: postgresql, redis, mysql, sqlite
         - All source_file paths are absolute paths within project_path
-        - Confidence: high (docker-compose service), medium (ORM dependency),
-          low (env variable pattern)
+        - Confidence: high (docker-compose service, SQLite files),
+          medium (ORM dependency), low (env variable pattern)
         - Never raises exceptions - logs warnings and returns partial results
 
       Properties:
@@ -75,14 +77,22 @@ def detect_databases(project_path: Path) -> list[DetectedItem]:
            a. Detect psycopg2/asyncpg for PostgreSQL
            b. Detect redis-py/ioredis for Redis
            c. Detect mysql-connector for MySQL
-           d. Add DetectedItem with medium confidence
-        5. Deduplicate: keep highest confidence for each database
-        6. Return collection of DetectedItem objects
+           d. Detect sqlite3/better-sqlite3 for SQLite
+           e. Add DetectedItem with medium confidence
+        5. Check for SQLite database files:
+           a. Scan project root for .db, .sqlite, .sqlite3 files
+           b. Add DetectedItem with high confidence
+        6. Deduplicate: keep highest confidence for each database
+        7. Return collection of DetectedItem objects
 
       Database Detection Patterns:
-        PostgreSQL: postgres/postgresql image, psycopg2/asyncpg deps, DATABASE_URL with postgres://
+        PostgreSQL: postgres/postgresql image, psycopg2/asyncpg deps,
+                    DATABASE_URL with postgres://
         Redis: redis image, redis-py/ioredis deps, REDIS_URL
-        MySQL: mysql/mariadb image, mysql-connector deps, DATABASE_URL with mysql://
+        MySQL: mysql/mariadb image, mysql-connector deps,
+               DATABASE_URL with mysql://
+        SQLite: .db/.sqlite/.sqlite3 files, sqlite3/better-sqlite3 deps,
+                SQLITE_URL with sqlite://
     """
     logger.debug(f"Detecting databases in {project_path}")
     databases = []
@@ -110,6 +120,14 @@ def detect_databases(project_path: Path) -> list[DetectedItem]:
         databases.extend(orm_dbs)
     except Exception as e:
         logger.warning(f"Error detecting ORM adapters: {e}")
+
+    try:
+        logger.debug("  Detecting SQLite files...")
+        sqlite_dbs = detect_sqlite_files(project_path)
+        logger.debug(f"    Found {len(sqlite_dbs)} SQLite databases from files")
+        databases.extend(sqlite_dbs)
+    except Exception as e:
+        logger.warning(f"Error detecting SQLite files: {e}")
 
     logger.debug(f"Detected {len(databases)} database items before deduplication")
     result = deduplicate_databases(databases)
@@ -277,6 +295,8 @@ def parse_env_files(project_path: Path) -> list[DetectedItem]:
                     db_name = "redis"
                 elif var_name in ENV_VAR_PATTERNS["mysql"]:
                     db_name = "mysql"
+                elif var_name in ENV_VAR_PATTERNS["sqlite"]:
+                    db_name = "sqlite"
 
                 # Check URL schemes in values
                 if not db_name:
@@ -290,6 +310,8 @@ def parse_env_files(project_path: Path) -> list[DetectedItem]:
                         db_name = "redis"
                     elif "mysql://" in var_value_lower:
                         db_name = "mysql"
+                    elif "sqlite://" in var_value_lower:
+                        db_name = "sqlite"
 
                 if db_name:
                     databases.append(
@@ -452,6 +474,15 @@ def detect_orm_adapters(project_path: Path) -> list[DetectedItem]:
                                 source_evidence=adapter,
                             )
                         )
+                    elif adapter in SQLITE_ORM_ADAPTERS:
+                        databases.append(
+                            DetectedItem(
+                                name="sqlite",
+                                confidence="medium",
+                                source_file=str(package_json_file.absolute()),
+                                source_evidence=adapter,
+                            )
+                        )
 
             except Exception as e:
                 logger.warning(f"Error parsing {package_json_file}: {e}")
@@ -506,6 +537,51 @@ def detect_orm_adapters(project_path: Path) -> list[DetectedItem]:
 
             except Exception as e:
                 logger.warning(f"Error parsing {pom_file}: {e}")
+
+    return databases
+
+
+def detect_sqlite_files(project_path: Path) -> list[DetectedItem]:
+    """Detect SQLite from database files in project.
+
+    CONTRACT:
+      Inputs:
+        - project_path: directory path containing potential SQLite files
+
+      Outputs:
+        - collection of DetectedItem objects for detected SQLite
+        - empty collection if no SQLite files found
+
+      Invariants:
+        - High confidence for detected SQLite files
+        - Only checks project root (not recursive to avoid false positives)
+        - Never raises exceptions
+
+      Algorithm:
+        1. Check for .db, .sqlite, .sqlite3 files in project root
+        2. For each matching file:
+           a. Create DetectedItem with high confidence
+           b. Use filename as source_evidence
+        3. Return collection of DetectedItem objects
+    """
+    databases = []
+    sqlite_extensions = [".db", ".sqlite", ".sqlite3"]
+
+    try:
+        # Only check project root, not recursive (avoid false positives)
+        for file_path in project_path.iterdir():
+            if file_path.is_file() and file_path.suffix.lower() in sqlite_extensions:
+                if is_safe_path(file_path, project_path):
+                    databases.append(
+                        DetectedItem(
+                            name="sqlite",
+                            confidence="high",
+                            source_file=str(file_path.absolute()),
+                            source_evidence=file_path.name,
+                        )
+                    )
+    except Exception as e:
+        logger.warning(f"Error detecting SQLite files: {e}")
 
     return databases
 

@@ -94,7 +94,7 @@ Declarative `.clauded.yaml` configuration for reproducible development environme
 - [ ] Wizard prompts for Python version (3.10/3.11/3.12/None)
 - [ ] Wizard prompts for Node.js version (18/20/22/None)
 - [ ] Wizard prompts for tools (docker, git, aws-cli, gh)
-- [ ] Wizard prompts for databases (postgresql, redis, mysql)
+- [ ] Wizard prompts for databases (postgresql, redis, mysql, sqlite)
 - [ ] Wizard prompts for frameworks (claude-code, playwright)
 - [ ] Wizard generates valid `.clauded.yaml`
 
@@ -453,6 +453,26 @@ Intelligent detection of languages, versions, frameworks, and databases to pre-p
 - [ ] Detects MySQL from docker-compose services
 - [ ] Detects databases from ORM adapter dependencies
 - [ ] Detects databases from environment variable patterns
+
+#### [Implemented] Story: SQLite Database Support
+
+**As a** Node.js Developer, **I want** SQLite as a database option that auto-selects for Node.js projects, **so that** I can use file-based databases without service management overhead.
+
+**Acceptance Criteria**:
+- [x] SQLite appears as database option in wizard
+- [x] SQLite auto-detects from .db/.sqlite/.sqlite3 files in project root
+- [x] SQLite auto-detects from sqlite3/better-sqlite3 in package.json
+- [x] SQLite auto-detects from SQLITE_URL in environment files
+- [x] SQLite auto-selects when Node.js runtime is detected/selected
+- [x] SQLite can coexist with PostgreSQL, Redis, and MySQL simultaneously
+- [x] User can deselect SQLite even when auto-selected (user choice wins)
+- [x] SQLite appears in edit wizard workflow
+- [x] Storage location disclaimer displayed when SQLite provisioned
+- [x] Ansible role installs sqlite package via apk
+- [x] No false positives from Python stdlib sqlite3 imports
+- [x] Backward compatibility: configs without SQLite continue to work
+
+**Links to**: `specs/sqlite-database-option-spec.md`
 
 #### [Implemented] Story: View Detection Results
 

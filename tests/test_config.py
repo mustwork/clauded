@@ -269,3 +269,87 @@ class TestConfigDefaults:
         assert config.tools == []
         assert config.databases == []
         assert config.frameworks == []
+
+
+# Backward compatibility tests for SQLite
+class TestSQLiteBackwardCompatibility:
+    """Tests ensuring existing configs work without SQLite."""
+
+    def test_config_without_sqlite_loads_correctly(self, tmp_path: Path) -> None:
+        """Existing configs without SQLite continue to work."""
+        config_file = tmp_path / ".clauded.yaml"
+        config_data = {
+            "version": "1",
+            "vm": {
+                "name": "clauded-test",
+                "cpus": 4,
+                "memory": "8GiB",
+                "disk": "20GiB",
+            },
+            "mount": {
+                "host": str(tmp_path),
+                "guest": str(tmp_path),
+            },
+            "environment": {
+                "python": "3.12",
+                "tools": [],
+                "databases": ["postgresql", "redis"],
+                "frameworks": ["claude-code"],
+            },
+        }
+
+        config_file.write_text(yaml.dump(config_data))
+        config = Config.load(config_file)
+
+        assert config.databases == ["postgresql", "redis"]
+        assert "sqlite" not in config.databases
+
+    def test_config_with_sqlite_loads_correctly(self, tmp_path: Path) -> None:
+        """New configs with SQLite load correctly."""
+        config_file = tmp_path / ".clauded.yaml"
+        config_data = {
+            "version": "1",
+            "vm": {
+                "name": "clauded-test",
+                "cpus": 4,
+                "memory": "8GiB",
+                "disk": "20GiB",
+            },
+            "mount": {
+                "host": str(tmp_path),
+                "guest": str(tmp_path),
+            },
+            "environment": {
+                "node": "20",
+                "tools": [],
+                "databases": ["sqlite"],
+                "frameworks": ["claude-code"],
+            },
+        }
+
+        config_file.write_text(yaml.dump(config_data))
+        config = Config.load(config_file)
+
+        assert "sqlite" in config.databases
+
+    def test_wizard_answers_without_sqlite(self, tmp_path: Path) -> None:
+        """Wizard answers without SQLite produce correct config."""
+        answers = {
+            "python": "3.12",
+            "node": "None",
+            "java": "None",
+            "kotlin": "None",
+            "rust": "None",
+            "go": "None",
+            "tools": [],
+            "databases": ["postgresql"],
+            "frameworks": ["claude-code"],
+            "cpus": "4",
+            "memory": "8GiB",
+            "disk": "20GiB",
+        }
+
+        config = Config.from_wizard(answers, tmp_path)
+
+        assert config.databases == ["postgresql"]
+        assert "sqlite" not in config.databases
