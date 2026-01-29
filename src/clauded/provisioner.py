@@ -160,6 +160,14 @@ class Provisioner:
         """Generate the Ansible playbook."""
         timestamp_fmt = "%Y-%m-%d %H:%M:%S UTC"
         provision_timestamp = datetime.now(UTC).strftime(timestamp_fmt)
+
+        # Read host dotfiles to copy to VM
+        home = Path.home()
+        gitconfig_content = ""
+        gitconfig_path = home / ".gitconfig"
+        if gitconfig_path.exists():
+            gitconfig_content = gitconfig_path.read_text()
+
         return [
             {
                 "name": "Provision clauded VM",
@@ -179,6 +187,7 @@ class Provisioner:
                     "clauded_commit": __commit__,
                     "clauded_provision_timestamp": provision_timestamp,
                     "clauded_project_name": self.config.project_name,
+                    "gitconfig_content": gitconfig_content,
                 },
                 "roles": self._get_roles(),
             }

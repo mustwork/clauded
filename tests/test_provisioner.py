@@ -1,6 +1,8 @@
 """Tests for clauded.provisioner module."""
 
 import getpass
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -470,6 +472,34 @@ class TestProvisionerGeneratePlaybook:
 
         assert "roles" in playbook[0]
         assert "common" in playbook[0]["roles"]
+
+    def test_play_includes_gitconfig_content_when_exists(
+        self, full_config: Config, tmp_path: Path
+    ) -> None:
+        """Play includes gitconfig_content when ~/.gitconfig exists."""
+        gitconfig = tmp_path / ".gitconfig"
+        gitconfig.write_text("[user]\n\tname = Test User\n")
+
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        with patch("clauded.provisioner.Path.home", return_value=tmp_path):
+            playbook = provisioner._generate_playbook()
+
+        expected = "[user]\n\tname = Test User\n"
+        assert playbook[0]["vars"]["gitconfig_content"] == expected
+
+    def test_play_gitconfig_content_empty_when_not_exists(
+        self, full_config: Config, tmp_path: Path
+    ) -> None:
+        """Play has empty gitconfig_content when ~/.gitconfig doesn't exist."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        with patch("clauded.provisioner.Path.home", return_value=tmp_path):
+            playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["gitconfig_content"] == ""
 
 
 class TestProvisionerGenerateInventory:

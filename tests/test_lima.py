@@ -256,10 +256,8 @@ class TestLimaVMGenerateLimaConfig:
         assert config["containerd"]["system"] is False
         assert config["containerd"]["user"] is False
 
-    def test_no_system_provision_scripts(
-        self, sample_config: Config, tmp_path: Path
-    ) -> None:
-        """Generated config has no system provision scripts."""
+    def test_no_provision_scripts(self, sample_config: Config, tmp_path: Path) -> None:
+        """Generated config has no provision scripts (handled by Ansible)."""
         vm = LimaVM(sample_config)
 
         with (
@@ -268,50 +266,9 @@ class TestLimaVMGenerateLimaConfig:
         ):
             config = vm._generate_lima_config()
 
-        # No system provision scripts - all package installation handled by Ansible
-        system_scripts = [p for p in config["provision"] if p["mode"] == "system"]
-        assert len(system_scripts) == 0
-
-    def test_provisions_gitconfig_when_exists(
-        self, sample_config: Config, tmp_path: Path
-    ) -> None:
-        """Copies .gitconfig content to VM via provision script."""
-        vm = LimaVM(sample_config)
-
-        # Create .gitconfig file
-        gitconfig = tmp_path / ".gitconfig"
-        gitconfig.write_text("[user]\n\tname = Test User\n\temail = test@example.com\n")
-
-        with (
-            patch("clauded.lima.Path.home", return_value=tmp_path),
-            patch("clauded.lima.getpass.getuser", return_value="testuser"),
-        ):
-            config = vm._generate_lima_config()
-
-        # Should have only the gitconfig user script (no system scripts)
-        assert len(config["provision"]) == 1
-
-        # Check gitconfig provision
-        gitconfig_provision = config["provision"][0]
-        assert gitconfig_provision["mode"] == "user"
-        assert "~/.gitconfig" in gitconfig_provision["script"]
-        assert "Test User" in gitconfig_provision["script"]
-        assert "test@example.com" in gitconfig_provision["script"]
-
-    def test_no_gitconfig_provision_when_not_exists(
-        self, sample_config: Config, tmp_path: Path
-    ) -> None:
-        """Does not add gitconfig provision when file doesn't exist."""
-        vm = LimaVM(sample_config)
-
-        with (
-            patch("clauded.lima.Path.home", return_value=tmp_path),
-            patch("clauded.lima.getpass.getuser", return_value="testuser"),
-        ):
-            config = vm._generate_lima_config()
-
-        # Should have no provision scripts when .gitconfig doesn't exist
-        assert len(config["provision"]) == 0
+        # No provision scripts - all configuration handled by Ansible
+        # Lima user provisions fail on Alpine due to home directory permissions
+        assert "provision" not in config
 
 
 class TestLimaVMCommands:

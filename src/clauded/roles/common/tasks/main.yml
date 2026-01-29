@@ -44,6 +44,15 @@
     group: "{{ remote_whoami.stdout }}"
     mode: '0755'
 
+- name: Copy host .gitconfig to VM
+  copy:
+    dest: "{{ remote_home.stdout }}/.gitconfig"
+    content: "{{ gitconfig_content }}"
+    owner: "{{ remote_whoami.stdout }}"
+    group: "{{ remote_whoami.stdout }}"
+    mode: '0644'
+  when: gitconfig_content | length > 0
+
 - name: Set bash as default shell for root
   user:
     name: root

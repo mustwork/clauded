@@ -173,34 +173,10 @@ class LimaVM:
             }
         )
 
-        # No system provision scripts - all package installation handled by Ansible.
-        # This makes Lima boot faster and failures recoverable
-        # (VM exists, can re-run Ansible).
-        provision = []
-
-        # Copy .gitconfig content to VM if it exists
-        # (Lima mounts only support directories, not individual files)
-        gitconfig = home / ".gitconfig"
-        if gitconfig.exists():
-            gitconfig_content = gitconfig.read_text()
-            # Use heredoc to write the file content
-            script = (
-                f"cat > ~/.gitconfig << 'GITCONFIG_EOF'\n"
-                f"{gitconfig_content}GITCONFIG_EOF"
-            )
-            provision.append({"mode": "user", "script": script})
-
-        # Copy .claude.json (OAuth tokens) from host if it exists
-        # This allows sharing authentication between host and VM
-        claude_json = home / ".claude.json"
-        if claude_json.exists():
-            claude_json_content = claude_json.read_text()
-            script = (
-                f"cat > ~/.claude.json << 'CLAUDEJSON_EOF'\n"
-                f"{claude_json_content}CLAUDEJSON_EOF\n"
-                f"chmod 600 ~/.claude.json"
-            )
-            provision.append({"mode": "user", "script": script})
+        # No provision scripts - all configuration handled by Ansible.
+        # Lima user provisions fail on Alpine due to home directory permissions
+        # not being set up when cloud-init runs. Ansible runs after boot when
+        # permissions are correct.
 
         return {
             "vmType": "vz",
@@ -221,5 +197,4 @@ class LimaVM:
             },
             "mountType": "virtiofs",
             "mounts": mounts,
-            "provision": provision,
         }
