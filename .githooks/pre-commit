@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Custom pre-commit hook with uv fallback
+# Install with: make hooks
+
+ARGS=(hook-impl --config=.pre-commit-config.yaml --hook-type=pre-commit)
+HERE="$(cd "$(dirname "$0")" && pwd)"
+ARGS+=(--hook-dir "$HERE" -- "$@")
+
+INSTALL_PYTHON="$(git rev-parse --show-toplevel)/.venv/bin/python3"
+
+if [ -x "$INSTALL_PYTHON" ]; then
+    exec "$INSTALL_PYTHON" -mpre_commit "${ARGS[@]}"
+elif command -v uv > /dev/null; then
+    exec uv run pre-commit "${ARGS[@]}"
+elif command -v pre-commit > /dev/null; then
+    exec pre-commit "${ARGS[@]}"
+else
+    echo '`pre-commit` not found. Run: make hooks' 1>&2
+    exit 1
+fi

@@ -57,7 +57,9 @@ dev:
 	uv sync --extra dev
 
 hooks: dev
-	uv run pre-commit install
+	@ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit
+	@chmod +x .githooks/pre-commit
+	@echo "Installed pre-commit hook from .githooks/"
 
 test: dev
 	uv run pytest tests/ -v
