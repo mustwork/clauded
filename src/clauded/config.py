@@ -99,6 +99,7 @@ class Config:
     cpus: int = 4
     memory: str = "8GiB"
     disk: str = "20GiB"
+    vm_image: str | None = None
 
     # Mount settings
     mount_host: str = ""
@@ -190,6 +191,7 @@ class Config:
             cpus=data["vm"]["cpus"],
             memory=data["vm"]["memory"],
             disk=data["vm"]["disk"],
+            vm_image=data["vm"].get("image"),
             mount_host=mount_host,
             mount_guest=mount_guest,
             python=data["environment"].get("python"),
@@ -208,14 +210,18 @@ class Config:
 
     def save(self, path: Path) -> None:
         """Save config to a .clauded.yaml file."""
+        vm_data: dict[str, Any] = {
+            "name": self.vm_name,
+            "cpus": self.cpus,
+            "memory": self.memory,
+            "disk": self.disk,
+        }
+        if self.vm_image is not None:
+            vm_data["image"] = self.vm_image
+
         data = {
             "version": self.version,
-            "vm": {
-                "name": self.vm_name,
-                "cpus": self.cpus,
-                "memory": self.memory,
-                "disk": self.disk,
-            },
+            "vm": vm_data,
             "mount": {
                 "host": self.mount_host,
                 "guest": self.mount_guest,

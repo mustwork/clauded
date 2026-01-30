@@ -12,6 +12,12 @@ import yaml
 
 from .config import Config
 
+# Default Alpine Linux cloud image for aarch64
+DEFAULT_ALPINE_IMAGE = (
+    "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/"
+    "nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2"
+)
+
 
 class LimaError(Exception):
     """Error during Lima VM operations."""
@@ -239,7 +245,7 @@ class LimaVM:
             "disk": self.config.disk,
             "images": [
                 {
-                    "location": "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2",
+                    "location": self.config.vm_image or DEFAULT_ALPINE_IMAGE,
                     "arch": "aarch64",
                 }
             ],

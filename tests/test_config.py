@@ -263,6 +263,92 @@ environment:
         assert config.rust is None
         assert config.go is None
 
+    def test_load_with_custom_image(self, tmp_path: Path) -> None:
+        """Loading handles custom vm.image field."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+  image: https://example.com/custom-alpine.qcow2
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        config = Config.load(config_path)
+
+        assert config.vm_image == "https://example.com/custom-alpine.qcow2"
+
+    def test_load_without_image_defaults_to_none(self, tmp_path: Path) -> None:
+        """Loading config without vm.image field defaults to None."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        config = Config.load(config_path)
+
+        assert config.vm_image is None
+
+    def test_save_with_custom_image(self, tmp_path: Path) -> None:
+        """Saving config includes vm.image when set."""
+        config = Config(
+            vm_name="clauded-test",
+            cpus=4,
+            memory="8GiB",
+            disk="20GiB",
+            vm_image="https://example.com/custom.qcow2",
+            mount_host="/test",
+            mount_guest="/test",
+        )
+        config_path = tmp_path / ".clauded.yaml"
+
+        config.save(config_path)
+
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+
+        assert data["vm"]["image"] == "https://example.com/custom.qcow2"
+
+    def test_save_without_image_omits_field(self, tmp_path: Path) -> None:
+        """Saving config omits vm.image when not set."""
+        config = Config(
+            vm_name="clauded-test",
+            cpus=4,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+        )
+        config_path = tmp_path / ".clauded.yaml"
+
+        config.save(config_path)
+
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+
+        assert "image" not in data["vm"]
+
 
 class TestConfigDefaults:
     """Tests for Config default values."""
@@ -275,6 +361,7 @@ class TestConfigDefaults:
         assert config.cpus == 4
         assert config.memory == "8GiB"
         assert config.disk == "20GiB"
+        assert config.vm_image is None
         assert config.mount_host == ""
         assert config.mount_guest == ""
         assert config.tools == []

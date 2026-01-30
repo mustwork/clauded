@@ -156,6 +156,7 @@ vm:
   cpus: <int>
   memory: <size>GiB
   disk: <size>GiB
+  image: <url>  # optional, defaults to Alpine 3.21 cloud image
 mount:
   host: <absolute-path>
   guest: <absolute-path>  # same as host

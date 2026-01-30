@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from clauded.config import Config
-from clauded.lima import LimaVM
+from clauded.lima import DEFAULT_ALPINE_IMAGE, LimaVM
 
 
 @pytest.fixture
@@ -147,14 +147,28 @@ class TestLimaVMGenerateLimaConfig:
         assert config["memory"] == "8GiB"
         assert config["disk"] == "20GiB"
 
-    def test_sets_alpine_image(self, sample_config: Config) -> None:
-        """Generated config uses Alpine Linux cloud image."""
+    def test_sets_default_alpine_image(self, sample_config: Config) -> None:
+        """Generated config uses default Alpine image when vm_image is None."""
+        sample_config.vm_image = None
         vm = LimaVM(sample_config)
 
         config = vm._generate_lima_config()
 
         assert len(config["images"]) == 1
-        assert "alpine" in config["images"][0]["location"]
+        assert config["images"][0]["location"] == DEFAULT_ALPINE_IMAGE
+        assert config["images"][0]["arch"] == "aarch64"
+
+    def test_uses_custom_image_when_set(self, sample_config: Config) -> None:
+        """Generated config uses custom image URL when vm_image is set."""
+        sample_config.vm_image = "https://example.com/custom-alpine.qcow2"
+        vm = LimaVM(sample_config)
+
+        config = vm._generate_lima_config()
+
+        assert len(config["images"]) == 1
+        assert (
+            config["images"][0]["location"] == "https://example.com/custom-alpine.qcow2"
+        )
         assert config["images"][0]["arch"] == "aarch64"
 
     def test_configures_virtiofs_mount(
