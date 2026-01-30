@@ -383,7 +383,11 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
   - VM creation failure → "VM creation failed (exit code N). Check Lima logs: ~/.lima/{vm-name}/ha.stderr.log"
   - VM start failure → "Failed to start VM. Is it in a valid state? Try: clauded --destroy"
   - VM stop failure → "Failed to stop VM. VM may not be running."
-  - Provisioning failure → "Provisioning failed. Retry with: clauded --reprovision. Debug via SSH: limactl shell {vm-name}"
+  - Provisioning failure → Multi-line message with exit code and three recovery options:
+    - Retry provisioning: `clauded --reprovision`
+    - Debug in the VM: `limactl shell {vm-name}`
+    - Start fresh: `clauded --destroy && clauded`
+    Note: VM remains running after provisioning failure to preserve partial state
 - All errors exit with code 1 and output to stderr
 
 ### Compatibility

@@ -743,9 +743,9 @@ class TestProvisionerErrorHandling:
         assert exc_info.value.code == 1
 
     def test_run_handles_ansible_failure(
-        self, full_config: Config, tmp_path: Path
+        self, full_config: Config, tmp_path: Path, capsys: pytest.CaptureFixture
     ) -> None:
-        """run() exits with message when ansible-playbook fails."""
+        """run() exits with recovery message when ansible-playbook fails."""
         vm = MagicMock()
         vm.name = "test-vm"
         vm.get_ssh_config_path.return_value = tmp_path / "ssh.config"
@@ -755,13 +755,20 @@ class TestProvisionerErrorHandling:
             patch("clauded.provisioner.Path.home", return_value=tmp_path),
             patch(
                 "subprocess.run",
-                side_effect=subprocess.CalledProcessError(1, "ansible-playbook"),
+                side_effect=subprocess.CalledProcessError(42, "ansible-playbook"),
             ),
         ):
             with pytest.raises(SystemExit) as exc_info:
                 provisioner.run()
 
         assert exc_info.value.code == 1
+
+        # Verify error message contains all recovery options
+        captured = capsys.readouterr()
+        assert "exit code 42" in captured.err
+        assert "clauded --reprovision" in captured.err
+        assert "limactl shell test-vm" in captured.err
+        assert "clauded --destroy && clauded" in captured.err
 
 
 class TestEnvironmentFiltering:

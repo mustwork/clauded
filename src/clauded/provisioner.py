@@ -157,8 +157,9 @@ class Provisioner:
             except subprocess.CalledProcessError as e:
                 click.echo(
                     f"Provisioning failed (exit code {e.returncode}).\n"
-                    f"  • Retry with: clauded --reprovision\n"
-                    f"  • Debug via SSH: limactl shell {self.vm.name}",
+                    f"  • Retry provisioning: clauded --reprovision\n"
+                    f"  • Debug in the VM:    limactl shell {self.vm.name}\n"
+                    f"  • Start fresh:        clauded --destroy && clauded",
                     err=True,
                 )
                 raise SystemExit(1) from None
