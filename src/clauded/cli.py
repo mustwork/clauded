@@ -8,13 +8,14 @@ from importlib.metadata import version
 from pathlib import Path
 
 import click
+import questionary
 
 from . import wizard
 from .config import Config
 from .detect import detect
 from .detect.cli_integration import display_detection_json
 from .detect.wizard_integration import run_with_detection
-from .lima import LimaVM
+from .lima import LimaVM, destroy_vm_by_name
 from .provisioner import Provisioner
 
 
@@ -69,6 +70,101 @@ def _reset_terminal() -> None:
             termios.tcflush(fd, termios.TCIFLUSH)
         except (ImportError, OSError):
             pass
+
+
+def _prompt_vm_deletion(vm_name: str) -> bool:
+    """Prompt user to delete a VM and return their decision.
+
+    Args:
+        vm_name: Name of VM to delete
+
+    Returns:
+        True if user confirmed deletion, False otherwise
+
+    Raises:
+        KeyboardInterrupt: If user interrupts the prompt
+    """
+    should_delete = questionary.confirm(
+        f"Delete previous VM '{vm_name}'?", default=False
+    ).ask()
+
+    if should_delete is None:
+        raise KeyboardInterrupt()
+
+    if should_delete:
+        destroy_vm_by_name(vm_name)
+        return True
+
+    return False
+
+
+def _handle_crash_recovery(config: Config, config_path: Path) -> None:
+    """Handle incomplete VM update detected on startup.
+
+    CONTRACT:
+      Inputs:
+        - config: Config object with previous_vm_name potentially set
+        - config_path: Path to .clauded.yaml file
+
+      Outputs:
+        - None (side effect: may destroy VM, updates config file)
+
+      Invariants:
+        - previous_vm_name is always cleared after this function
+        - config is saved after any cleanup
+
+      Properties:
+        - Idempotent: safe to call multiple times
+        - User controlled: respects user decision (prompt with default=False)
+        - Exception safe: KeyboardInterrupt handled gracefully
+
+      Algorithm:
+        1. If previous_vm_name is None, return immediately
+        2. Check if current VM exists
+        3. If current VM doesn't exist: rollback vm_name to previous_vm_name
+        4. If current VM exists: prompt user to delete previous VM
+        5. Clear previous_vm_name and save config
+    """
+    if config.previous_vm_name is None:
+        return
+
+    # Check if current VM exists (the one we tried to create/update to)
+    current_vm_exists = subprocess.run(
+        ["limactl", "list", "-q"],
+        capture_output=True,
+        text=True,
+    ).returncode == 0 and config.vm_name in subprocess.run(
+        ["limactl", "list", "-q"],
+        capture_output=True,
+        text=True,
+    ).stdout.strip().split("\n")
+
+    if not current_vm_exists:
+        # Rollback: new VM was never created, restore to previous
+        click.echo(
+            f"\n⚠️  Incomplete VM update detected. "
+            f"Current VM '{config.vm_name}' does not exist. "
+            f"Rolling back to '{config.previous_vm_name}'."
+        )
+        config.vm_name = config.previous_vm_name
+        config.previous_vm_name = None
+        config.save(config_path)
+        return
+
+    # Current VM exists, prompt to delete previous VM
+    click.echo(
+        f"\n⚠️  Incomplete VM update detected. "
+        f"Previous VM was '{config.previous_vm_name}'."
+    )
+
+    try:
+        _prompt_vm_deletion(config.previous_vm_name)
+    except KeyboardInterrupt:
+        click.echo("\nSkipping cleanup.")
+
+    # Always clear previous_vm_name after handling
+    config.previous_vm_name = None
+    config.save(config_path)
 
 
 @click.command()
@@ -170,6 +266,7 @@ def main(
             raise SystemExit(1)
 
         config = Config.load(config_path)
+        _handle_crash_recovery(config, config_path)
         vm = LimaVM(config)
 
         if not vm.exists():
@@ -188,10 +285,22 @@ def main(
 
         try:
             new_config = wizard.run_edit(config, project_path)
-            new_config.save(config_path)
-            click.echo("\nUpdated .clauded.yaml")
-            provisioner = Provisioner(new_config, vm, debug=debug)
-            provisioner.run()
+
+            # Use atomic_update for transactional config save + provisioning
+            with new_config.atomic_update(
+                new_config.vm_name, config_path
+            ) as old_vm_name:
+                click.echo("\nUpdated .clauded.yaml")
+                # Re-create LimaVM with new config (name might have changed)
+                vm = LimaVM(new_config)
+                provisioner = Provisioner(new_config, vm, debug=debug)
+                provisioner.run()
+
+                # On success: prompt to delete old VM if name changed
+                if old_vm_name and old_vm_name != new_config.vm_name:
+                    _require_interactive_terminal()
+                    _prompt_vm_deletion(old_vm_name)
+
         except KeyboardInterrupt:
             click.echo("\nEdit cancelled.")
             raise SystemExit(130) from None
@@ -221,14 +330,25 @@ def main(
             raise SystemExit(130) from None
     else:
         config = Config.load(config_path)
+        _handle_crash_recovery(config, config_path)
 
     vm = LimaVM(config)
 
     # VM doesn't exist? Create and provision
     if not vm.exists():
-        vm.create(debug=debug)
-        provisioner = Provisioner(config, vm, debug=debug)
-        provisioner.run()
+        # Use atomic_update for crash recovery during VM creation
+        with config.atomic_update(config.vm_name, config_path) as old_vm_name:
+            vm.create(debug=debug)
+            provisioner = Provisioner(config, vm, debug=debug)
+            provisioner.run()
+
+            # Prompt to delete old VM if name changed (unlikely in this flow)
+            if old_vm_name and old_vm_name != config.vm_name:
+                try:
+                    _prompt_vm_deletion(old_vm_name)
+                except KeyboardInterrupt:
+                    click.echo("\nSkipping VM cleanup.")
+
     else:
         # VM exists but stopped? Start it
         if not vm.is_running():

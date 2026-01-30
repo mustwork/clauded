@@ -79,6 +79,40 @@ Per-project isolated Linux VMs with creation, start/stop, and destruction capabi
 - [ ] Both VM and disk are fully removed
 - [ ] Command provides confirmation before destruction
 
+#### [Implemented] Story: Atomic Config Updates with Rollback
+
+**As a** DevOps/Infrastructure Engineer, **I want** configuration updates to automatically rollback on failure, **so that** my system is never left in an inconsistent state after a failed VM operation.
+
+**Acceptance Criteria**:
+- [x] Config changes rollback automatically if VM creation fails
+- [x] Config changes rollback automatically if provisioning fails
+- [x] Original config is restored on any exception (including KeyboardInterrupt)
+- [x] Config always references a valid, working VM after any operation
+- [x] User is never left with config pointing to non-existent VM
+
+#### [Implemented] Story: Crash Recovery on Startup
+
+**As a** Team Lead, **I want** the system to detect and recover from interrupted operations, **so that** my team doesn't need to manually fix configs after power loss or system crashes.
+
+**Acceptance Criteria**:
+- [x] System detects incomplete VM updates on startup
+- [x] If current VM doesn't exist, automatically rollback to previous VM name
+- [x] If current VM exists, prompt user to delete previous VM
+- [x] Crash recovery prompts are user-controlled (not automatic)
+- [x] Config is cleaned up after recovery (no lingering metadata)
+
+#### [Implemented] Story: Secure VM Name Validation
+
+**As a** DevOps/Infrastructure Engineer, **I want** VM names to be validated for path traversal attacks, **so that** malicious configs cannot compromise my system.
+
+**Acceptance Criteria**:
+- [x] VM names containing ".." are rejected
+- [x] VM names containing "/" are rejected
+- [x] VM names containing "\\" are rejected (Windows paths)
+- [x] Validation applies to both current and previous VM names
+- [x] Validation occurs on config load and during atomic updates
+- [x] Clear error messages when invalid names are detected
+
 ---
 
 ### Epic 2: Environment-as-Code Configuration

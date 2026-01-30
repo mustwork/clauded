@@ -547,6 +547,10 @@ class TestCliEditWorkflow:
                     with patch("clauded.cli.wizard") as mock_wizard:
                         mock_config = MagicMock()
                         mock_config.mount_guest = "/workspace"
+                        mock_config.vm_name = "clauded-testcli1"
+                        # Mock atomic_update to yield None (no old VM name)
+                        mock_context = mock_config.atomic_update.return_value
+                        mock_context.__enter__.return_value = None
                         mock_wizard.run_edit.return_value = mock_config
 
                         with patch("clauded.cli.Provisioner") as MockProv:
@@ -557,8 +561,8 @@ class TestCliEditWorkflow:
 
                             # Wizard should be called with run_edit
                             mock_wizard.run_edit.assert_called_once()
-                            # Config should be saved
-                            mock_config.save.assert_called_once()
+                            # atomic_update should be used (saves config internally)
+                            mock_config.atomic_update.assert_called_once()
                             # Provisioner should run
                             mock_prov.run.assert_called_once()
                             # Shell should be entered

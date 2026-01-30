@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Atomic Config Updates with Rollback**: VM configuration changes now use transactional semantics
+  - Config updates automatically roll back to previous state if VM creation or provisioning fails
+  - Rollback handles all exceptions including KeyboardInterrupt and SystemExit
+  - Crash recovery on startup detects incomplete updates and intelligently recovers:
+    - If current VM doesn't exist: automatically rolls back to previous VM
+    - If current VM exists: prompts user to optionally delete previous VM
+  - Previous VM cleanup prompt after successful transitions (with user confirmation)
+  - Config file changes are fsynced to disk for durability
+  - New `previous_vm_name` field in config for crash recovery (backwards-compatible)
 - MIT License file and metadata in pyproject.toml
 - MongoDB as selectable database option in wizard (initial setup, edit mode, and detection wizard) regardless of detection status
 - **Detection System Enhancements**
@@ -35,6 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Claude permissions prompt missing in detection wizard**: The "Auto-accept Claude Code permission prompts in VM?" prompt was only shown when using `--no-detect` flag, but not in the default detection-based wizard flow. Users can now configure this setting during initial setup regardless of detection mode.
 
 ### Security
+
+- **VM Name Path Traversal Protection**: VM names are now validated to prevent path traversal attacks
+  - Rejects VM names containing "..", "/", or "\\" characters
+  - Validation applied on config load and during atomic updates
+  - Protects against malicious configs attempting directory traversal
+  - Clear error messages when invalid VM names are detected
 
 - **SSH Host Key Checking Enabled by Default**: Ansible provisioning now verifies SSH host keys by default
   - Strengthens host authenticity guarantees for VM connections

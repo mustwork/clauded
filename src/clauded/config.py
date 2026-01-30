@@ -2,7 +2,10 @@
 
 import hashlib
 import logging
+import os
 import re
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -81,6 +84,30 @@ def _migrate_config(data: dict) -> dict:
     return data
 
 
+def _validate_vm_name(vm_name: str) -> str:
+    """Validate VM name for security (no path traversal).
+
+    Args:
+        vm_name: VM name from config
+
+    Returns:
+        Validated VM name
+
+    Raises:
+        ValueError: If VM name contains path traversal characters
+    """
+    if not vm_name:
+        raise ValueError("VM name cannot be empty")
+
+    # Check for path traversal attempts
+    if ".." in vm_name or "/" in vm_name or "\\" in vm_name:
+        raise ValueError(
+            f"Invalid VM name '{vm_name}': cannot contain path separators or '..'"
+        )
+
+    return vm_name
+
+
 def _validate_version(version: str | None) -> str:
     """Validate config version and return normalized version string.
 
@@ -150,6 +177,9 @@ class Config:
     mount_host: str = ""
     mount_guest: str = ""
 
+    # Atomic update tracking (for rollback/crash recovery)
+    previous_vm_name: str | None = None
+
     @property
     def project_name(self) -> str:
         """Get the project name from the mount path."""
@@ -203,6 +233,80 @@ class Config:
             ssh_host_key_checking=answers.get("ssh_host_key_checking", True),
         )
 
+    @contextmanager
+    def atomic_update(
+        self, new_vm_name: str, config_path: Path
+    ) -> Generator[str | None, None, None]:
+        """Context manager for atomic VM name updates with rollback.
+
+        Provides transactional semantics for config updates tied to VM operations.
+        Stores the current vm_name as previous_vm_name, updates to new name,
+        and handles rollback on failure or cleanup on success.
+
+        CONTRACT:
+          Inputs:
+            - new_vm_name: string, non-empty VM name for the new/updated VM
+            - config_path: Path object, location of .clauded.yaml file to update
+
+          Outputs:
+            - yields: previous VM name (string or None if no previous VM existed)
+
+          Invariants:
+            - Config file always references a valid VM name after exit
+            - previous_vm_name field is cleared after successful completion or rollback
+            - All exceptions are propagated after rollback
+
+          Properties:
+            - Exception safety: ANY exception triggers rollback to previous state
+            - Idempotent cleanup: previous_vm_name always cleared on exit
+            - State consistency: config saved after every state transition
+
+          Algorithm:
+            1. Capture current state (old_vm_name = self.vm_name)
+            2. Update to new state:
+               self.vm_name = new_vm_name
+               previous_vm_name = old_vm_name
+            3. Save config with both names (enables crash recovery)
+            4. Yield old_vm_name to caller for VM operations
+            5. On normal exit (success):
+               - Clear previous_vm_name
+               - Save config
+            6. On exception (failure):
+               - Restore vm_name = previous_vm_name
+               - Clear previous_vm_name
+               - Save config
+               - Re-raise exception
+
+        Usage:
+            with config.atomic_update(new_vm_name, config_path) as old_vm:
+                # Perform VM operations that might fail
+                vm.create()
+                # On success: old_vm contains previous name (or None)
+                # Caller responsible for prompting user to delete old_vm
+        """
+        # Validate new VM name for security
+        _validate_vm_name(new_vm_name)
+
+        old_vm_name = self.vm_name
+        self.previous_vm_name = old_vm_name if old_vm_name else None
+        self.vm_name = new_vm_name
+
+        # Save config with both names (crash recovery state)
+        self.save(config_path)
+
+        try:
+            yield old_vm_name if old_vm_name else None
+            # Success path: clear previous_vm_name
+            self.previous_vm_name = None
+            self.save(config_path)
+        except BaseException:
+            # Failure path: rollback to previous state
+            # Catches Exception, KeyboardInterrupt, SystemExit for cleanup
+            self.vm_name = self.previous_vm_name if self.previous_vm_name else ""
+            self.previous_vm_name = None
+            self.save(config_path)
+            raise
+
     @classmethod
     def load(cls, path: Path) -> "Config":
         """Load config from a .clauded.yaml file.
@@ -243,9 +347,15 @@ class Config:
         rust_ver = _validate_runtime_version("rust", env.get("rust"))
         go_ver = _validate_runtime_version("go", env.get("go"))
 
+        # Validate VM names for security
+        vm_name = _validate_vm_name(data["vm"]["name"])
+        previous_vm = data.get("vm", {}).get("previous_name")
+        if previous_vm:
+            previous_vm = _validate_vm_name(previous_vm)
+
         return cls(
             version=version,
-            vm_name=data["vm"]["name"],
+            vm_name=vm_name,
             cpus=data["vm"]["cpus"],
             memory=data["vm"]["memory"],
             disk=data["vm"]["disk"],
@@ -265,6 +375,7 @@ class Config:
                 "dangerously_skip_permissions", True
             ),
             ssh_host_key_checking=data.get("ssh", {}).get("host_key_checking", True),
+            previous_vm_name=previous_vm,
         )
 
     def save(self, path: Path) -> None:
@@ -277,6 +388,8 @@ class Config:
         }
         if self.vm_image is not None:
             vm_data["image"] = self.vm_image
+        if self.previous_vm_name is not None:
+            vm_data["previous_name"] = self.previous_vm_name
 
         data = {
             "version": self.version,
@@ -308,3 +421,5 @@ class Config:
 
         with open(path, "w") as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+            f.flush()
+            os.fsync(f.fileno())

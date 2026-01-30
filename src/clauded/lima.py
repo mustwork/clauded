@@ -14,10 +14,39 @@ from .config import Config
 from .downloads import get_alpine_image
 
 
-class LimaError(Exception):
-    """Error during Lima VM operations."""
+def destroy_vm_by_name(vm_name: str) -> None:
+    """Delete a VM by name without requiring a Config object.
 
-    pass
+    CONTRACT:
+      Inputs:
+        - vm_name: string, non-empty VM name to destroy
+
+      Outputs:
+        - None (side effect: VM deleted from Lima)
+
+      Invariants:
+        - If VM doesn't exist, operation succeeds silently
+        - If VM exists, it is forcefully deleted
+
+      Properties:
+        - Idempotent: calling multiple times with same name has same effect
+        - Exception safety: SystemExit on lima command failure
+
+    Args:
+        vm_name: Name of the VM to destroy
+
+    Raises:
+        SystemExit: If Lima is not installed or deletion fails
+    """
+    print(f"\nDestroying VM '{vm_name}'...")
+    try:
+        subprocess.run(["limactl", "delete", "-f", vm_name], check=True)
+    except FileNotFoundError:
+        click.echo("Lima is not installed. Install with: brew install lima", err=True)
+        raise SystemExit(1) from None
+    except subprocess.CalledProcessError:
+        click.echo(f"Failed to destroy VM '{vm_name}'.", err=True)
+        raise SystemExit(1) from None
 
 
 class LimaVM:
@@ -135,17 +164,7 @@ class LimaVM:
 
     def destroy(self) -> None:
         """Delete the VM."""
-        print(f"\nDestroying VM '{self.name}'...")
-        try:
-            subprocess.run(["limactl", "delete", "-f", self.name], check=True)
-        except FileNotFoundError:
-            click.echo(
-                "Lima is not installed. Install with: brew install lima", err=True
-            )
-            raise SystemExit(1) from None
-        except subprocess.CalledProcessError:
-            click.echo(f"Failed to destroy VM '{self.name}'.", err=True)
-            raise SystemExit(1) from None
+        destroy_vm_by_name(self.name)
 
     def shell(self) -> None:
         """Open the Claude Code shell in the VM."""

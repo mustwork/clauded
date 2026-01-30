@@ -28,6 +28,8 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 - **Testing Frameworks**: Playwright with browser binaries ready to use
 - **AI Integration**: Claude Code CLI for AI-assisted development
 - **VM Lifecycle Management**: Create, start, stop, destroy, and reprovision VMs
+- **Atomic Config Updates**: Automatic rollback on failure ensures config never references broken VMs
+- **Crash Recovery**: Detects and recovers from interrupted operations on startup
 - **Customizable Resources**: Configure CPU, memory, and disk allocation per project
 - **Workspace Mounting**: Your project directory mounted at the same path in the VM
 
@@ -162,6 +164,25 @@ clauded --destroy
 ```
 
 You'll be prompted whether to also remove `.clauded.yaml`.
+
+### 8. Automatic Crash Recovery
+
+If a VM operation is interrupted (power loss, Ctrl+C, system crash), `clauded` automatically detects the incomplete state on next startup:
+
+```bash
+clauded
+
+# Output if crash detected:
+⚠️  Incomplete VM update detected. Current VM 'new-vm' does not exist.
+Rolling back to 'previous-vm'.
+```
+
+The system intelligently handles recovery:
+- **Current VM missing**: Automatically rolls back config to previous working VM
+- **Current VM exists**: Prompts you to optionally delete the previous VM
+- **Config always consistent**: Never left pointing to non-existent VMs
+
+This ensures your development environment remains reliable even after unexpected interruptions.
 
 ## Configuration
 
