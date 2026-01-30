@@ -11,6 +11,12 @@
 - ALWAYS check linting and formatting after finishing an increment.
 - When splitting stories or epics into increments, every increment SHOULD result in observable improvements in UI.
 
+## Changelog Maintenance
+
+- ALL feature work and bug fixes MUST include a CHANGELOG.md entry under `[Unreleased]`.
+- Use the appropriate section: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, or `Security`.
+- Keep entries concise but descriptive enough for users to understand the change.
+
 ## Documentation Guidelines
 
 **specs/spec.md** — Software specification for agents

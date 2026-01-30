@@ -1,0 +1,99 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-01-30
+
+### Added
+
+- **Core VM Management**
+  - Lima-based VM lifecycle management (create, start, stop, destroy)
+  - Automatic VM naming using SHA256 hashing of project path
+  - Configurable VM resources (CPU, memory, disk)
+  - Project directory mounted at same path in VM
+  - Graceful cleanup on keyboard interrupt (CTRL+C)
+
+- **Interactive Setup Wizard**
+  - Guided prompts for selecting languages, databases, and tools
+  - Non-interactive terminal detection with graceful fallback
+  - Checkbox-based multi-selection for languages
+  - Circle indicators for select prompts
+  - Spinner and separators for better UX
+
+- **Project Detection**
+  - Automatic detection of languages from project files
+  - Version detection from configuration files (pyproject.toml, package.json, etc.)
+  - Framework detection (Playwright, Claude Code)
+  - Database detection from dependencies and config files
+  - MCP configuration detection for runtime/tool requirements
+  - Bounded file scanning for performance
+
+- **Language Support**
+  - Python 3.10, 3.11, 3.12 with pip, pipx, uv, uvx, poetry
+  - Node.js 18, 20, 22 with npm, npx, yarn, pnpm, bun (via corepack)
+  - Java 11, 17, 21 with Maven, Gradle
+  - Kotlin 1.9, 2.0 with Maven, Gradle
+  - Rust stable/nightly with Cargo
+  - Go 1.24.12, 1.25.6 with built-in modules
+
+- **Database Support**
+  - PostgreSQL with contrib and libpq-dev
+  - Redis in-memory data store
+  - MySQL relational database
+  - SQLite file-based database
+
+- **Developer Tools**
+  - Docker with user added to docker group
+  - Git (always installed via common role)
+  - AWS CLI v2 (ARM64)
+  - GitHub CLI (`gh` command)
+  - Gradle build automation
+
+- **Framework Support**
+  - Claude Code AI-assisted development CLI
+  - Playwright browser automation with binaries
+
+- **Provisioning**
+  - Ansible-based provisioning with 21 roles
+  - Alpine Linux 3.21 base image (configurable version)
+  - Recoverable provisioning failures
+  - Reprovision support for configuration updates
+  - Environment variable sanitization for security
+  - Thread-safe caching for linguist data loading
+
+- **CLI Features**
+  - `clauded` - Create/connect to VM
+  - `clauded --stop` - Stop VM
+  - `clauded --destroy` - Destroy VM
+  - `clauded --reprovision` - Update environment
+  - `clauded --edit` - Modify configuration
+  - `clauded --detect` - Show detected technologies
+  - `clauded --debug` - Verbose Lima and Ansible output
+  - `clauded --version` - Show version information
+
+- **Configuration**
+  - YAML-based configuration (`.clauded.yaml`)
+  - Schema versioning for forward compatibility
+  - Config load validation with error reporting
+  - Defensive recovery for config files after ungraceful shutdown
+
+- **Development Infrastructure**
+  - GitHub Actions CI/CD pipeline with coverage enforcement
+  - Pre-commit hooks with uv fallback
+  - Ruff for linting and formatting
+  - Mypy for strict type checking
+  - Pytest with coverage tracking (80% minimum)
+  - Hypothesis for property-based testing
+
+### Security
+
+- SHA256 hashing for VM names (upgraded from MD5)
+- Environment variable sanitization for Ansible execution
+- Bounded file scanning prevents resource exhaustion
+- Specific exception handling (no broad catches)
+- Gitconfig injection safety validation
