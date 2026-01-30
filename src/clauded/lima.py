@@ -231,13 +231,17 @@ class LimaVM:
                 "arch": "aarch64",
             }
 
-        # Use verified Alpine image from centralized downloads
+        # Use Alpine image from centralized downloads
+        # Note: No digest verification - Alpine rebuilds images in-place
         alpine = get_alpine_image()
-        return {
+        config = {
             "location": alpine["url"],
             "arch": alpine["arch"],
-            "digest": f"sha256:{alpine['sha256']}",
         }
+        # Only include digest if sha256 is specified (for future use)
+        if "sha256" in alpine:
+            config["digest"] = f"sha256:{alpine['sha256']}"
+        return config
 
     def _generate_lima_config(self) -> dict[str, Any]:
         """Generate Lima YAML configuration."""

@@ -12,11 +12,13 @@
 # integrity verification while maintaining compatibility with upstream installers.
 
 # Alpine Linux cloud image for Lima VMs
+# NOTE: No sha256 pinning - Alpine rebuilds images in-place for security patches
+# without changing the version number, which would break hash verification.
+# Lima handles caching; integrity relies on HTTPS transport security.
 alpine_image:
   version: "3.21.0"
   arch: "aarch64"
   url: "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2"
-  sha256: "90aba9fb4ace20cca8a3623f54cce06c6e0aef97c90254bc3fdb0d6f07b3b0ce"
 
 # Go language
 go:

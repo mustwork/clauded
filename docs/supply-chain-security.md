@@ -13,7 +13,6 @@ All external downloads are defined in a single source of truth (`src/clauded/dow
 
 | Component | Source | Verification |
 |-----------|--------|--------------|
-| Alpine Linux cloud image | dl-cdn.alpinelinux.org | SHA256 digest via Lima |
 | Go | go.dev | SHA256 checksum via Ansible get_url |
 | Kotlin | JetBrains GitHub releases | SHA256 checksum via Ansible get_url |
 | Maven | Apache CDN | SHA256 checksum via Ansible get_url |
@@ -24,6 +23,7 @@ All external downloads are defined in a single source of truth (`src/clauded/dow
 
 ## Known Limitations
 
+- **Alpine Linux cloud image**: Alpine rebuilds cloud images in-place for security patches without changing the version number, making hash pinning impractical. Integrity relies on HTTPS transport security. Lima caches the image after first download.
 - **Claude Code**: Downloaded from Anthropic's distribution bucket without checksum verification (no official checksums published by Anthropic)
 - **Custom VM images**: User-specified images via `vm.image` config bypass checksum verification
 
@@ -67,12 +67,6 @@ curl -sL https://dlcdn.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.
 ```bash
 # Checksums available at:
 curl -sL https://services.gradle.org/distributions/gradle-8.12-bin.zip.sha256
-```
-
-**Alpine Linux**
-```bash
-# Checksums at:
-curl -sL https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2.sha256
 ```
 
 ### 3. Update downloads.yml

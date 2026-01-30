@@ -148,10 +148,13 @@ class TestLimaVMGenerateLimaConfig:
         assert config["memory"] == "8GiB"
         assert config["disk"] == "20GiB"
 
-    def test_sets_default_alpine_image_with_checksum(
-        self, sample_config: Config
-    ) -> None:
-        """Generated config uses default Alpine image with checksum verification."""
+    def test_sets_default_alpine_image(self, sample_config: Config) -> None:
+        """Generated config uses default Alpine image without digest verification.
+
+        Alpine rebuilds images in-place for security patches without changing
+        the version, which breaks hash verification. We rely on HTTPS transport
+        security instead.
+        """
         sample_config.vm_image = None
         vm = LimaVM(sample_config)
 
@@ -161,9 +164,8 @@ class TestLimaVMGenerateLimaConfig:
         assert len(config["images"]) == 1
         assert config["images"][0]["location"] == alpine["url"]
         assert config["images"][0]["arch"] == "aarch64"
-        # Verify checksum/digest is included for supply chain integrity
-        assert "digest" in config["images"][0]
-        assert config["images"][0]["digest"] == f"sha256:{alpine['sha256']}"
+        # No digest - Alpine images are rebuilt in-place
+        assert "digest" not in config["images"][0]
 
     def test_uses_custom_image_when_set(self, sample_config: Config) -> None:
         """Generated config uses custom image URL when vm_image is set."""

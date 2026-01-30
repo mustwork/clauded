@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Alpine Image Hash Verification Removed**: Alpine Linux cloud images no longer use SHA256 hash verification. Alpine rebuilds images in-place for security patches without changing the version number, which caused tool failures when upstream hashes changed. Integrity now relies on HTTPS transport security and Lima's image caching.
+
 - **Runtime Version Enforcement**: Provisioning now respects user-selected runtime versions
   - Python versions (3.10, 3.11, 3.12) installed via `uv python install` instead of system Python
   - Node.js versions (18, 20, 22) downloaded from official nodejs.org binaries with checksum verification
@@ -56,12 +58,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Can be disabled via `ssh.host_key_checking: false` in `.clauded.yaml` for local development
   - Previous configs without this setting will use the secure default (enabled)
 
-- **Supply Chain Integrity**: All external downloads now use pinned versions and SHA256 checksum verification
+- **Supply Chain Integrity**: All external downloads now use pinned versions and SHA256 checksum verification where feasible
   - Centralized download metadata in `downloads.yml` for all tools (Go, Kotlin, Maven, Gradle, uv, Bun, Rustup, Node.js)
-  - Lima cloud image verified via SHA256 digest
   - Installer scripts (uv, rustup) downloaded and verified before execution
   - Eliminated `curl | sh` patterns and dynamic "latest" version fetching
   - Maven and Gradle versions pinned instead of fetching from APIs
+  - Note: Alpine cloud image relies on HTTPS transport security (see Changed section)
 
 - **Detection System Security Enhancements**
   - Symlink traversal protection for all detection parsers

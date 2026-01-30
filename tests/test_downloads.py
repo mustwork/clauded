@@ -53,26 +53,24 @@ class TestGetAlpineImage:
     """Tests for get_alpine_image() function."""
 
     def test_returns_dict_with_required_keys(self) -> None:
-        """Returns dict with url, sha256, version, arch keys."""
+        """Returns dict with url, version, arch keys.
+
+        Note: sha256 is intentionally not included because Alpine rebuilds
+        images in-place for security patches without changing the version.
+        """
         image = get_alpine_image()
 
         assert "url" in image
-        assert "sha256" in image
         assert "version" in image
         assert "arch" in image
+        # sha256 intentionally omitted - Alpine images are rebuilt in-place
+        assert "sha256" not in image
 
     def test_url_is_alpine_cdn(self) -> None:
         """URL points to Alpine Linux CDN."""
         image = get_alpine_image()
 
         assert "dl-cdn.alpinelinux.org" in image["url"]
-
-    def test_sha256_is_valid_hex(self) -> None:
-        """SHA256 checksum is valid 64-char hex string."""
-        image = get_alpine_image()
-
-        assert len(image["sha256"]) == 64
-        assert all(c in "0123456789abcdef" for c in image["sha256"].lower())
 
 
 class TestGetToolMetadata:
@@ -177,10 +175,14 @@ class TestDownloadsYamlIntegrity:
     """Tests to verify downloads.yml file has valid structure."""
 
     def test_all_tools_have_sha256(self) -> None:
-        """All tools have SHA256 checksums defined."""
+        """All tools with immutable releases have SHA256 checksums defined.
+
+        Note: Alpine image intentionally excluded - Alpine rebuilds images
+        in-place for security patches without changing the version.
+        """
         downloads = get_downloads()
 
-        # Tools with multiple versions
+        # Tools with multiple versions (immutable release artifacts)
         for tool in ["go", "kotlin", "maven", "gradle"]:
             assert "versions" in downloads[tool], f"{tool} missing versions"
             for version, meta in downloads[tool]["versions"].items():
@@ -192,8 +194,7 @@ class TestDownloadsYamlIntegrity:
         assert "installer_sha256" in downloads["uv"]
         assert "installer_sha256" in downloads["rustup"]
 
-        # Alpine image
-        assert "sha256" in downloads["alpine_image"]
+        # Alpine image intentionally has no sha256 - rebuilt in-place upstream
 
     def test_all_tools_have_urls(self) -> None:
         """All tools have download URLs defined."""

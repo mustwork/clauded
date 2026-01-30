@@ -389,7 +389,7 @@ ssh:
 
 ### Supply Chain Integrity
 
-All external downloads (language runtimes, tools, cloud images) are verified for integrity:
+All external downloads (language runtimes, tools) are verified for integrity where feasible:
 
 **Centralized Download Metadata**
 - All download URLs, versions, and SHA256 checksums are defined in `src/clauded/downloads.yml`
@@ -397,7 +397,6 @@ All external downloads (language runtimes, tools, cloud images) are verified for
 - No "latest" pointers or dynamic version fetching
 
 **Integrity Verification**
-- Lima cloud images: SHA256 digest verified by Lima during download
 - Binary downloads (Go, Kotlin, Maven, Gradle, Bun): SHA256 checksums validated via Ansible `get_url` checksum parameter
 - Installer scripts (uv, rustup): Downloaded, checksum-verified, then executed
 
@@ -407,6 +406,7 @@ All external downloads (language runtimes, tools, cloud images) are verified for
 - Version updates require explicit changes to downloads.yml
 
 **Known Limitations**
+- Alpine Linux cloud image: Alpine rebuilds images in-place for security patches without changing version numbers, making hash pinning impractical. Integrity relies on HTTPS transport security.
 - Claude Code binary: Downloaded from Anthropic's distribution bucket without checksum (no official checksums published)
 - Custom VM images: User-specified images bypass checksum verification (user's responsibility)
 
