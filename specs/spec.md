@@ -353,6 +353,7 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 - SSH host key checking disabled for Lima VMs (ansible.cfg)
 - No authentication required for VM access (SSH key-based via Lima)
 - VMs are local-only (not exposed to network)
+- Environment variable sanitization: The provisioner passes only allowlisted environment variables to `ansible-playbook`, preventing leakage of sensitive variables (AWS credentials, API keys, database passwords) into logs or the VM. Allowlisted variables include: PATH, HOME, USER, LOGNAME, locale settings (LANG, LC_*), TERM, SSH_AUTH_SOCK, temp directories (TMPDIR, TEMP, TMP), and XDG directories.
 
 ### Sensitive Data Handling
 

@@ -16,6 +16,45 @@ from . import __version__
 from .config import Config
 from .lima import LimaVM
 
+# Allowlist of safe environment variables to pass to ansible-playbook.
+# This prevents leaking sensitive variables (AWS credentials, API keys, etc.)
+# into the Ansible subprocess while allowing required functionality.
+_ENV_ALLOWLIST = frozenset(
+    {
+        # System essentials
+        "PATH",
+        "HOME",
+        "USER",
+        "LOGNAME",
+        # Locale settings
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "LC_MESSAGES",
+        "LC_COLLATE",
+        # Terminal
+        "TERM",
+        "COLORTERM",
+        # SSH agent forwarding
+        "SSH_AUTH_SOCK",
+        # Temp directories
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        # XDG directories (used by many tools)
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_RUNTIME_DIR",
+    }
+)
+
+
+def _filter_env(env: dict[str, str]) -> dict[str, str]:
+    """Filter environment variables to only include safe allowlisted values."""
+    return {k: v for k, v in env.items() if k in _ENV_ALLOWLIST}
+
+
 try:
     from ._build_info import __commit__
 except ImportError:
@@ -91,7 +130,7 @@ class Provisioner:
                 print("   • Configure database file location according to your needs\n")
 
             env = {
-                **os.environ,
+                **_filter_env(dict(os.environ)),
                 "ANSIBLE_ROLES_PATH": str(self.roles_path),
                 "ANSIBLE_CONFIG": str(ansible_cfg_path),
             }

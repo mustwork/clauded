@@ -9,7 +9,7 @@ import pytest
 
 from clauded.config import Config
 from clauded.lima import LimaVM
-from clauded.provisioner import Provisioner
+from clauded.provisioner import _ENV_ALLOWLIST, Provisioner, _filter_env
 
 
 @pytest.fixture
@@ -762,3 +762,120 @@ class TestProvisionerErrorHandling:
                 provisioner.run()
 
         assert exc_info.value.code == 1
+
+
+class TestEnvironmentFiltering:
+    """Tests for environment variable filtering."""
+
+    def test_allowlist_includes_path(self) -> None:
+        """PATH is in the allowlist."""
+        assert "PATH" in _ENV_ALLOWLIST
+
+    def test_allowlist_includes_home(self) -> None:
+        """HOME is in the allowlist."""
+        assert "HOME" in _ENV_ALLOWLIST
+
+    def test_allowlist_includes_ssh_auth_sock(self) -> None:
+        """SSH_AUTH_SOCK is in the allowlist for agent forwarding."""
+        assert "SSH_AUTH_SOCK" in _ENV_ALLOWLIST
+
+    def test_allowlist_includes_locale_vars(self) -> None:
+        """Locale variables are in the allowlist."""
+        for var in ["LANG", "LC_ALL", "LC_CTYPE"]:
+            assert var in _ENV_ALLOWLIST
+
+    def test_allowlist_includes_temp_dirs(self) -> None:
+        """Temp directory variables are in the allowlist."""
+        for var in ["TMPDIR", "TEMP", "TMP"]:
+            assert var in _ENV_ALLOWLIST
+
+    def test_filter_env_keeps_allowlisted_vars(self) -> None:
+        """_filter_env keeps variables in the allowlist."""
+        env = {"PATH": "/usr/bin", "HOME": "/home/user", "AWS_SECRET_KEY": "secret"}
+        filtered = _filter_env(env)
+
+        assert "PATH" in filtered
+        assert "HOME" in filtered
+        assert filtered["PATH"] == "/usr/bin"
+        assert filtered["HOME"] == "/home/user"
+
+    def test_filter_env_removes_sensitive_vars(self) -> None:
+        """_filter_env removes sensitive environment variables."""
+        sensitive_vars = [
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "DATABASE_URL",
+            "DB_PASSWORD",
+            "API_KEY",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "GITHUB_TOKEN",
+            "NPM_TOKEN",
+            "PYPI_TOKEN",
+            "SECRET_KEY",
+            "PRIVATE_KEY",
+        ]
+        env = {var: "sensitive_value" for var in sensitive_vars}
+        env["PATH"] = "/usr/bin"  # Add one allowlisted
+
+        filtered = _filter_env(env)
+
+        for var in sensitive_vars:
+            assert var not in filtered
+        assert "PATH" in filtered
+
+    def test_filter_env_returns_empty_for_all_sensitive(self) -> None:
+        """_filter_env returns empty dict when all vars are sensitive."""
+        env = {"AWS_SECRET_KEY": "secret", "DB_PASSWORD": "secret"}
+        filtered = _filter_env(env)
+
+        assert filtered == {}
+
+    def test_filter_env_preserves_all_allowlisted(self) -> None:
+        """_filter_env preserves all allowlisted variables when present."""
+        env = {var: f"value_{var}" for var in _ENV_ALLOWLIST}
+        filtered = _filter_env(env)
+
+        assert filtered == env
+
+    def test_provisioner_run_uses_filtered_env(
+        self, full_config: Config, tmp_path: Path
+    ) -> None:
+        """Provisioner.run() passes filtered environment to subprocess."""
+        vm = MagicMock()
+        vm.name = "test-vm"
+        vm.get_ssh_config_path.return_value = tmp_path / "ssh.config"
+        provisioner = Provisioner(full_config, vm)
+
+        captured_env = {}
+
+        def mock_subprocess_run(cmd, env=None, check=False):
+            nonlocal captured_env
+            captured_env = env or {}
+            return MagicMock()
+
+        with (
+            patch("clauded.provisioner.Path.home", return_value=tmp_path),
+            patch("subprocess.run", side_effect=mock_subprocess_run),
+            patch.dict(
+                "os.environ",
+                {
+                    "PATH": "/usr/bin",
+                    "HOME": "/home/user",
+                    "AWS_SECRET_ACCESS_KEY": "secret123",
+                    "DATABASE_PASSWORD": "dbpass",
+                },
+                clear=True,
+            ),
+        ):
+            provisioner.run()
+
+        # Should have PATH, HOME but not sensitive vars
+        assert "PATH" in captured_env
+        assert "HOME" in captured_env
+        assert "AWS_SECRET_ACCESS_KEY" not in captured_env
+        assert "DATABASE_PASSWORD" not in captured_env
+        # Should have clauded-specific vars
+        assert "ANSIBLE_ROLES_PATH" in captured_env
+        assert "ANSIBLE_CONFIG" in captured_env
