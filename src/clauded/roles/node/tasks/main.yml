@@ -33,7 +33,7 @@
 - name: Install corepack via npm
   command: npm install -g corepack --ignore-scripts
   args:
-    creates: /usr/local/bin/corepack
+    creates: /usr/bin/corepack
 
 - name: Verify corepack installation
   command: corepack --version
