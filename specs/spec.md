@@ -368,6 +368,18 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 
 ## Non-Functional Requirements
 
+### Continuous Integration
+
+The project uses GitHub Actions for automated quality enforcement:
+
+- **Triggers**: Push to `master`, pull requests targeting `master`
+- **Checks**:
+  - Linting with `ruff check`
+  - Type checking with `mypy`
+  - Test suite with `pytest`
+  - Coverage threshold: 80% minimum (enforced via `--cov-fail-under`)
+- **Configuration**: `.github/workflows/test.yml`
+
 ### Performance
 
 - VM creation: ~1-3 minutes (Alpine image download + provisioning)

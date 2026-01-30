@@ -79,6 +79,10 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 addopts = "-ra -q"
 
+# Coverage configuration
+[tool.coverage.report]
+fail_under = 80
+
 [dependency-groups]
 dev = [
     "hypothesis>=6.151.2",
