@@ -44,6 +44,27 @@
     group: "{{ remote_whoami.stdout }}"
     mode: '0755'
 
+# Defensive .gitconfig handling: re-copy from host if missing or empty.
+# This recovers from ungraceful VM shutdowns that may corrupt or lose the file.
+- name: Check if .gitconfig exists
+  stat:
+    path: "{{ remote_home.stdout }}/.gitconfig"
+  register: gitconfig_stat
+
+- name: Check .gitconfig content if it exists
+  slurp:
+    src: "{{ remote_home.stdout }}/.gitconfig"
+  register: gitconfig_content_check
+  when: gitconfig_stat.stat.exists and gitconfig_stat.stat.size > 0
+  failed_when: false
+
+- name: Warn if .gitconfig was missing or empty (recovering)
+  debug:
+    msg: "WARNING: .gitconfig was missing or empty - restoring from host"
+  when: >
+    gitconfig_content | length > 0 and
+    (not gitconfig_stat.stat.exists or gitconfig_stat.stat.size == 0)
+
 - name: Copy host .gitconfig to VM
   copy:
     dest: "{{ remote_home.stdout }}/.gitconfig"
@@ -52,6 +73,60 @@
     group: "{{ remote_whoami.stdout }}"
     mode: '0644'
   when: gitconfig_content | length > 0
+
+# Defensive .claude.json handling: detect corruption and restore from backup.
+# Claude Code creates .claude.json.backup.* files that can be used for recovery.
+- name: Check if .claude.json exists
+  stat:
+    path: "{{ remote_home.stdout }}/.claude.json"
+  register: claude_json_stat
+
+- name: Validate .claude.json is valid JSON
+  shell: python3 -c "import json; json.load(open('{{ remote_home.stdout }}/.claude.json'))"
+  register: claude_json_valid
+  when: claude_json_stat.stat.exists and claude_json_stat.stat.size > 0
+  failed_when: false
+  changed_when: false
+  become: no
+
+- name: Find .claude.json backup files
+  find:
+    paths: "{{ remote_home.stdout }}"
+    patterns: ".claude.json.backup.*"
+    file_type: file
+  register: claude_json_backups
+  when: >
+    claude_json_stat.stat.exists and
+    (claude_json_stat.stat.size == 0 or claude_json_valid.rc != 0)
+
+- name: Warn about corrupted .claude.json
+  debug:
+    msg: "WARNING: .claude.json is corrupted (ungraceful shutdown?) - attempting recovery from backup"
+  when: >
+    claude_json_stat.stat.exists and
+    (claude_json_stat.stat.size == 0 or (claude_json_valid.rc is defined and claude_json_valid.rc != 0))
+
+- name: Restore .claude.json from most recent backup
+  copy:
+    src: "{{ (claude_json_backups.files | sort(attribute='mtime', reverse=true) | first).path }}"
+    dest: "{{ remote_home.stdout }}/.claude.json"
+    remote_src: yes
+    owner: "{{ remote_whoami.stdout }}"
+    group: "{{ remote_whoami.stdout }}"
+    mode: '0644'
+  become: no
+  when: >
+    claude_json_stat.stat.exists and
+    (claude_json_stat.stat.size == 0 or (claude_json_valid.rc is defined and claude_json_valid.rc != 0)) and
+    claude_json_backups.files | length > 0
+
+- name: Warn if no backup available for corrupted .claude.json
+  debug:
+    msg: "WARNING: .claude.json is corrupted and no backup found - Claude Code will recreate it"
+  when: >
+    claude_json_stat.stat.exists and
+    (claude_json_stat.stat.size == 0 or (claude_json_valid.rc is defined and claude_json_valid.rc != 0)) and
+    (claude_json_backups.files is not defined or claude_json_backups.files | length == 0)
 
 - name: Set bash as default shell for root
   user:
