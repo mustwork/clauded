@@ -3,6 +3,7 @@ name = "clauded"
 version = "0.1.0"
 description = "Isolated, per-project Lima VMs with automatic environment provisioning"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.1.7",

@@ -305,7 +305,7 @@ Contributions welcome! Please:
 
 ## License
 
-[Add license information]
+This project is licensed under the [MIT License](LICENSE).
 
 ## Support
 
