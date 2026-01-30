@@ -199,7 +199,6 @@ environment:
   - `docker` if "docker" in config.environment.tools
   - `aws_cli` if "aws-cli" in config.environment.tools
   - `gh` if "gh" in config.environment.tools
-  - `gradle` if "gradle" in config.environment.tools
   - `postgresql` if "postgresql" in config.environment.databases
   - `redis` if "redis" in config.environment.databases
   - `mysql` if "mysql" in config.environment.databases
@@ -207,15 +206,23 @@ environment:
   - `playwright` if "playwright" in config.environment.frameworks
   - `claude_code` if "claude-code" in config.environment.frameworks
 
+**Auto-bundled Roles**
+- When `python` is selected: `uv` and `poetry` are automatically included
+- When `java` or `kotlin` is selected: `maven` and `gradle` are automatically included
+- When `playwright` is selected: `node` is automatically included (npm dependency)
+
 **Ansible Roles**
 
 | Role | Purpose | Key Tasks |
 |------|---------|-----------|
 | `common` | Base system packages | ca-certificates, coreutils, curl, git, gnupg, alpine-sdk, bash |
 | `python` | Python version installation | apk python3, python3-dev, py3-pip |
+| `uv` | Python package manager | uv installation via pipx (auto-bundled with Python) |
+| `poetry` | Python dependency manager | poetry installation via pipx (auto-bundled with Python) |
 | `node` | Node.js installation | apk nodejs-current/npm from community repository |
 | `java` | Java version installation | apk openjdk{{ java_version }} |
 | `kotlin` | Kotlin compiler installation | Download from GitHub releases, kotlin{{ kotlin_version }} |
+| `maven` | Java/Kotlin build tool | Maven binary installation (auto-bundled with Java/Kotlin) |
 | `rust` | Rust toolchain installation | rustup, rustc/cargo {{ rust_version }} |
 | `go` | Go version installation | Download from go.dev, go{{ go_version }} |
 | `docker` | Docker setup | apk docker, OpenRC service, user group |
@@ -225,7 +232,7 @@ environment:
 | `sqlite` | SQLite installation | sqlite package via apk, no service management (file-based) |
 | `aws_cli` | AWS CLI v2 | Download aarch64 zip, unzip, install |
 | `gh` | GitHub CLI | apk package installation |
-| `gradle` | Gradle build tool | Download latest, install to /opt/gradle |
+| `gradle` | Gradle build tool | Download latest, install to /opt/gradle (auto-bundled with Java/Kotlin) |
 | `playwright` | Playwright testing | npm install -g playwright, playwright install |
 | `claude_code` | Claude Code CLI | Native installer (claude.ai/install.sh), musl deps |
 

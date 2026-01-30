@@ -126,21 +126,23 @@ class Provisioner:
 
     def _get_roles(self) -> list[str]:
         """Determine which roles to include based on config."""
-        roles = ["common", "node"]  # Always include (git is in common, npm in node)
+        roles = ["common"]  # Base system packages (git, curl, etc.)
 
         if self.config.python:
             roles.append("python")
-            roles.append("uv")
-            roles.append("poetry")
-        # node is already included by default for npm
+            roles.append("uv")  # Auto-bundled with Python
+            roles.append("poetry")  # Auto-bundled with Python
+        # Node.js: only include when explicitly configured or required by frameworks
+        if self.config.node:
+            roles.append("node")
         # Java/Kotlin: install Java first (Kotlin and build tools need it)
         if self.config.java or self.config.kotlin:
             roles.append("java")
         if self.config.kotlin:
             roles.append("kotlin")
         if self.config.java or self.config.kotlin:
-            roles.append("maven")
-            roles.append("gradle")
+            roles.append("maven")  # Auto-bundled with Java/Kotlin
+            roles.append("gradle")  # Auto-bundled with Java/Kotlin
         if self.config.rust:
             roles.append("rust")
         if self.config.go:
@@ -166,6 +168,9 @@ class Provisioner:
 
         # Frameworks
         if "playwright" in self.config.frameworks:
+            # Playwright requires npm for installation
+            if "node" not in roles:
+                roles.insert(roles.index("common") + 1, "node")
             roles.append("playwright")
         if "claude-code" in self.config.frameworks:
             roles.append("claude_code")

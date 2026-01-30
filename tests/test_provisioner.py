@@ -92,14 +92,14 @@ class TestProvisionerGetRoles:
 
         assert "node" in roles
 
-    def test_node_always_included(self, minimal_config: Config) -> None:
-        """Node role always included (npm is required for Claude)."""
+    def test_excludes_node_when_none(self, minimal_config: Config) -> None:
+        """Node role excluded when node is None and no frameworks need it."""
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
         roles = provisioner._get_roles()
 
-        assert "node" in roles
+        assert "node" not in roles
 
     def test_includes_java_when_selected(self, full_config: Config) -> None:
         """Java role included when java version specified."""
@@ -201,13 +201,32 @@ class TestProvisionerGetRoles:
         assert "gh" in roles
 
     def test_includes_gradle_when_java_selected(self, full_config: Config) -> None:
-        """Gradle role included when java is selected."""
+        """Gradle role included when java is selected (auto-bundled)."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
         roles = provisioner._get_roles()
 
         assert "gradle" in roles
+
+    def test_includes_gradle_when_kotlin_selected(self) -> None:
+        """Gradle role included when kotlin is selected (auto-bundled)."""
+        config = Config(
+            vm_name="clauded-kotlin123",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            kotlin="2.0",
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "gradle" in roles
+        assert "maven" in roles
 
     def test_includes_maven_when_java_selected(self, full_config: Config) -> None:
         """Maven role included when java is selected."""
@@ -272,6 +291,28 @@ class TestProvisionerGetRoles:
 
         assert "playwright" in roles
 
+    def test_playwright_auto_includes_node(self) -> None:
+        """Playwright framework automatically includes node role (npm required)."""
+        config = Config(
+            vm_name="clauded-playwright",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            node=None,  # Node not explicitly configured
+            frameworks=["playwright"],
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "node" in roles
+        assert "playwright" in roles
+        # Node should come before playwright (dependency order)
+        assert roles.index("node") < roles.index("playwright")
+
     def test_includes_claude_code_when_in_frameworks(self, full_config: Config) -> None:
         """Claude code role included when claude-code in frameworks."""
         vm = LimaVM(full_config)
@@ -290,14 +331,14 @@ class TestProvisionerGetRoles:
 
         expected_roles = [
             "common",
-            "node",  # Always included (npm required for Claude)
             "python",
-            "uv",  # Auto-installed with Python
-            "poetry",  # Auto-installed with Python
+            "uv",  # Auto-bundled with Python
+            "poetry",  # Auto-bundled with Python
+            "node",  # Explicitly configured
             "java",  # Java before Maven/Gradle (they need JAVA_HOME)
             "kotlin",
-            "maven",  # Auto-installed with Java/Kotlin
-            "gradle",  # Auto-installed with Java/Kotlin
+            "maven",  # Auto-bundled with Java/Kotlin
+            "gradle",  # Auto-bundled with Java/Kotlin
             "rust",
             "go",
             "docker",
@@ -311,14 +352,14 @@ class TestProvisionerGetRoles:
         ]
         assert roles == expected_roles
 
-    def test_minimal_config_has_common_and_node(self, minimal_config: Config) -> None:
-        """Minimal config produces common and node roles (git and npm always needed)."""
+    def test_minimal_config_has_only_common(self, minimal_config: Config) -> None:
+        """Minimal config produces only common role."""
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
         roles = provisioner._get_roles()
 
-        assert roles == ["common", "node"]
+        assert roles == ["common"]
 
 
 class TestProvisionerGeneratePlaybook:
