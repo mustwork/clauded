@@ -30,6 +30,8 @@ PYTHON_PACKAGE_MAPPING = {
     "django": "django",
     "flask": "flask",
     "fastapi": "fastapi",
+    "playwright": "playwright",  # Optional tool, detected for wizard pre-selection
+    "pytest-playwright": "playwright",  # Pytest plugin for Playwright
 }
 
 NODE_PACKAGE_MAPPING = {
@@ -41,6 +43,7 @@ NODE_PACKAGE_MAPPING = {
     "nest": "nest",
     "@nestjs/core": "nest",
     "playwright": "playwright",  # Optional tool, detected for wizard pre-selection
+    "@playwright/test": "playwright",  # Playwright test runner
 }
 
 JAVA_ARTIFACT_MAPPING = {
@@ -177,6 +180,10 @@ def detect_frameworks_and_tools(
     docker_item = detect_docker(project_path)
     if docker_item:
         all_items.append(docker_item)
+
+    playwright_item = detect_playwright(project_path)
+    if playwright_item:
+        all_items.append(playwright_item)
 
     # Separate frameworks and optional tools
     # NOTE: Build tools (gradle, maven, uv, poetry) are NOT detected here
@@ -755,5 +762,45 @@ def detect_docker(project_path: Path) -> DetectedItem | None:
             source_file=str(compose),
             source_evidence="compose.yml",
         )
+
+    return None
+
+
+def detect_playwright(project_path: Path) -> DetectedItem | None:
+    """Detect Playwright from config files.
+
+    CONTRACT:
+      Inputs:
+        - project_path: directory path
+
+      Outputs:
+        - DetectedItem: if playwright config file found
+        - None: if no playwright config files found
+
+      Invariants:
+        - High confidence if config file exists
+        - source_file is the detected config file path
+
+      Algorithm:
+        1. Check for playwright.config.ts
+        2. Check for playwright.config.js
+        3. Check for playwright.config.mjs
+        4. If any exists, return DetectedItem for playwright tool
+    """
+    config_files = [
+        "playwright.config.ts",
+        "playwright.config.js",
+        "playwright.config.mjs",
+    ]
+
+    for config_file in config_files:
+        config_path = project_path / config_file
+        if config_path.exists() and is_safe_path(config_path, project_path):
+            return DetectedItem(
+                name="playwright",
+                confidence="high",
+                source_file=str(config_path),
+                source_evidence=config_file,
+            )
 
     return None

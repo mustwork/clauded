@@ -144,16 +144,12 @@ def run_with_detection(
         else:
             answers[lang] = "None"
 
-    # Tools, databases, and frameworks combined (multi-select with separators)
+    # Tools, databases, and testing combined (multi-select with separators)
     tools_default = defaults.get("tools", [])
     detected_tools = set(tools_default) if isinstance(tools_default, list) else set()
     databases_default = defaults.get("databases", [])
     detected_databases = (
         set(databases_default) if isinstance(databases_default, list) else set()
-    )
-    frameworks_default = defaults.get("frameworks", ["claude-code"])
-    detected_frameworks = (
-        set(frameworks_default) if isinstance(frameworks_default, list) else set()
     )
     selections = questionary.checkbox(
         "Select tools, databases, and frameworks:",
@@ -168,8 +164,8 @@ def run_with_detection(
             Choice("mysql", checked="mysql" in detected_databases),
             Choice("sqlite", checked="sqlite" in detected_databases),
             Choice("mongodb", checked="mongodb" in detected_databases),
-            Separator("── Frameworks ──"),
-            Choice("playwright", checked="playwright" in detected_frameworks),
+            Separator("── Testing ──"),
+            Choice("playwright", checked="playwright" in detected_tools),
         ],
         style=WIZARD_STYLE,
         instruction="(space to select, enter to confirm)",

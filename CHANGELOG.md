@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Framework detection from build.gradle (Groovy DSL) including Micronaut and Ktor
   - MongoDB database detection from docker-compose, environment variables, and ORM dependencies
   - Support for MongoDB across Python (pymongo, motor, mongoengine, beanie), Node.js (mongoose, mongodb), Java, and Go ecosystems
+  - Playwright testing framework detection across all project types:
+    - Config files: `playwright.config.ts`, `playwright.config.js`, `playwright.config.mjs`
+    - Node.js packages: `playwright`, `@playwright/test`
+    - Python packages: `playwright`, `pytest-playwright`
 
 ### Changed
 

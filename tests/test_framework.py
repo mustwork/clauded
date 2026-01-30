@@ -27,6 +27,7 @@ from hypothesis import strategies as st
 from clauded.detect.framework import (
     detect_docker,
     detect_frameworks_and_tools,
+    detect_playwright,
     parse_go_dependencies,
     parse_java_dependencies,
     parse_kotlin_dependencies,
@@ -281,6 +282,7 @@ class TestParseNodeDependencies:
         "tool,package_name",
         [
             ("playwright", "playwright"),
+            ("playwright", "@playwright/test"),
         ],
     )
     def test_detects_tool_from_dev_dependencies(
@@ -568,6 +570,107 @@ class TestDetectDocker:
         path = Path(item.source_file)
         assert path.exists()
         assert path.name in ("Dockerfile", "docker-compose.yml", "compose.yml")
+
+
+# Parameterized Playwright detection tests
+class TestDetectPlaywright:
+    """Test Playwright detection from config files."""
+
+    @pytest.mark.parametrize(
+        "config_file",
+        [
+            "playwright.config.ts",
+            "playwright.config.js",
+            "playwright.config.mjs",
+        ],
+    )
+    def test_detects_playwright_from_config_file(
+        self, temp_project_dir: Path, config_file: str
+    ) -> None:
+        """Detects Playwright from config files."""
+        (temp_project_dir / config_file).write_text("export default { use: {} }")
+
+        item = detect_playwright(temp_project_dir)
+
+        assert item is not None
+        assert item.name == "playwright"
+        assert item.confidence == "high"
+        assert item.source_evidence == config_file
+
+    def test_returns_none_when_no_playwright_config(
+        self, temp_project_dir: Path
+    ) -> None:
+        """Returns None when no Playwright config files present."""
+        item = detect_playwright(temp_project_dir)
+        assert item is None
+
+    def test_playwright_source_file_points_to_config(
+        self, temp_project_dir: Path
+    ) -> None:
+        """Playwright item source_file points to actual config file."""
+        config = temp_project_dir / "playwright.config.ts"
+        config.write_text("export default {}")
+
+        item = detect_playwright(temp_project_dir)
+
+        assert item is not None
+        path = Path(item.source_file)
+        assert path.exists()
+        assert path.name in (
+            "playwright.config.ts",
+            "playwright.config.js",
+            "playwright.config.mjs",
+        )
+
+
+class TestPythonPlaywrightDetection:
+    """Test Python Playwright detection from dependencies."""
+
+    @pytest.mark.parametrize(
+        "package_name",
+        [
+            "playwright",
+            "pytest-playwright",
+        ],
+    )
+    def test_detects_playwright_from_pyproject_dependencies(
+        self, temp_project_dir: Path, package_name: str
+    ) -> None:
+        """Detects Playwright from pyproject.toml dependencies."""
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(f"""
+[project]
+name = "test-project"
+dependencies = [
+    "{package_name}",
+]
+""")
+        items = parse_python_dependencies(temp_project_dir)
+
+        playwright_items = [item for item in items if item.name == "playwright"]
+        assert len(playwright_items) > 0
+        assert playwright_items[0].confidence == "high"
+
+    def test_detects_playwright_from_optional_dependencies(
+        self, temp_project_dir: Path
+    ) -> None:
+        """Detects Playwright from optional dependencies as medium confidence."""
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("""
+[project]
+name = "test-project"
+dependencies = []
+
+[project.optional-dependencies]
+test = [
+    "playwright",
+]
+""")
+        items = parse_python_dependencies(temp_project_dir)
+
+        playwright_items = [item for item in items if item.name == "playwright"]
+        assert len(playwright_items) > 0
+        assert playwright_items[0].confidence == "medium"
 
 
 # Integration tests
