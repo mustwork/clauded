@@ -464,3 +464,165 @@ class TestSigintHandler:
 
         captured = capsys.readouterr()
         assert "Interrupted. Cleaning up..." in captured.err
+
+
+class TestCliEditWorkflow:
+    """Tests for --edit workflow."""
+
+    def test_edit_without_config_fails(self, runner: CliRunner) -> None:
+        """--edit fails when no .clauded.yaml exists."""
+        with runner.isolated_filesystem():
+            result = runner.invoke(main, ["--edit"])
+
+            assert result.exit_code == 1
+            assert "No .clauded.yaml found" in result.output
+
+    def test_edit_without_vm_fails(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--edit fails when VM doesn't exist."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = False
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--edit"])
+
+                assert result.exit_code == 1
+                assert "does not exist" in result.output
+
+    def test_edit_starts_stopped_vm_before_wizard(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--edit starts stopped VM before running wizard."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = False
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                # Bypass TTY check, but wizard will still fail without real TTY
+                with patch(
+                    "clauded.cli._require_interactive_terminal", return_value=None
+                ):
+                    with patch("clauded.cli.wizard") as mock_wizard:
+                        mock_config = MagicMock()
+                        mock_wizard.run_edit.return_value = mock_config
+
+                        with patch("clauded.cli.Provisioner") as MockProv:
+                            mock_prov = MagicMock()
+                            MockProv.return_value = mock_prov
+
+                            runner.invoke(main, ["--edit"])
+
+                            # VM should be started first
+                            mock_vm.start.assert_called_once()
+
+    def test_edit_runs_wizard_saves_and_provisions(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--edit runs wizard, saves config, and provisions."""
+        with runner.isolated_filesystem():
+            config_path = Path(".clauded.yaml")
+            config_path.write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                with patch(
+                    "clauded.cli._require_interactive_terminal", return_value=None
+                ):
+                    with patch("clauded.cli.wizard") as mock_wizard:
+                        mock_config = MagicMock()
+                        mock_config.mount_guest = "/workspace"
+                        mock_wizard.run_edit.return_value = mock_config
+
+                        with patch("clauded.cli.Provisioner") as MockProv:
+                            mock_prov = MagicMock()
+                            MockProv.return_value = mock_prov
+
+                            result = runner.invoke(main, ["--edit"])
+
+                            # Wizard should be called with run_edit
+                            mock_wizard.run_edit.assert_called_once()
+                            # Config should be saved
+                            mock_config.save.assert_called_once()
+                            # Provisioner should run
+                            mock_prov.run.assert_called_once()
+                            # Shell should be entered
+                            mock_vm.shell.assert_called_once()
+                            assert "Updated .clauded.yaml" in result.output
+
+
+class TestCliDetectWorkflow:
+    """Tests for --detect workflow."""
+
+    def test_detect_outputs_json(self, runner: CliRunner) -> None:
+        """--detect outputs detection results as JSON."""
+        with runner.isolated_filesystem():
+            # Create a simple Python project
+            Path("pyproject.toml").write_text(
+                '[project]\nname = "test"\ndependencies = []'
+            )
+
+            result = runner.invoke(main, ["--detect"])
+
+            assert result.exit_code == 0
+            # Output should be valid JSON
+            import json
+
+            data = json.loads(result.output)
+            assert "languages" in data
+            assert "versions" in data
+            assert "frameworks" in data
+            assert "tools" in data
+            assert "databases" in data
+            assert "scan_stats" in data
+
+    def test_detect_exits_without_wizard(self, runner: CliRunner) -> None:
+        """--detect exits immediately without running wizard."""
+        with runner.isolated_filesystem():
+            with patch("clauded.cli.wizard") as mock_wizard:
+                with patch("clauded.cli.LimaVM"):
+                    runner.invoke(main, ["--detect"])
+
+                    # Wizard should not be called
+                    mock_wizard.run.assert_not_called()
+                    mock_wizard.run_edit.assert_not_called()
+
+    def test_detect_does_not_require_config(self, runner: CliRunner) -> None:
+        """--detect works without .clauded.yaml."""
+        with runner.isolated_filesystem():
+            # No config file exists
+            result = runner.invoke(main, ["--detect"])
+
+            assert result.exit_code == 0
+            # Should still produce JSON output
+            import json
+
+            data = json.loads(result.output)
+            assert isinstance(data, dict)
+
+    def test_detect_with_debug_flag(self, runner: CliRunner) -> None:
+        """--detect with --debug enables verbose logging."""
+        with runner.isolated_filesystem():
+            result = runner.invoke(main, ["--detect", "--debug"])
+
+            assert result.exit_code == 0
+            # Debug output goes to stderr, but JSON should still be on stdout
+            import json
+
+            data = json.loads(result.output)
+            assert isinstance(data, dict)

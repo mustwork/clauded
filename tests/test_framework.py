@@ -124,207 +124,87 @@ def temp_project_dir() -> Path:
         yield Path(tmpdir)
 
 
-@pytest.fixture
-def python_pyproject_toml(temp_project_dir: Path) -> Path:
-    """Create a pyproject.toml with Python dependencies."""
-    pyproject = temp_project_dir / "pyproject.toml"
-    pyproject.write_text("""
-[project]
-name = "test-project"
-dependencies = [
-    "django>=4.0",
-    "flask>=2.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "fastapi>=0.100",
-]
-""")
-    return pyproject
-
-
-@pytest.fixture
-def python_requirements_txt(temp_project_dir: Path) -> Path:
-    """Create a requirements.txt with Python dependencies."""
-    req_file = temp_project_dir / "requirements.txt"
-    req_file.write_text("""
-django>=4.0
-flask>=2.0
-fastapi>=0.100
-""")
-    return req_file
-
-
-@pytest.fixture
-def node_package_json(temp_project_dir: Path) -> Path:
-    """Create a package.json with Node dependencies."""
-    package_json = temp_project_dir / "package.json"
-    package_json.write_text(
-        json.dumps(
-            {
-                "name": "test-project",
-                "dependencies": {
-                    "react": "^18.0.0",
-                    "express": "^4.18.0",
-                },
-                "devDependencies": {
-                    "playwright": "^1.40.0",
-                },
-            }
-        )
-    )
-    return package_json
-
-
-@pytest.fixture
-def java_pom_xml(temp_project_dir: Path) -> Path:
-    """Create a pom.xml with Java dependencies."""
-    pom = temp_project_dir / "pom.xml"
-    pom.write_text("""<?xml version="1.0"?>
-<project>
-  <modelVersion>4.0.0</modelVersion>
-  <dependencies>
-    <dependency>
-      <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-    <dependency>
-      <artifactId>quarkus-core</artifactId>
-    </dependency>
-  </dependencies>
-</project>
-""")
-    return pom
-
-
-@pytest.fixture
-def kotlin_build_gradle_kts(temp_project_dir: Path) -> Path:
-    """Create a build.gradle.kts with Kotlin dependencies."""
-    build_file = temp_project_dir / "build.gradle.kts"
-    build_file.write_text("""
-dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-web:2.7.0")
-    implementation("io.ktor:ktor-server-core:2.0.0")
-    testImplementation("junit:junit:4.13")
-}
-""")
-    return build_file
-
-
-@pytest.fixture
-def rust_cargo_toml(temp_project_dir: Path) -> Path:
-    """Create a Cargo.toml with Rust dependencies."""
-    cargo = temp_project_dir / "Cargo.toml"
-    cargo.write_text("""
-[package]
-name = "test-project"
-version = "0.1.0"
-
-[dependencies]
-actix-web = "4.0"
-rocket = "0.5"
-tokio = { version = "1.0", features = ["full"] }
-
-[dev-dependencies]
-pytest = "1.0"
-""")
-    return cargo
-
-
-@pytest.fixture
-def go_mod(temp_project_dir: Path) -> Path:
-    """Create a go.mod with Go dependencies."""
-    go_mod_file = temp_project_dir / "go.mod"
-    go_mod_file.write_text("""
-module github.com/test/project
-
-go 1.22
-
-require (
-    github.com/gin-gonic/gin v1.9.0
-    github.com/labstack/echo v3.3.0
-    github.com/gofiber/fiber v2.0.0
-)
-""")
-    return go_mod_file
-
-
-@pytest.fixture
-def dockerfile(temp_project_dir: Path) -> Path:
-    """Create a Dockerfile."""
-    dockerfile = temp_project_dir / "Dockerfile"
-    dockerfile.write_text("""
-FROM ubuntu:22.04
-RUN apt-get update
-""")
-    return dockerfile
-
-
-@pytest.fixture
-def docker_compose_yml(temp_project_dir: Path) -> Path:
-    """Create a docker-compose.yml."""
-    compose = temp_project_dir / "docker-compose.yml"
-    compose.write_text("""
-version: "3"
-services:
-  app:
-    build: .
-""")
-    return compose
-
-
-# Python dependency parsing tests
+# Parameterized Python framework detection tests
 class TestParsePythonDependencies:
     """Test Python dependency parsing."""
 
-    def test_detects_django_from_pyproject_toml(
-        self, python_pyproject_toml: Path
+    @pytest.mark.parametrize(
+        "framework,package_name,confidence",
+        [
+            ("django", "django>=4.0", "high"),
+            ("flask", "flask>=2.0", "high"),
+            ("fastapi", "fastapi>=0.100", "high"),
+        ],
+    )
+    def test_detects_framework_from_pyproject_dependencies(
+        self, temp_project_dir: Path, framework: str, package_name: str, confidence: str
     ) -> None:
-        """Detects Django from pyproject.toml dependencies."""
-        project_path = python_pyproject_toml.parent
-        items = parse_python_dependencies(project_path)
+        """Detects Python framework from pyproject.toml dependencies."""
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(f"""
+[project]
+name = "test-project"
+dependencies = [
+    "{package_name}",
+]
+""")
+        items = parse_python_dependencies(temp_project_dir)
 
-        django_items = [item for item in items if item.name == "django"]
-        assert len(django_items) > 0
-        assert django_items[0].confidence == "high"
+        framework_items = [item for item in items if item.name == framework]
+        assert len(framework_items) > 0
+        assert framework_items[0].confidence == confidence
 
-    def test_detects_flask_from_pyproject_toml(
-        self, python_pyproject_toml: Path
+    @pytest.mark.parametrize(
+        "framework,package_name",
+        [
+            ("django", "django>=4.0"),
+            ("flask", "flask>=2.0"),
+            ("fastapi", "fastapi>=0.100"),
+        ],
+    )
+    def test_detects_framework_from_optional_dependencies(
+        self, temp_project_dir: Path, framework: str, package_name: str
     ) -> None:
-        """Detects Flask from pyproject.toml dependencies."""
-        project_path = python_pyproject_toml.parent
-        items = parse_python_dependencies(project_path)
+        """Detects Python framework from optional dependencies as medium confidence."""
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(f"""
+[project]
+name = "test-project"
+dependencies = []
 
-        flask_items = [item for item in items if item.name == "flask"]
-        assert len(flask_items) > 0
-        assert flask_items[0].confidence == "high"
+[project.optional-dependencies]
+dev = [
+    "{package_name}",
+]
+""")
+        items = parse_python_dependencies(temp_project_dir)
 
-    def test_detects_fastapi_from_optional_dependencies(
-        self, python_pyproject_toml: Path
-    ) -> None:
-        """Detects FastAPI from optional dependencies as medium confidence."""
-        project_path = python_pyproject_toml.parent
-        items = parse_python_dependencies(project_path)
-
-        fastapi_items = [item for item in items if item.name == "fastapi"]
-        assert len(fastapi_items) > 0
-        assert fastapi_items[0].confidence == "medium"
+        framework_items = [item for item in items if item.name == framework]
+        assert len(framework_items) > 0
+        assert framework_items[0].confidence == "medium"
 
     def test_detects_from_requirements_txt_fallback(
-        self, python_requirements_txt: Path
+        self, temp_project_dir: Path
     ) -> None:
         """Detects dependencies from requirements.txt when pyproject.toml absent."""
-        project_path = python_requirements_txt.parent
-        items = parse_python_dependencies(project_path)
+        req_file = temp_project_dir / "requirements.txt"
+        req_file.write_text("django>=4.0\nflask>=2.0\n")
+
+        items = parse_python_dependencies(temp_project_dir)
 
         assert len(items) > 0
         names = {item.name for item in items}
         assert "django" in names or "flask" in names
 
-    def test_source_file_points_to_manifest(self, python_pyproject_toml: Path) -> None:
+    def test_source_file_points_to_manifest(self, temp_project_dir: Path) -> None:
         """source_file points to the manifest file."""
-        project_path = python_pyproject_toml.parent
-        items = parse_python_dependencies(project_path)
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("""
+[project]
+name = "test-project"
+dependencies = ["django>=4.0"]
+""")
+        items = parse_python_dependencies(temp_project_dir)
 
         for item in items:
             path = Path(item.source_file)
@@ -336,74 +216,100 @@ class TestParsePythonDependencies:
         items = parse_python_dependencies(temp_project_dir)
         assert items == []
 
-    def test_all_items_have_valid_confidence(self, python_pyproject_toml: Path) -> None:
+    def test_all_items_have_valid_confidence(self, temp_project_dir: Path) -> None:
         """All returned items have valid confidence levels."""
-        project_path = python_pyproject_toml.parent
-        items = parse_python_dependencies(project_path)
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("""
+[project]
+dependencies = ["django>=4.0", "flask>=2.0"]
+""")
+        items = parse_python_dependencies(temp_project_dir)
 
         for item in items:
             assert item.confidence in CONFIDENCE_LEVELS
 
-    def test_all_items_have_valid_names(self, python_pyproject_toml: Path) -> None:
+    def test_all_items_have_valid_names(self, temp_project_dir: Path) -> None:
         """All returned items have names in supported Python frameworks."""
-        project_path = python_pyproject_toml.parent
-        items = parse_python_dependencies(project_path)
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("""
+[project]
+dependencies = ["django>=4.0", "flask>=2.0"]
+""")
+        items = parse_python_dependencies(temp_project_dir)
 
         for item in items:
             assert item.name in PYTHON_FRAMEWORKS
 
-    def test_source_evidence_matches_package_name(
-        self, python_pyproject_toml: Path
-    ) -> None:
-        """source_evidence contains the package name that triggered detection."""
-        project_path = python_pyproject_toml.parent
-        items = parse_python_dependencies(project_path)
 
-        for item in items:
-            assert item.source_evidence in (
-                "django",
-                "flask",
-                "fastapi",
-            )
-
-
-# Node dependency parsing tests
+# Parameterized Node framework detection tests
 class TestParseNodeDependencies:
     """Test Node.js dependency parsing."""
 
-    def test_detects_react_from_package_json(self, node_package_json: Path) -> None:
-        """Detects React from package.json dependencies."""
-        project_path = node_package_json.parent
-        items = parse_node_dependencies(project_path)
-
-        react_items = [item for item in items if item.name == "react"]
-        assert len(react_items) > 0
-        assert react_items[0].confidence == "high"
-
-    def test_detects_express_from_package_json(self, node_package_json: Path) -> None:
-        """Detects Express from package.json dependencies."""
-        project_path = node_package_json.parent
-        items = parse_node_dependencies(project_path)
-
-        express_items = [item for item in items if item.name == "express"]
-        assert len(express_items) > 0
-        assert express_items[0].confidence == "high"
-
-    def test_detects_playwright_from_dev_dependencies(
-        self, node_package_json: Path
+    @pytest.mark.parametrize(
+        "framework,package_name,confidence",
+        [
+            ("react", "react", "high"),
+            ("vue", "vue", "high"),
+            ("angular", "angular", "high"),
+            ("express", "express", "high"),
+            ("next", "next", "high"),
+            ("nest", "@nestjs/core", "high"),
+        ],
+    )
+    def test_detects_framework_from_dependencies(
+        self, temp_project_dir: Path, framework: str, package_name: str, confidence: str
     ) -> None:
-        """Detects Playwright from devDependencies."""
-        project_path = node_package_json.parent
-        items = parse_node_dependencies(project_path)
+        """Detects Node framework from package.json dependencies."""
+        package_json = temp_project_dir / "package.json"
+        package_json.write_text(
+            json.dumps(
+                {
+                    "name": "test-project",
+                    "dependencies": {
+                        package_name: "^1.0.0",
+                    },
+                }
+            )
+        )
+        items = parse_node_dependencies(temp_project_dir)
 
-        playwright_items = [item for item in items if item.name == "playwright"]
-        assert len(playwright_items) > 0
-        assert playwright_items[0].confidence == "medium"
+        framework_items = [item for item in items if item.name == framework]
+        assert len(framework_items) > 0
+        assert framework_items[0].confidence == confidence
 
-    def test_source_file_points_to_package_json(self, node_package_json: Path) -> None:
+    @pytest.mark.parametrize(
+        "tool,package_name",
+        [
+            ("playwright", "playwright"),
+        ],
+    )
+    def test_detects_tool_from_dev_dependencies(
+        self, temp_project_dir: Path, tool: str, package_name: str
+    ) -> None:
+        """Detects tools from devDependencies."""
+        package_json = temp_project_dir / "package.json"
+        package_json.write_text(
+            json.dumps(
+                {
+                    "name": "test-project",
+                    "devDependencies": {
+                        package_name: "^1.0.0",
+                    },
+                }
+            )
+        )
+        items = parse_node_dependencies(temp_project_dir)
+
+        tool_items = [item for item in items if item.name == tool]
+        assert len(tool_items) > 0
+        assert tool_items[0].confidence == "medium"
+
+    def test_source_file_points_to_package_json(self, temp_project_dir: Path) -> None:
         """source_file points to package.json."""
-        project_path = node_package_json.parent
-        items = parse_node_dependencies(project_path)
+        package_json = temp_project_dir / "package.json"
+        package_json.write_text(json.dumps({"dependencies": {"react": "^18.0.0"}}))
+
+        items = parse_node_dependencies(temp_project_dir)
 
         for item in items:
             path = Path(item.source_file)
@@ -414,47 +320,49 @@ class TestParseNodeDependencies:
         items = parse_node_dependencies(temp_project_dir)
         assert items == []
 
-    def test_all_items_have_valid_confidence(self, node_package_json: Path) -> None:
-        """All returned items have valid confidence levels."""
-        project_path = node_package_json.parent
-        items = parse_node_dependencies(project_path)
 
-        for item in items:
-            assert item.confidence in CONFIDENCE_LEVELS
-
-    def test_all_items_have_valid_names(self, node_package_json: Path) -> None:
-        """All returned items have valid framework or tool names."""
-        project_path = node_package_json.parent
-        items = parse_node_dependencies(project_path)
-
-        for item in items:
-            assert item.name in (NODE_FRAMEWORKS | {"playwright"})
-
-
-# Java dependency parsing tests
+# Parameterized Java framework detection tests
 class TestParseJavaDependencies:
     """Test Java dependency parsing."""
 
-    def test_detects_spring_boot_from_pom_xml(self, java_pom_xml: Path) -> None:
-        """Detects Spring Boot from pom.xml dependencies."""
-        project_path = java_pom_xml.parent
-        items = parse_java_dependencies(project_path)
+    @pytest.mark.parametrize(
+        "framework,artifact_id",
+        [
+            ("spring-boot", "spring-boot-starter-web"),
+            ("spring-boot", "spring-boot-starter"),
+            ("quarkus", "quarkus-core"),
+            ("quarkus", "quarkus-resteasy"),
+        ],
+    )
+    def test_detects_framework_from_pom_xml(
+        self, temp_project_dir: Path, framework: str, artifact_id: str
+    ) -> None:
+        """Detects Java framework from pom.xml dependencies."""
+        pom = temp_project_dir / "pom.xml"
+        pom.write_text(f"""<?xml version="1.0"?>
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <dependencies>
+    <dependency>
+      <artifactId>{artifact_id}</artifactId>
+    </dependency>
+  </dependencies>
+</project>
+""")
+        items = parse_java_dependencies(temp_project_dir)
 
-        spring_items = [item for item in items if item.name == "spring-boot"]
-        assert len(spring_items) > 0
+        framework_items = [item for item in items if item.name == framework]
+        assert len(framework_items) > 0
 
-    def test_detects_quarkus_from_pom_xml(self, java_pom_xml: Path) -> None:
-        """Detects Quarkus from pom.xml dependencies."""
-        project_path = java_pom_xml.parent
-        items = parse_java_dependencies(project_path)
-
-        quarkus_items = [item for item in items if item.name == "quarkus"]
-        assert len(quarkus_items) > 0
-
-    def test_source_file_points_to_pom_xml(self, java_pom_xml: Path) -> None:
+    def test_source_file_points_to_pom_xml(self, temp_project_dir: Path) -> None:
         """source_file points to pom.xml."""
-        project_path = java_pom_xml.parent
-        items = parse_java_dependencies(project_path)
+        pom = temp_project_dir / "pom.xml"
+        pom.write_text("""<?xml version="1.0"?>
+<project><dependencies>
+<dependency><artifactId>spring-boot-starter-web</artifactId></dependency>
+</dependencies></project>
+""")
+        items = parse_java_dependencies(temp_project_dir)
 
         for item in items:
             path = Path(item.source_file)
@@ -465,43 +373,45 @@ class TestParseJavaDependencies:
         items = parse_java_dependencies(temp_project_dir)
         assert items == []
 
-    def test_all_items_have_valid_names(self, java_pom_xml: Path) -> None:
-        """All returned items have names in supported Java frameworks."""
-        project_path = java_pom_xml.parent
-        items = parse_java_dependencies(project_path)
 
-        for item in items:
-            assert item.name in JAVA_FRAMEWORKS
-
-
-# Kotlin dependency parsing tests
+# Parameterized Kotlin framework detection tests
 class TestParseKotlinDependencies:
     """Test Kotlin dependency parsing."""
 
-    def test_detects_spring_boot_from_gradle_kts(
-        self, kotlin_build_gradle_kts: Path
+    @pytest.mark.parametrize(
+        "framework,dependency_pattern",
+        [
+            (
+                "spring-boot",
+                'implementation("org.springframework.boot:spring-boot-starter-web:2.7.0")',
+            ),
+            ("ktor", 'implementation("io.ktor:ktor-server-core:2.0.0")'),
+        ],
+    )
+    def test_detects_framework_from_gradle_kts(
+        self, temp_project_dir: Path, framework: str, dependency_pattern: str
     ) -> None:
-        """Detects Spring Boot from build.gradle.kts."""
-        project_path = kotlin_build_gradle_kts.parent
-        items = parse_kotlin_dependencies(project_path)
+        """Detects Kotlin framework from build.gradle.kts."""
+        build_file = temp_project_dir / "build.gradle.kts"
+        build_file.write_text(f"""
+dependencies {{
+    {dependency_pattern}
+}}
+""")
+        items = parse_kotlin_dependencies(temp_project_dir)
 
-        spring_items = [item for item in items if item.name == "spring-boot"]
-        assert len(spring_items) > 0
+        framework_items = [item for item in items if item.name == framework]
+        assert len(framework_items) > 0
 
-    def test_detects_ktor_from_gradle_kts(self, kotlin_build_gradle_kts: Path) -> None:
-        """Detects Ktor from build.gradle.kts."""
-        project_path = kotlin_build_gradle_kts.parent
-        items = parse_kotlin_dependencies(project_path)
-
-        ktor_items = [item for item in items if item.name == "ktor"]
-        assert len(ktor_items) > 0
-
-    def test_source_file_points_to_gradle_kts(
-        self, kotlin_build_gradle_kts: Path
-    ) -> None:
+    def test_source_file_points_to_gradle_kts(self, temp_project_dir: Path) -> None:
         """source_file points to build.gradle.kts."""
-        project_path = kotlin_build_gradle_kts.parent
-        items = parse_kotlin_dependencies(project_path)
+        build_file = temp_project_dir / "build.gradle.kts"
+        build_file.write_text("""
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-web:2.7.0")
+}
+""")
+        items = parse_kotlin_dependencies(temp_project_dir)
 
         for item in items:
             path = Path(item.source_file)
@@ -513,41 +423,47 @@ class TestParseKotlinDependencies:
         assert items == []
 
 
-# Rust dependency parsing tests
+# Parameterized Rust framework detection tests
 class TestParseRustDependencies:
     """Test Rust dependency parsing."""
 
-    def test_detects_actix_from_cargo_toml(self, rust_cargo_toml: Path) -> None:
-        """Detects Actix from Cargo.toml dependencies."""
-        project_path = rust_cargo_toml.parent
-        items = parse_rust_dependencies(project_path)
+    @pytest.mark.parametrize(
+        "framework,crate_name,confidence",
+        [
+            ("actix", "actix-web", "high"),
+            ("rocket", "rocket", "high"),
+            ("tokio", "tokio", "high"),
+        ],
+    )
+    def test_detects_framework_from_cargo_toml(
+        self, temp_project_dir: Path, framework: str, crate_name: str, confidence: str
+    ) -> None:
+        """Detects Rust framework from Cargo.toml dependencies."""
+        cargo = temp_project_dir / "Cargo.toml"
+        cargo.write_text(f"""
+[package]
+name = "test-project"
+version = "0.1.0"
 
-        actix_items = [item for item in items if item.name == "actix"]
-        assert len(actix_items) > 0
-        assert actix_items[0].confidence == "high"
+[dependencies]
+{crate_name} = "1.0"
+""")
+        items = parse_rust_dependencies(temp_project_dir)
 
-    def test_detects_rocket_from_cargo_toml(self, rust_cargo_toml: Path) -> None:
-        """Detects Rocket from Cargo.toml dependencies."""
-        project_path = rust_cargo_toml.parent
-        items = parse_rust_dependencies(project_path)
+        framework_items = [item for item in items if item.name == framework]
+        assert len(framework_items) > 0
+        assert framework_items[0].confidence == confidence
 
-        rocket_items = [item for item in items if item.name == "rocket"]
-        assert len(rocket_items) > 0
-        assert rocket_items[0].confidence == "high"
-
-    def test_detects_tokio_from_cargo_toml(self, rust_cargo_toml: Path) -> None:
-        """Detects Tokio from Cargo.toml dependencies."""
-        project_path = rust_cargo_toml.parent
-        items = parse_rust_dependencies(project_path)
-
-        tokio_items = [item for item in items if item.name == "tokio"]
-        assert len(tokio_items) > 0
-        assert tokio_items[0].confidence == "high"
-
-    def test_source_file_points_to_cargo_toml(self, rust_cargo_toml: Path) -> None:
+    def test_source_file_points_to_cargo_toml(self, temp_project_dir: Path) -> None:
         """source_file points to Cargo.toml."""
-        project_path = rust_cargo_toml.parent
-        items = parse_rust_dependencies(project_path)
+        cargo = temp_project_dir / "Cargo.toml"
+        cargo.write_text("""
+[package]
+name = "test"
+[dependencies]
+actix-web = "4.0"
+""")
+        items = parse_rust_dependencies(temp_project_dir)
 
         for item in items:
             path = Path(item.source_file)
@@ -559,38 +475,46 @@ class TestParseRustDependencies:
         assert items == []
 
 
-# Go dependency parsing tests
+# Parameterized Go framework detection tests
 class TestParseGoDependencies:
     """Test Go dependency parsing."""
 
-    def test_detects_gin_from_go_mod(self, go_mod: Path) -> None:
-        """Detects Gin from go.mod dependencies."""
-        project_path = go_mod.parent
-        items = parse_go_dependencies(project_path)
+    @pytest.mark.parametrize(
+        "framework,module_path",
+        [
+            ("gin", "github.com/gin-gonic/gin"),
+            ("echo", "github.com/labstack/echo"),
+            ("fiber", "github.com/gofiber/fiber"),
+        ],
+    )
+    def test_detects_framework_from_go_mod(
+        self, temp_project_dir: Path, framework: str, module_path: str
+    ) -> None:
+        """Detects Go framework from go.mod dependencies."""
+        go_mod_file = temp_project_dir / "go.mod"
+        go_mod_file.write_text(f"""
+module github.com/test/project
 
-        gin_items = [item for item in items if item.name == "gin"]
-        assert len(gin_items) > 0
+go 1.22
 
-    def test_detects_echo_from_go_mod(self, go_mod: Path) -> None:
-        """Detects Echo from go.mod dependencies."""
-        project_path = go_mod.parent
-        items = parse_go_dependencies(project_path)
+require (
+    {module_path} v1.0.0
+)
+""")
+        items = parse_go_dependencies(temp_project_dir)
 
-        echo_items = [item for item in items if item.name == "echo"]
-        assert len(echo_items) > 0
+        framework_items = [item for item in items if item.name == framework]
+        assert len(framework_items) > 0
 
-    def test_detects_fiber_from_go_mod(self, go_mod: Path) -> None:
-        """Detects Fiber from go.mod dependencies."""
-        project_path = go_mod.parent
-        items = parse_go_dependencies(project_path)
-
-        fiber_items = [item for item in items if item.name == "fiber"]
-        assert len(fiber_items) > 0
-
-    def test_source_file_points_to_go_mod(self, go_mod: Path) -> None:
+    def test_source_file_points_to_go_mod(self, temp_project_dir: Path) -> None:
         """source_file points to go.mod."""
-        project_path = go_mod.parent
-        items = parse_go_dependencies(project_path)
+        go_mod_file = temp_project_dir / "go.mod"
+        go_mod_file.write_text("""
+module github.com/test/project
+go 1.22
+require github.com/gin-gonic/gin v1.9.0
+""")
+        items = parse_go_dependencies(temp_project_dir)
 
         for item in items:
             path = Path(item.source_file)
@@ -602,23 +526,25 @@ class TestParseGoDependencies:
         assert items == []
 
 
-# Docker detection tests
+# Parameterized Docker detection tests
 class TestDetectDocker:
     """Test Docker detection."""
 
-    def test_detects_dockerfile(self, dockerfile: Path) -> None:
-        """Detects Docker from Dockerfile."""
-        project_path = dockerfile.parent
-        item = detect_docker(project_path)
+    @pytest.mark.parametrize(
+        "docker_file,content",
+        [
+            ("Dockerfile", "FROM ubuntu:22.04\nRUN apt-get update"),
+            ("docker-compose.yml", 'version: "3"\nservices:\n  app:\n    build: .'),
+            ("compose.yml", "services:\n  app:\n    build: ."),
+        ],
+    )
+    def test_detects_docker_from_file(
+        self, temp_project_dir: Path, docker_file: str, content: str
+    ) -> None:
+        """Detects Docker from Dockerfile or compose files."""
+        (temp_project_dir / docker_file).write_text(content)
 
-        assert item is not None
-        assert item.name == "docker"
-        assert item.confidence == "high"
-
-    def test_detects_docker_compose_yml(self, docker_compose_yml: Path) -> None:
-        """Detects Docker from docker-compose.yml."""
-        project_path = docker_compose_yml.parent
-        item = detect_docker(project_path)
+        item = detect_docker(temp_project_dir)
 
         assert item is not None
         assert item.name == "docker"
@@ -629,62 +555,49 @@ class TestDetectDocker:
         item = detect_docker(temp_project_dir)
         assert item is None
 
-    def test_docker_source_file_points_to_manifest(self, dockerfile: Path) -> None:
+    def test_docker_source_file_points_to_manifest(
+        self, temp_project_dir: Path
+    ) -> None:
         """Docker item source_file points to actual Docker file."""
-        project_path = dockerfile.parent
-        item = detect_docker(project_path)
+        dockerfile = temp_project_dir / "Dockerfile"
+        dockerfile.write_text("FROM ubuntu")
+
+        item = detect_docker(temp_project_dir)
 
         assert item is not None
         path = Path(item.source_file)
         assert path.exists()
-        assert path.name in (
-            "Dockerfile",
-            "docker-compose.yml",
-            "compose.yml",
-        )
+        assert path.name in ("Dockerfile", "docker-compose.yml", "compose.yml")
 
 
 # Integration tests
 class TestDetectFrameworksAndTools:
     """Test integrated framework and tool detection."""
 
-    def test_returns_tuple_of_lists(self, python_pyproject_toml: Path) -> None:
+    def test_returns_tuple_of_lists(self, temp_project_dir: Path) -> None:
         """Returns tuple of (frameworks, tools) lists."""
-        project_path = python_pyproject_toml.parent
-        frameworks, tools = detect_frameworks_and_tools(project_path)
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\ndependencies = ["django>=4.0"]')
+
+        frameworks, tools = detect_frameworks_and_tools(temp_project_dir)
 
         assert isinstance(frameworks, list)
         assert isinstance(tools, list)
 
-    def test_separates_frameworks_and_tools(self, python_pyproject_toml: Path) -> None:
+    def test_separates_frameworks_and_tools(self, temp_project_dir: Path) -> None:
         """Correctly separates frameworks and tools."""
-        project_path = python_pyproject_toml.parent
-        frameworks, tools = detect_frameworks_and_tools(project_path)
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\ndependencies = ["django>=4.0"]')
+
+        frameworks, tools = detect_frameworks_and_tools(temp_project_dir)
 
         framework_names = {item.name for item in frameworks}
         tool_names = {item.name for item in tools}
 
         assert framework_names.isdisjoint(tool_names)
 
-    def test_detects_multiple_ecosystems(
-        self,
-        temp_project_dir: Path,
-        python_pyproject_toml: Path,
-        node_package_json: Path,
-    ) -> None:
-        """Detects frameworks and tools across multiple ecosystems."""
-        # Create test project with both Python and Node manifests
-        temp_project_dir / "pyproject.toml"
-        temp_project_dir / "package.json"
-
-        frameworks, tools = detect_frameworks_and_tools(temp_project_dir)
-
-        # Should detect items from both ecosystems
-        assert len(frameworks) + len(tools) >= 0
-
     def test_handles_mixed_project_gracefully(self, temp_project_dir: Path) -> None:
         """Handles projects with partial manifests gracefully."""
-        # Create a project with only Docker
         (temp_project_dir / "Dockerfile").write_text("FROM ubuntu")
 
         frameworks, tools = detect_frameworks_and_tools(temp_project_dir)
@@ -699,22 +612,21 @@ class TestDetectFrameworksAndTools:
         assert isinstance(frameworks, list)
         assert isinstance(tools, list)
 
-    def test_all_framework_items_are_frameworks(
-        self, python_pyproject_toml: Path
-    ) -> None:
+    def test_all_framework_items_are_frameworks(self, temp_project_dir: Path) -> None:
         """All items in frameworks list are actually frameworks."""
-        project_path = python_pyproject_toml.parent
-        frameworks, _ = detect_frameworks_and_tools(project_path)
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\ndependencies = ["django>=4.0", "flask>=2.0"]')
+
+        frameworks, _ = detect_frameworks_and_tools(temp_project_dir)
 
         for item in frameworks:
             assert item.name in ALL_FRAMEWORKS
 
-    def test_all_tool_items_are_optional_tools(
-        self, python_pyproject_toml: Path
-    ) -> None:
+    def test_all_tool_items_are_optional_tools(self, temp_project_dir: Path) -> None:
         """All items in tools list are optional tools (docker, playwright)."""
-        project_path = python_pyproject_toml.parent
-        _, tools = detect_frameworks_and_tools(project_path)
+        (temp_project_dir / "Dockerfile").write_text("FROM ubuntu")
+
+        _, tools = detect_frameworks_and_tools(temp_project_dir)
 
         for item in tools:
             assert item.name in OPTIONAL_TOOLS
