@@ -32,12 +32,31 @@ MYSQL_ORM_ADAPTERS = {
     "mysql-connector-java",
 }
 SQLITE_ORM_ADAPTERS = {"sqlite3", "better-sqlite3"}
+MONGODB_IMAGES = {"mongo", "mongodb"}
+MONGODB_ORM_ADAPTERS = {
+    "pymongo",  # Python official driver
+    "motor",  # Python async driver
+    "mongoengine",  # Python ODM
+    "beanie",  # Python async ODM
+    "mongoose",  # Node.js ODM
+    "mongodb",  # Node.js official driver
+    "mongo",  # Generic Node package
+    "mongo-driver",  # Go driver
+    "mgo",  # Legacy Go driver
+}
 
 ENV_VAR_PATTERNS = {
     "postgresql": {"DATABASE_URL", "POSTGRES_URL", "POSTGRESQL_URL"},
     "redis": {"REDIS_URL", "REDIS_HOST"},
     "mysql": {"MYSQL_URL", "DB_HOST"},
     "sqlite": {"SQLITE_URL"},
+    "mongodb": {
+        "MONGODB_URI",
+        "MONGO_URL",
+        "MONGODB_URL",
+        "MONGODB_HOST",
+        "MONGO_HOST",
+    },
 }
 
 
@@ -53,7 +72,7 @@ def detect_databases(project_path: Path) -> list[DetectedItem]:
         - empty collection if no database indicators found
 
       Invariants:
-        - Supported databases: postgresql, redis, mysql, sqlite
+        - Supported databases: postgresql, redis, mysql, sqlite, mongodb
         - All source_file paths are absolute paths within project_path
         - Confidence: high (docker-compose service, SQLite files),
           medium (ORM dependency), low (env variable pattern)
@@ -79,7 +98,8 @@ def detect_databases(project_path: Path) -> list[DetectedItem]:
            b. Detect redis-py/ioredis for Redis
            c. Detect mysql-connector for MySQL
            d. Detect sqlite3/better-sqlite3 for SQLite
-           e. Add DetectedItem with medium confidence
+           e. Detect pymongo/mongoose for MongoDB
+           f. Add DetectedItem with medium confidence
         5. Check for SQLite database files:
            a. Scan project root for .db, .sqlite, .sqlite3 files
            b. Add DetectedItem with high confidence
@@ -94,6 +114,8 @@ def detect_databases(project_path: Path) -> list[DetectedItem]:
                DATABASE_URL with mysql://
         SQLite: .db/.sqlite/.sqlite3 files, sqlite3/better-sqlite3 deps,
                 SQLITE_URL with sqlite://
+        MongoDB: mongo/mongodb image, pymongo/mongoose deps,
+                 MONGODB_URI, DATABASE_URL with mongodb://
     """
     logger.debug(f"Detecting databases in {project_path}")
     databases = []
@@ -217,6 +239,8 @@ def parse_docker_compose(project_path: Path) -> list[DetectedItem]:
                     db_name = "redis"
                 elif any(pattern in image_base for pattern in MYSQL_IMAGES):
                     db_name = "mysql"
+                elif any(pattern in image_base for pattern in MONGODB_IMAGES):
+                    db_name = "mongodb"
 
                 if db_name:
                     databases.append(
@@ -297,18 +321,8 @@ def parse_env_files(project_path: Path) -> list[DetectedItem]:
                 # Check for database patterns
                 db_name = None
 
-                # Check variable name patterns
-                if var_name in ENV_VAR_PATTERNS["postgresql"]:
-                    db_name = "postgresql"
-                elif var_name in ENV_VAR_PATTERNS["redis"]:
-                    db_name = "redis"
-                elif var_name in ENV_VAR_PATTERNS["mysql"]:
-                    db_name = "mysql"
-                elif var_name in ENV_VAR_PATTERNS["sqlite"]:
-                    db_name = "sqlite"
-
-                # Check URL schemes in values
-                if not db_name:
+                # For DATABASE_URL, check protocol first
+                if var_name == "DATABASE_URL" and var_value:
                     var_value_lower = var_value.lower()
                     if (
                         "postgres://" in var_value_lower
@@ -321,6 +335,44 @@ def parse_env_files(project_path: Path) -> list[DetectedItem]:
                         db_name = "mysql"
                     elif "sqlite://" in var_value_lower:
                         db_name = "sqlite"
+                    elif (
+                        "mongodb://" in var_value_lower
+                        or "mongodb+srv://" in var_value_lower
+                    ):
+                        db_name = "mongodb"
+
+                # Check variable name patterns
+                if not db_name:
+                    if var_name in ENV_VAR_PATTERNS["postgresql"]:
+                        db_name = "postgresql"
+                    elif var_name in ENV_VAR_PATTERNS["redis"]:
+                        db_name = "redis"
+                    elif var_name in ENV_VAR_PATTERNS["mysql"]:
+                        db_name = "mysql"
+                    elif var_name in ENV_VAR_PATTERNS["sqlite"]:
+                        db_name = "sqlite"
+                    elif var_name in ENV_VAR_PATTERNS["mongodb"]:
+                        db_name = "mongodb"
+
+                # Check URL schemes in other values
+                if not db_name and var_value:
+                    var_value_lower = var_value.lower()
+                    if (
+                        "postgres://" in var_value_lower
+                        or "postgresql://" in var_value_lower
+                    ):
+                        db_name = "postgresql"
+                    elif "redis://" in var_value_lower:
+                        db_name = "redis"
+                    elif "mysql://" in var_value_lower:
+                        db_name = "mysql"
+                    elif "sqlite://" in var_value_lower:
+                        db_name = "sqlite"
+                    elif (
+                        "mongodb://" in var_value_lower
+                        or "mongodb+srv://" in var_value_lower
+                    ):
+                        db_name = "mongodb"
 
                 if db_name:
                     databases.append(
@@ -431,6 +483,15 @@ def detect_orm_adapters(project_path: Path) -> list[DetectedItem]:
                             source_evidence=adapter,
                         )
                     )
+                elif adapter in MONGODB_ORM_ADAPTERS:
+                    databases.append(
+                        DetectedItem(
+                            name="mongodb",
+                            confidence="medium",
+                            source_file=str(pyproject_file.absolute()),
+                            source_evidence=adapter,
+                        )
+                    )
 
         except tomllib.TOMLDecodeError as e:
             logger.debug(f"Error parsing {pyproject_file}: {e}")
@@ -492,6 +553,15 @@ def detect_orm_adapters(project_path: Path) -> list[DetectedItem]:
                                 source_evidence=adapter,
                             )
                         )
+                    elif adapter in MONGODB_ORM_ADAPTERS:
+                        databases.append(
+                            DetectedItem(
+                                name="mongodb",
+                                confidence="medium",
+                                source_file=str(package_json_file.absolute()),
+                                source_evidence=adapter,
+                            )
+                        )
 
             except json.JSONDecodeError as e:
                 logger.debug(f"Error parsing {package_json_file}: {e}")
@@ -536,6 +606,15 @@ def detect_orm_adapters(project_path: Path) -> list[DetectedItem]:
                             databases.append(
                                 DetectedItem(
                                     name="mysql",
+                                    confidence="medium",
+                                    source_file=str(pom_file.absolute()),
+                                    source_evidence=artifact_id,
+                                )
+                            )
+                        elif "mongo" in artifact_id:
+                            databases.append(
+                                DetectedItem(
+                                    name="mongodb",
                                     confidence="medium",
                                     source_file=str(pom_file.absolute()),
                                     source_evidence=artifact_id,

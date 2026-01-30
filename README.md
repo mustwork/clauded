@@ -18,8 +18,12 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 
 - **Interactive Setup Wizard**: Guided prompts for languages, databases, and tools
 - **Automatic Project Detection**: Intelligently detects languages, versions, frameworks, and databases from your project files
+  - Detects Python versions from setup.py, pyproject.toml, and version files
+  - Detects Java versions from build.gradle, build.gradle.kts, and pom.xml
+  - Detects frameworks from Gradle, Maven, and package managers
+  - Detects databases from docker-compose, environment files, and ORM dependencies
 - **Multiple Runtime Versions**: Choose Python 3.10/3.11/3.12, Node.js 18/20/22, Java 11/17/21, Kotlin 1.9/2.0, Rust stable/nightly, and Go 1.24.12/1.25.6
-- **Database Support**: PostgreSQL, Redis, MySQL, and SQLite with automatic installation
+- **Database Support**: PostgreSQL, Redis, MySQL, MongoDB, and SQLite with automatic installation
 - **Developer Tools**: Docker, AWS CLI, GitHub CLI, Git pre-installed
 - **Testing Frameworks**: Playwright with browser binaries ready to use
 - **AI Integration**: Claude Code CLI for AI-assisted development
@@ -57,6 +61,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 | PostgreSQL | 5432 | Includes contrib and libpq-dev |
 | Redis | 6379 | In-memory data store |
 | MySQL | 3306 | Relational database |
+| MongoDB | 27017 | Document-oriented NoSQL database |
 | SQLite | N/A | File-based database, no service management required |
 
 ### Frameworks & Tools
@@ -189,6 +194,7 @@ environment:
     - postgresql
     - redis
     - mysql
+    - mongodb
     - sqlite
   frameworks:
     - claude-code

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Frameworks are detected for informational display
 PYTHON_FRAMEWORKS = {"django", "flask", "fastapi"}
 NODE_FRAMEWORKS = {"react", "vue", "angular", "express", "next", "nest"}
-JAVA_FRAMEWORKS = {"spring-boot", "quarkus"}
+JAVA_FRAMEWORKS = {"spring-boot", "quarkus", "micronaut"}
 KOTLIN_FRAMEWORKS = {"spring-boot", "ktor"}
 RUST_FRAMEWORKS = {"actix", "rocket", "tokio"}
 GO_FRAMEWORKS = {"gin", "echo", "fiber"}
@@ -49,6 +49,15 @@ JAVA_ARTIFACT_MAPPING = {
     "spring-boot-starter-data": "spring-boot",
     "quarkus-core": "quarkus",
     "quarkus-rest": "quarkus",
+    "micronaut-core": "micronaut",
+    "micronaut-http": "micronaut",
+    "micronaut-http-server": "micronaut",
+    "micronaut-validation": "micronaut",
+    "micronaut-data": "micronaut",
+    "micronaut-security": "micronaut",
+    "ktor-server": "ktor",
+    "ktor-server-core": "ktor",
+    "ktor-server-netty": "ktor",
 }
 
 KOTLIN_ARTIFACT_MAPPING = {
@@ -656,13 +665,16 @@ def _extract_gradle_dependency(line: str) -> str:
     Examples:
       - implementation("org.springframework.boot:spring-boot-starter-web:2.7.0")
         -> "spring-boot-starter-web"
+      - implementation('io.micronaut:micronaut-core:4.0.0')
+        -> "micronaut-core"
       - implementation("io.ktor:ktor-server-core:2.0.0")
         -> "ktor-server-core"
     """
-    # Find content between quotes
-    if '"' in line:
-        start = line.find('"') + 1
-        end = line.find('"', start)
+    # Find content between quotes (double or single)
+    quote_char = '"' if '"' in line else "'" if "'" in line else None
+    if quote_char:
+        start = line.find(quote_char) + 1
+        end = line.find(quote_char, start)
         if end > start:
             dep_string = line[start:end]
             # Format: groupId:artifactId:version

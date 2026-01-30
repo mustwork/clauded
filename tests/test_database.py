@@ -37,7 +37,7 @@ from clauded.detect.result import DetectedItem
 # Hypothesis strategies
 def detected_item_strategy() -> st.SearchStrategy[DetectedItem]:
     """Generate valid DetectedItem objects."""
-    db_names = st.sampled_from(["postgresql", "redis", "mysql", "sqlite"])
+    db_names = st.sampled_from(["postgresql", "redis", "mysql", "sqlite", "mongodb"])
     confidence_levels = st.sampled_from(["high", "medium", "low"])
     source_evidence = st.text(
         min_size=1,
@@ -63,7 +63,7 @@ def test_detected_item_has_valid_confidence(item: DetectedItem) -> None:
 @given(detected_item_strategy())
 def test_detected_item_has_supported_database(item: DetectedItem) -> None:
     """Property: all detected items use supported database names."""
-    assert item.name in {"postgresql", "redis", "mysql", "sqlite"}
+    assert item.name in {"postgresql", "redis", "mysql", "sqlite", "mongodb"}
 
 
 @given(st.lists(detected_item_strategy(), min_size=1))
@@ -952,3 +952,435 @@ def test_sqlite_detection_rejects_path_traversal(tmp_path: Path) -> None:
         if result.name == "sqlite":
             # Source file should be within project_dir
             assert str(project_dir) in result.source_file
+
+
+# MongoDB detection tests
+def test_mongodb_from_docker_compose_mongo_image(tmp_path: Path) -> None:
+    """Test: Docker Compose detects MongoDB from 'mongo' image."""
+    compose_file = tmp_path / "docker-compose.yml"
+    content = {
+        "services": {
+            "database": {
+                "image": "mongo:7.0",
+            },
+        },
+    }
+    compose_file.write_text(yaml.dump(content))
+
+    results = parse_docker_compose(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].name == "mongodb"
+    assert results[0].confidence == "high"
+    assert results[0].source_evidence == "database"
+
+
+def test_mongodb_from_docker_compose_mongodb_image(tmp_path: Path) -> None:
+    """Test: Docker Compose detects MongoDB from 'mongodb' image."""
+    compose_file = tmp_path / "docker-compose.yml"
+    content = {
+        "services": {
+            "db": {
+                "image": "mongodb:latest",
+            },
+        },
+    }
+    compose_file.write_text(yaml.dump(content))
+
+    results = parse_docker_compose(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].name == "mongodb"
+    assert results[0].confidence == "high"
+
+
+@pytest.mark.parametrize(
+    "image_name,expected_detected",
+    [
+        ("mongo:7.0", True),
+        ("mongodb:latest", True),
+        ("mongo", True),
+        ("mongodb", True),
+        ("mongo-express", True),  # Contains "mongo"
+        ("postgres", False),
+        ("redis", False),
+        ("mysql", False),
+    ],
+)
+def test_mongodb_docker_compose_image_patterns(
+    tmp_path: Path, image_name: str, expected_detected: bool
+) -> None:
+    """Property: MongoDB detection matches expected image patterns."""
+    compose_file = tmp_path / "docker-compose.yml"
+    content = {
+        "services": {
+            "test_service": {
+                "image": image_name,
+            },
+        },
+    }
+    compose_file.write_text(yaml.dump(content))
+
+    results = parse_docker_compose(tmp_path)
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+
+    if expected_detected:
+        assert len(mongodb_results) == 1
+        assert mongodb_results[0].confidence == "high"
+    else:
+        assert len(mongodb_results) == 0
+
+
+@pytest.mark.parametrize(
+    "env_var,env_value",
+    [
+        ("MONGODB_URI", "mongodb://localhost:27017"),
+        ("MONGO_URL", "mongodb+srv://cluster.mongodb.net"),
+        ("MONGODB_URL", "mongodb://user:pass@host/db"),
+        ("MONGODB_HOST", "localhost"),
+        ("MONGO_HOST", "mongo.example.com"),
+    ],
+)
+def test_mongodb_from_env_var_names(
+    tmp_path: Path, env_var: str, env_value: str
+) -> None:
+    """Property: MongoDB-specific env var names are detected."""
+    env_file = tmp_path / ".env.example"
+    env_file.write_text(f"{env_var}={env_value}\n")
+
+    results = parse_env_files(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 1
+    assert mongodb_results[0].name == "mongodb"
+    assert mongodb_results[0].confidence == "low"
+    assert mongodb_results[0].source_evidence == env_var
+
+
+@pytest.mark.parametrize(
+    "database_url,should_detect_mongodb",
+    [
+        ("mongodb://localhost:27017/mydb", True),
+        ("mongodb+srv://cluster.mongodb.net/db", True),
+        ("MONGODB://USER:PASS@HOST/DB", True),  # Case insensitive
+        ("postgresql://localhost/db", False),
+        ("redis://localhost:6379", False),
+        ("mysql://localhost/db", False),
+    ],
+)
+def test_mongodb_from_database_url_protocol(
+    tmp_path: Path, database_url: str, should_detect_mongodb: bool
+) -> None:
+    """Property: DATABASE_URL with mongodb:// protocol is detected."""
+    env_file = tmp_path / ".env.example"
+    env_file.write_text(f"DATABASE_URL={database_url}\n")
+
+    results = parse_env_files(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+
+    if should_detect_mongodb:
+        assert len(mongodb_results) == 1
+        assert mongodb_results[0].confidence == "low"
+    else:
+        assert len(mongodb_results) == 0
+
+
+@pytest.mark.parametrize(
+    "package_name",
+    ["pymongo", "motor", "mongoengine", "beanie"],
+)
+def test_mongodb_from_python_orm_adapters(tmp_path: Path, package_name: str) -> None:
+    """Property: Python MongoDB packages are detected."""
+    pyproject_file = tmp_path / "pyproject.toml"
+    content = f"""
+[project]
+name = "test"
+dependencies = ["{package_name}"]
+"""
+    pyproject_file.write_text(content)
+
+    results = detect_orm_adapters(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 1
+    assert mongodb_results[0].name == "mongodb"
+    assert mongodb_results[0].confidence == "medium"
+    assert mongodb_results[0].source_evidence == package_name
+
+
+@pytest.mark.parametrize(
+    "package_name",
+    ["mongoose", "mongodb", "mongo"],
+)
+def test_mongodb_from_node_orm_adapters(tmp_path: Path, package_name: str) -> None:
+    """Property: Node MongoDB packages are detected."""
+    package_file = tmp_path / "package.json"
+    content = {
+        "name": "test",
+        "dependencies": {
+            package_name: "^5.0.0",
+        },
+    }
+    package_file.write_text(json.dumps(content))
+
+    results = detect_orm_adapters(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 1
+    assert mongodb_results[0].name == "mongodb"
+    assert mongodb_results[0].confidence == "medium"
+    assert mongodb_results[0].source_evidence == package_name
+
+
+@pytest.mark.parametrize(
+    "artifact_id",
+    [
+        "mongo-java-driver",
+        "mongodb-driver-sync",
+        "mongodb-driver-core",
+        "spring-data-mongodb",
+    ],
+)
+def test_mongodb_from_java_dependencies(tmp_path: Path, artifact_id: str) -> None:
+    """Property: Java MongoDB artifacts containing 'mongo' are detected."""
+    pom_file = tmp_path / "pom.xml"
+    content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <dependencies>
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>{artifact_id}</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+    </dependencies>
+</project>
+"""
+    pom_file.write_text(content)
+
+    results = detect_orm_adapters(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 1
+    assert mongodb_results[0].name == "mongodb"
+    assert mongodb_results[0].confidence == "medium"
+
+
+@pytest.mark.parametrize(
+    "package_name",
+    ["psycopg2", "redis", "mysql-connector-python", "sqlalchemy"],
+)
+def test_mongodb_not_detected_from_other_db_packages(
+    tmp_path: Path, package_name: str
+) -> None:
+    """Property: Non-MongoDB database packages don't trigger MongoDB detection."""
+    pyproject_file = tmp_path / "pyproject.toml"
+    content = f"""
+[project]
+name = "test"
+dependencies = ["{package_name}"]
+"""
+    pyproject_file.write_text(content)
+
+    results = detect_orm_adapters(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 0
+
+
+def test_mongodb_detected_from_multiple_sources(tmp_path: Path) -> None:
+    """Integration: MongoDB detected from docker-compose, env, and ORM deps."""
+    # Docker Compose
+    compose_file = tmp_path / "docker-compose.yml"
+    compose_file.write_text(
+        yaml.dump(
+            {
+                "services": {
+                    "mongo": {"image": "mongo:7.0"},
+                },
+            }
+        )
+    )
+
+    # Environment file
+    env_file = tmp_path / ".env.example"
+    env_file.write_text("MONGODB_URI=mongodb://localhost:27017\n")
+
+    # Python manifest
+    pyproject_file = tmp_path / "pyproject.toml"
+    pyproject_file.write_text(
+        """
+[project]
+dependencies = ["pymongo"]
+"""
+    )
+
+    results = detect_databases(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    # Should have exactly one MongoDB after deduplication
+    assert len(mongodb_results) == 1
+    # Should keep highest confidence (high from docker-compose)
+    assert mongodb_results[0].confidence == "high"
+
+
+def test_mongodb_deduplication_keeps_highest_confidence(tmp_path: Path) -> None:
+    """Property: Multiple MongoDB detections deduplicate to highest confidence."""
+    # Add MongoDB in both env (low) and docker-compose (high)
+    compose_file = tmp_path / "docker-compose.yml"
+    compose_file.write_text(yaml.dump({"services": {"db": {"image": "mongo:7"}}}))
+
+    env_file = tmp_path / ".env.example"
+    env_file.write_text("MONGODB_URI=mongodb://localhost\n")
+
+    results = detect_databases(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 1
+    assert mongodb_results[0].confidence == "high"
+
+
+def test_mongodb_coexists_with_other_databases(tmp_path: Path) -> None:
+    """Property: MongoDB can be detected alongside PostgreSQL, Redis, MySQL."""
+    compose_file = tmp_path / "docker-compose.yml"
+    compose_file.write_text(
+        yaml.dump(
+            {
+                "services": {
+                    "postgres": {"image": "postgres:15"},
+                    "redis": {"image": "redis:7"},
+                    "mysql": {"image": "mysql:8"},
+                    "mongo": {"image": "mongo:7"},
+                },
+            }
+        )
+    )
+
+    results = detect_databases(tmp_path)
+
+    db_names = {item.name for item in results}
+    assert db_names == {"postgresql", "redis", "mysql", "mongodb"}
+
+
+def test_mongodb_detection_handles_errors_gracefully(tmp_path: Path) -> None:
+    """Property: MongoDB detection continues on parsing errors."""
+    # Create broken docker-compose
+    compose_file = tmp_path / "docker-compose.yml"
+    compose_file.write_text("{ invalid yaml ][")
+
+    # Create valid env file with MongoDB
+    env_file = tmp_path / ".env.example"
+    env_file.write_text("MONGODB_URI=mongodb://localhost\n")
+
+    # Should detect MongoDB despite broken compose file
+    results = detect_databases(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 1
+    assert mongodb_results[0].confidence == "low"
+
+
+@given(
+    st.lists(
+        st.sampled_from(["mongo", "mongodb", "mongo-express"]),
+        min_size=1,
+        max_size=5,
+    )
+)
+def test_mongodb_docker_compose_property_always_detected(
+    images: list[str],
+) -> None:
+    """Property: Any mongo/mongodb image is detected."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        compose_file = tmp_path / "docker-compose.yml"
+
+        services = {f"service_{i}": {"image": img} for i, img in enumerate(images)}
+        compose_file.write_text(yaml.dump({"services": services}))
+
+        results = parse_docker_compose(tmp_path)
+        mongodb_results = [item for item in results if item.name == "mongodb"]
+
+        # All mongo/mongodb images should be detected
+        assert len(mongodb_results) >= 1
+        assert all(item.confidence == "high" for item in mongodb_results)
+
+
+def test_mongodb_detection_updated_detected_item_strategy() -> None:
+    """Verify detected_item_strategy needs updating for MongoDB."""
+    # This test documents that the strategy should include mongodb
+    # when testing general database detection properties
+    item = DetectedItem(
+        name="mongodb",
+        confidence="high",
+        source_file="/tmp/test.yml",
+        source_evidence="mongo_service",
+    )
+
+    assert item.name == "mongodb"
+    assert item.confidence in {"high", "medium", "low"}
+
+
+def test_mongodb_from_node_devdependencies(tmp_path: Path) -> None:
+    """Test: MongoDB detection from Node devDependencies."""
+    package_file = tmp_path / "package.json"
+    content = {
+        "name": "test",
+        "devDependencies": {
+            "mongoose": "^7.0.0",
+        },
+    }
+    package_file.write_text(json.dumps(content))
+
+    results = detect_orm_adapters(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 1
+    assert mongodb_results[0].confidence == "medium"
+
+
+def test_mongodb_multiple_packages_deduplicated(tmp_path: Path) -> None:
+    """Property: Multiple MongoDB packages from same source deduplicate to one."""
+    pyproject_file = tmp_path / "pyproject.toml"
+    content = """
+[project]
+name = "test"
+dependencies = ["pymongo", "motor", "mongoengine"]
+"""
+    pyproject_file.write_text(content)
+
+    results = detect_orm_adapters(tmp_path)
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+
+    # Should have 3 detections before deduplication
+    assert len(mongodb_results) == 3
+
+    # After deduplication, should have only one
+    deduplicated = deduplicate_databases(results)
+    mongodb_deduplicated = [item for item in deduplicated if item.name == "mongodb"]
+    assert len(mongodb_deduplicated) == 1
+
+
+def test_mongodb_case_insensitive_env_detection(tmp_path: Path) -> None:
+    """Property: Environment variable names are case-insensitive."""
+    env_file = tmp_path / ".env.example"
+    env_file.write_text("mongodb_uri=mongodb://localhost\n")
+
+    results = parse_env_files(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 1
+
+
+def test_mongodb_srv_protocol_detection(tmp_path: Path) -> None:
+    """Test: MongoDB SRV protocol (mongodb+srv://) is detected."""
+    env_file = tmp_path / ".env.example"
+    env_file.write_text("DATABASE_URL=mongodb+srv://cluster.mongodb.net/mydb\n")
+
+    results = parse_env_files(tmp_path)
+
+    mongodb_results = [item for item in results if item.name == "mongodb"]
+    assert len(mongodb_results) == 1
+    assert mongodb_results[0].confidence == "low"

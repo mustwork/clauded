@@ -112,12 +112,30 @@
 
 **`detect/` module**
 - Automatic language detection using GitHub Linguist data
-- Version detection from manifest files (.python-version, package.json, go.mod, etc.)
-- Framework and tool detection from dependency manifests
-- Database detection from docker-compose, environment files, and project manifests (package.json, database files)
+- Version detection from manifest files:
+  - Python: .python-version, .tool-versions, pyproject.toml, setup.py
+  - Node.js: .nvmrc, .node-version, .tool-versions, package.json
+  - Java: .java-version, .tool-versions, pom.xml, build.gradle, build.gradle.kts
+  - Kotlin: build.gradle.kts (plugin version)
+  - Rust: rust-toolchain.toml, rust-toolchain
+  - Go: go.mod
+- Framework and tool detection from dependency manifests:
+  - Python: pyproject.toml, requirements.txt
+  - Node.js: package.json
+  - Java/Kotlin: pom.xml, build.gradle (Groovy DSL), build.gradle.kts (Kotlin DSL)
+  - Rust: Cargo.toml
+  - Go: go.mod
+  - Supported frameworks: Spring Boot, Quarkus, Micronaut, Ktor, Django, Flask, FastAPI, React, Vue, Angular, Express, Next.js, Nest.js, Actix, Rocket, Tokio, Gin, Echo, Fiber
+- Database detection from multiple sources:
+  - Docker Compose: postgres, redis, mysql, mongo/mongodb images
+  - Environment files: DATABASE_URL, POSTGRES_URL, REDIS_URL, MYSQL_URL, MONGODB_URI patterns
+  - ORM dependencies: psycopg2, asyncpg, redis-py, mysql-connector, pymongo, mongoose, etc.
+  - SQLite files: .db, .sqlite, .sqlite3 file detection
+  - MongoDB support across Python (pymongo, motor, mongoengine, beanie), Node.js (mongoose, mongodb), Java, and Go
 - MCP configuration detection from `.mcp.json`, `mcp.json`, `mcp.json.example`, and `~/.claude.json`; extracts runtime requirements (python, node) and tools (uv, docker) from MCP server commands
 - Pre-population of wizard defaults based on detection results
 - Bounded file scanning: Limit file scanning to 50,000 files maximum to prevent memory/time issues on monorepos. When limit reached, continue with partial results and display warning
+- Security: Symlink traversal protection, version string validation, 8KB file read limit (SEC-002)
 
 ## Core Functionality
 
@@ -263,6 +281,7 @@ ssh:
 | `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, postgresql-dev, OpenRC service |
 | `redis` | Redis installation | redis, OpenRC service, port 6379 |
 | `mysql` | MySQL installation | mariadb (MySQL-compatible), OpenRC service, port 3306 |
+| `mongodb` | MongoDB installation | mongodb package via apk, OpenRC service, port 27017 |
 | `sqlite` | SQLite installation | sqlite package via apk, no service management (file-based) |
 | `aws_cli` | AWS CLI v2 | Download aarch64 zip, unzip, install |
 | `gh` | GitHub CLI | apk package installation |

@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - MIT License file and metadata in pyproject.toml
+- **Detection System Enhancements**
+  - Python version detection from setup.py (`python_requires` parameter)
+  - Java version detection from build.gradle.kts (Kotlin DSL syntax)
+  - Framework detection from build.gradle (Groovy DSL) including Micronaut and Ktor
+  - MongoDB database detection from docker-compose, environment variables, and ORM dependencies
+  - Support for MongoDB across Python (pymongo, motor, mongoengine, beanie), Node.js (mongoose, mongodb), Java, and Go ecosystems
 
 ### Changed
 
@@ -32,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Installer scripts (uv, rustup) downloaded and verified before execution
   - Eliminated `curl | sh` patterns and dynamic "latest" version fetching
   - Maven and Gradle versions pinned instead of fetching from APIs
+
+- **Detection System Security Enhancements**
+  - Symlink traversal protection for all detection parsers
+  - Version string validation to prevent command injection
+  - 8KB file read limit enforced across all detection modules (SEC-002)
+  - Safe file reading with path validation for all manifest parsers
 
 ## [0.1.0] - 2026-01-30
 

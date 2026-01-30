@@ -499,56 +499,75 @@ Intelligent detection of languages, versions, frameworks, and databases to pre-p
 
 ### Epic 8: Detection System Enhancements
 
-Future enhancements to detection system for additional manifest formats.
+Extended detection system support for additional manifest formats and databases.
 
-#### [Planned] Story: Detect Python Version from setup.py
+#### [Implemented] Story: Detect Python Version from setup.py
 
 **As a** Python Developer using setup.py, **I want** my Python version requirement to be detected from setup.py, **so that** the wizard defaults match my project constraints.
 
 **Acceptance Criteria**:
-- [ ] Detects python_requires from setup.py
-- [ ] Parses semver constraints (>=, ~=, ==)
-- [ ] Returns VersionSpec with constraint type
-- [ ] Links to: specs/detection-enhancements-spec.md (FR-1)
+- [x] Detects python_requires from setup.py
+- [x] Parses semver constraints (>=, ~=, ==)
+- [x] Returns VersionSpec with constraint type
+- [x] Security: Validates file paths and version strings
+- [x] Security: Enforces 8KB file read limit
 
-#### [Planned] Story: Detect Java Version from Kotlin DSL
+**Implementation**: src/clauded/detect/version.py (parse_python_version)
+
+#### [Implemented] Story: Detect Java Version from Kotlin DSL
 
 **As a** Kotlin Developer using Gradle Kotlin DSL, **I want** my Java version to be detected from build.gradle.kts, **so that** the wizard defaults match my build configuration.
 
 **Acceptance Criteria**:
-- [ ] Detects sourceCompatibility from build.gradle.kts
-- [ ] Parses JavaVersion.VERSION_XX syntax
-- [ ] Returns VersionSpec with exact version
-- [ ] Links to: specs/detection-enhancements-spec.md (FR-2)
+- [x] Detects sourceCompatibility from build.gradle.kts
+- [x] Parses JavaVersion.VERSION_XX syntax
+- [x] Supports jvmToolchain syntax variants
+- [x] Returns VersionSpec with exact version
+- [x] Security: Validates file paths and version strings
+- [x] Security: Enforces 8KB file read limit
 
-#### [Planned] Story: Detect Frameworks from Groovy Gradle
+**Implementation**: src/clauded/detect/version.py (parse_java_version)
+
+#### [Implemented] Story: Detect Frameworks from Groovy Gradle
 
 **As a** Java/Kotlin Developer using Groovy Gradle, **I want** my frameworks to be detected from build.gradle, **so that** the wizard suggests relevant tools.
 
 **Acceptance Criteria**:
-- [ ] Detects Spring Boot from build.gradle dependencies
-- [ ] Detects Ktor from build.gradle dependencies
-- [ ] Returns DetectedItem list with confidence scores
-- [ ] Links to: specs/detection-enhancements-spec.md (FR-3)
+- [x] Detects Spring Boot from build.gradle dependencies
+- [x] Detects Quarkus from build.gradle dependencies
+- [x] Detects Micronaut from build.gradle dependencies
+- [x] Detects Ktor from build.gradle dependencies
+- [x] Returns DetectedItem list with confidence scores
+- [x] Handles both single and double quotes in Groovy syntax
+- [x] Security: Validates file paths
+- [x] Security: Enforces 8KB file read limit
 
-#### [Planned] Story: Detect MongoDB Database
+**Implementation**: src/clauded/detect/framework.py (parse_java_dependencies)
+
+#### [Implemented] Story: Detect MongoDB Database
 
 **As a** Developer using MongoDB, **I want** MongoDB to be detected from my project files, **so that** the wizard offers MongoDB installation.
 
 **Acceptance Criteria**:
-- [ ] Detects MongoDB from docker-compose
-- [ ] Detects MongoDB from .env MONGODB_URI variables
-- [ ] Detects MongoDB from pymongo/mongoose dependencies
-- [ ] Returns DetectedItem with confidence score
-- [ ] Links to: specs/detection-enhancements-spec.md (FR-4)
+- [x] Detects MongoDB from docker-compose services
+- [x] Detects MongoDB from .env MONGODB_URI variables
+- [x] Detects MongoDB from DATABASE_URL with mongodb:// prefix
+- [x] Detects MongoDB from pymongo/mongoose/motor dependencies
+- [x] Supports Python, Node.js, Java, and Go ecosystems
+- [x] Returns DetectedItem with confidence score
+- [x] Deduplicates MongoDB from multiple sources
+- [x] Security: Validates file paths
+- [x] Security: Enforces 8KB file read limit
+
+**Implementation**: src/clauded/detect/database.py (detect_databases)
 
 ---
 
 ## Feature Implementation Status Summary
 
 - **Total Stories**: 42
-- **Implemented**: 36
+- **Implemented**: 42
 - **In Progress**: 0
-- **Planned**: 6 (Detection Enhancements - Epic 8)
+- **Planned**: 0
 
-The project is feature-complete for v0.1.0 scope. Epic 8 stories represent planned enhancements documented in specs/detection-enhancements-spec.md.
+The project is feature-complete for v0.1.0 scope. All epics, including Epic 8 (Detection System Enhancements), have been implemented.

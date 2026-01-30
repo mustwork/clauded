@@ -40,21 +40,27 @@ def is_safe_path(file_path: Path, project_root: Path) -> bool:
         return False
 
 
-def safe_read_text(file_path: Path, project_root: Path) -> str | None:
-    """Safely read text file with symlink protection.
+def safe_read_text(
+    file_path: Path, project_root: Path, limit: int = 8192
+) -> str | None:
+    """Safely read text file with symlink protection and size limit.
 
     Args:
         file_path: Path to read
         project_root: Project root directory
+        limit: Maximum bytes to read (default: 8192 = 8KB per SEC-002)
 
     Returns:
-        File content as string, or None if file is unsafe or unreadable
+        File content as string (limited to first `limit` bytes),
+        or None if file is unsafe or unreadable
     """
     if not is_safe_path(file_path, project_root):
         return None
 
     try:
-        return file_path.read_text()
+        with open(file_path, encoding="utf-8") as f:
+            content = f.read(limit)
+        return content
     except Exception as e:
         logger.warning(f"Failed to read {file_path}: {e}")
         return None
