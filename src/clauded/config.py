@@ -1,12 +1,81 @@
 """Configuration management for .clauded.yaml files."""
 
 import hashlib
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger(__name__)
+
+# Current config schema version
+CURRENT_VERSION = "1"
+
+
+class ConfigVersionError(Exception):
+    """Raised when config version is incompatible."""
+
+    pass
+
+
+def _migrate_config(data: dict) -> dict:
+    """Migrate older config formats to current version.
+
+    Currently a no-op for v1, but establishes the pattern for future upgrades.
+
+    Args:
+        data: Raw config data loaded from YAML
+
+    Returns:
+        Migrated config data compatible with current version
+    """
+    # v1 -> v1: No migration needed
+    return data
+
+
+def _validate_version(version: str | None) -> str:
+    """Validate config version and return normalized version string.
+
+    Args:
+        version: Version string from config, or None if missing
+
+    Returns:
+        Validated version string
+
+    Raises:
+        ConfigVersionError: If version is incompatible
+    """
+    if version is None:
+        logger.warning("Config file missing version field, assuming version '1'")
+        return CURRENT_VERSION
+
+    # Try to parse as integer for comparison
+    try:
+        version_num = int(version)
+        current_num = int(CURRENT_VERSION)
+
+        if version_num > current_num:
+            raise ConfigVersionError(
+                f"Config file requires clauded version {version} or newer. "
+                f"Current clauded supports config version {CURRENT_VERSION}. "
+                "Please upgrade clauded to use this config."
+            )
+
+        if version_num == current_num:
+            return version
+
+        # version_num < current_num would be handled by migration
+        return version
+
+    except ValueError:
+        # Version string isn't a valid integer
+        raise ConfigVersionError(
+            f"Unrecognized config version '{version}'. "
+            f"Supported versions: {CURRENT_VERSION}"
+        ) from None
 
 
 def _sanitize_vm_name(name: str) -> str:
@@ -86,18 +155,43 @@ class Config:
 
     @classmethod
     def load(cls, path: Path) -> "Config":
-        """Load config from a .clauded.yaml file."""
+        """Load config from a .clauded.yaml file.
+
+        Performs validation and migration:
+        - Validates schema version compatibility
+        - Migrates older config formats
+        - Ensures mount_guest matches mount_host (auto-corrects if different)
+
+        Raises:
+            ConfigVersionError: If config version is incompatible
+        """
         with open(path) as f:
             data = yaml.safe_load(f)
 
+        # Validate and normalize version
+        version = _validate_version(data.get("version"))
+
+        # Migrate older configs if needed
+        data = _migrate_config(data)
+
+        # Validate mount paths - auto-correct if different
+        mount_host = data["mount"]["host"]
+        mount_guest = data["mount"]["guest"]
+        if mount_guest != mount_host:
+            logger.warning(
+                f"Config mount_guest ({mount_guest}) differs from mount_host "
+                f"({mount_host}). Auto-correcting mount_guest to match mount_host."
+            )
+            mount_guest = mount_host
+
         return cls(
-            version=data.get("version", "1"),
+            version=version,
             vm_name=data["vm"]["name"],
             cpus=data["vm"]["cpus"],
             memory=data["vm"]["memory"],
             disk=data["vm"]["disk"],
-            mount_host=data["mount"]["host"],
-            mount_guest=data["mount"]["guest"],
+            mount_host=mount_host,
+            mount_guest=mount_guest,
             python=data["environment"].get("python"),
             node=data["environment"].get("node"),
             java=data["environment"].get("java"),

@@ -1,10 +1,18 @@
 """Tests for clauded.config module."""
 
+import logging
 from pathlib import Path
 
+import pytest
 import yaml
 
-from clauded.config import Config
+from clauded.config import (
+    CURRENT_VERSION,
+    Config,
+    ConfigVersionError,
+    _migrate_config,
+    _validate_version,
+)
 
 
 class TestConfigFromWizard:
@@ -145,7 +153,7 @@ class TestConfigSaveAndLoad:
             memory="8GiB",
             disk="20GiB",
             mount_host="/path/to/project",
-            mount_guest="/workspace",
+            mount_guest="/path/to/project",  # Must match mount_host per spec
             python="3.12",
             node="20",
             java="21",
@@ -233,7 +241,7 @@ vm:
   disk: 20GiB
 mount:
   host: /test
-  guest: /workspace
+  guest: /test
 environment:
   python: null
   node: null
@@ -356,3 +364,164 @@ class TestSQLiteBackwardCompatibility:
 
         assert config.databases == ["postgresql"]
         assert "sqlite" not in config.databases
+
+
+class TestConfigVersionValidation:
+    """Tests for config version validation."""
+
+    def test_current_version_accepted(self) -> None:
+        """Current version '1' is accepted without warnings."""
+        result = _validate_version(CURRENT_VERSION)
+        assert result == CURRENT_VERSION
+
+    def test_missing_version_defaults_to_current(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Missing version defaults to current with warning."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_version(None)
+
+        assert result == CURRENT_VERSION
+        assert "missing version field" in caplog.text.lower()
+
+    def test_higher_version_raises_error(self) -> None:
+        """Version higher than supported raises ConfigVersionError."""
+        future_version = str(int(CURRENT_VERSION) + 1)
+
+        with pytest.raises(ConfigVersionError) as exc_info:
+            _validate_version(future_version)
+
+        assert "requires clauded version" in str(exc_info.value)
+        assert "upgrade clauded" in str(exc_info.value).lower()
+
+    def test_unrecognized_version_raises_error(self) -> None:
+        """Non-numeric version string raises ConfigVersionError."""
+        with pytest.raises(ConfigVersionError) as exc_info:
+            _validate_version("invalid")
+
+        assert "unrecognized config version" in str(exc_info.value).lower()
+        assert "invalid" in str(exc_info.value)
+
+    def test_load_config_with_higher_version_fails(self, tmp_path: Path) -> None:
+        """Loading config with future version raises error."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "99"
+vm:
+  name: clauded-test
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  python: "3.12"
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        with pytest.raises(ConfigVersionError):
+            Config.load(config_path)
+
+    def test_load_config_without_version_warns(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Loading config without version field logs warning."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+vm:
+  name: clauded-test
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  python: "3.12"
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        with caplog.at_level(logging.WARNING):
+            config = Config.load(config_path)
+
+        assert config.version == CURRENT_VERSION
+        assert "missing version field" in caplog.text.lower()
+
+
+class TestMountPathValidation:
+    """Tests for mount path validation."""
+
+    def test_matching_mount_paths_accepted(self, tmp_path: Path) -> None:
+        """Matching mount_host and mount_guest are accepted."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /project/path
+  guest: /project/path
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        config = Config.load(config_path)
+
+        assert config.mount_host == "/project/path"
+        assert config.mount_guest == "/project/path"
+
+    def test_divergent_mount_paths_auto_corrected(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Divergent mount_guest is auto-corrected to match mount_host."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /project/path
+  guest: /different/path
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        with caplog.at_level(logging.WARNING):
+            config = Config.load(config_path)
+
+        assert config.mount_host == "/project/path"
+        assert config.mount_guest == "/project/path"
+        assert "auto-correcting" in caplog.text.lower()
+        assert "/different/path" in caplog.text
+
+
+class TestMigrateConfig:
+    """Tests for config migration."""
+
+    def test_migrate_v1_is_noop(self) -> None:
+        """Migrating v1 config returns unchanged data."""
+        data = {
+            "version": "1",
+            "vm": {"name": "test", "cpus": 4, "memory": "8GiB", "disk": "20GiB"},
+            "mount": {"host": "/test", "guest": "/test"},
+            "environment": {"tools": [], "databases": [], "frameworks": []},
+        }
+
+        result = _migrate_config(data)
+
+        assert result == data

@@ -78,6 +78,9 @@
 - Load/save `.clauded.yaml` using PyYAML
 - Run interactive wizard via `wizard.py` when config missing
 - Generate unique VM names from project path (MD5 hash, first 8 chars)
+- Validate config schema version on load; reject incompatible versions
+- Validate mount_guest matches mount_host; auto-correct with warning if different
+- Support config migration for future schema versions
 
 **`lima.py`**
 - Manage Lima VM lifecycle via `limactl` subprocess calls
@@ -184,6 +187,17 @@ environment:
 **Config Persistence**
 - Save: YAML serialization to `.clauded.yaml` in project root
 - Load: YAML deserialization from `.clauded.yaml`
+
+**Config Validation**
+- Schema version validation on load:
+  - Version "1" (current): proceed normally
+  - Missing version: treat as "1", log warning
+  - Higher version than supported: exit with error indicating upgrade needed
+  - Unrecognized version format: exit with error
+- Mount path validation on load:
+  - If mount_guest differs from mount_host: log warning, auto-correct mount_guest to match mount_host
+  - Ensures consistent path mapping between host and VM
+- Config migration support for future schema upgrades (currently no-op for v1)
 
 ### 3. Provisioning System
 
