@@ -299,7 +299,7 @@ environment:
 **Type**: List of strings
 **Required**: No
 **Default**: `[]`
-**Allowed Values**: `postgresql`, `redis`, `mysql`, `mongodb`, `sqlite`
+**Allowed Values**: `postgresql`, `redis`, `mysql`, `sqlite`
 
 Databases to install and configure in the VM.
 
@@ -309,7 +309,6 @@ environment:
     - postgresql
     - redis
     - mysql
-    - mongodb
     - sqlite
 ```
 
@@ -335,14 +334,6 @@ environment:
 - **Port**: 3306
 - **Post-install**: Service waits for port 3306 to be ready
 - **Use cases**: Relational database, legacy applications
-
-#### `mongodb`
-- **Package**: `mongodb`
-- **Service**: Enabled and started automatically (OpenRC)
-- **Port**: 27017
-- **Post-install**: Service waits for port 27017 to be ready
-- **Use cases**: Document-oriented NoSQL database, flexible schemas, JSON-like documents
-- **Detection**: Automatically detected from docker-compose (mongo/mongodb images), environment variables (MONGODB_URI, MONGO_URL), and ORM dependencies (pymongo, mongoose, motor, mongoengine)
 
 #### `sqlite`
 - **Package**: `sqlite`
@@ -832,5 +823,5 @@ vm:
 | `environment.python` | string\|null | No | `null` | `"3.10"`, `"3.11"`, `"3.12"`, `null` |
 | `environment.node` | string\|null | No | `null` | `"18"`, `"20"`, `"22"`, `null` |
 | `environment.tools` | list | No | `[]` | `docker`, `git`, `aws-cli`, `gh` |
-| `environment.databases` | list | No | `[]` | `postgresql`, `redis`, `mysql` |
+| `environment.databases` | list | No | `[]` | `postgresql`, `redis`, `mysql`, `sqlite` |
 | `environment.frameworks` | list | No | `[]` | `claude-code`, `playwright` |

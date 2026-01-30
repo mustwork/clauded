@@ -127,11 +127,10 @@
   - Go: go.mod
   - Supported frameworks: Spring Boot, Quarkus, Micronaut, Ktor, Django, Flask, FastAPI, React, Vue, Angular, Express, Next.js, Nest.js, Actix, Rocket, Tokio, Gin, Echo, Fiber
 - Database detection from multiple sources:
-  - Docker Compose: postgres, redis, mysql, mongo/mongodb images
-  - Environment files: DATABASE_URL, POSTGRES_URL, REDIS_URL, MYSQL_URL, MONGODB_URI patterns
-  - ORM dependencies: psycopg2, asyncpg, redis-py, mysql-connector, pymongo, mongoose, etc.
+  - Docker Compose: postgres, redis, mysql images
+  - Environment files: DATABASE_URL, POSTGRES_URL, REDIS_URL, MYSQL_URL patterns
+  - ORM dependencies: psycopg2, asyncpg, redis-py, mysql-connector, etc.
   - SQLite files: .db, .sqlite, .sqlite3 file detection
-  - MongoDB support across Python (pymongo, motor, mongoengine, beanie), Node.js (mongoose, mongodb), Java, and Go
 - MCP configuration detection from `.mcp.json`, `mcp.json`, `mcp.json.example`, and `~/.claude.json`; extracts runtime requirements (python, node) and tools (uv, docker) from MCP server commands
 - Pre-population of wizard defaults based on detection results
 - Bounded file scanning: Limit file scanning to 50,000 files maximum to prevent memory/time issues on monorepos. When limit reached, continue with partial results and display warning
@@ -200,6 +199,7 @@ environment:
     - postgresql  # optional
     - redis       # optional
     - mysql       # optional
+    - sqlite      # optional
   frameworks:
     - claude-code  # optional
     - playwright   # optional
@@ -281,7 +281,6 @@ ssh:
 | `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, postgresql-dev, OpenRC service |
 | `redis` | Redis installation | redis, OpenRC service, port 6379 |
 | `mysql` | MySQL installation | mariadb (MySQL-compatible), OpenRC service, port 3306 |
-| `mongodb` | MongoDB installation | mongodb package via apk, OpenRC service, port 27017 |
 | `sqlite` | SQLite installation | sqlite package via apk, no service management (file-based) |
 | `aws_cli` | AWS CLI v2 | Download aarch64 zip, unzip, install |
 | `gh` | GitHub CLI | apk package installation |

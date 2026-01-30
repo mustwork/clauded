@@ -578,30 +578,27 @@ Extended detection system support for additional manifest formats and databases.
 
 **Implementation**: src/clauded/detect/framework.py (parse_java_dependencies)
 
-#### [Implemented] Story: Detect MongoDB Database
+#### [Planned] Story: MongoDB Database Provisioning
 
-**As a** Developer using MongoDB, **I want** MongoDB to be detected from my project files, **so that** the wizard offers MongoDB installation.
+**As a** Developer using MongoDB, **I want** MongoDB to be provisioned in my VM, **so that** I can develop with a document-oriented database.
 
 **Acceptance Criteria**:
-- [x] Detects MongoDB from docker-compose services
-- [x] Detects MongoDB from .env MONGODB_URI variables
-- [x] Detects MongoDB from DATABASE_URL with mongodb:// prefix
-- [x] Detects MongoDB from pymongo/mongoose/motor dependencies
-- [x] Supports Python, Node.js, Java, and Go ecosystems
-- [x] Returns DetectedItem with confidence score
-- [x] Deduplicates MongoDB from multiple sources
-- [x] Security: Validates file paths
-- [x] Security: Enforces 8KB file read limit
+- [ ] MongoDB detection from docker-compose services (already implemented)
+- [ ] MongoDB detection from .env MONGODB_URI variables (already implemented)
+- [ ] MongoDB detection from pymongo/mongoose/motor dependencies (already implemented)
+- [ ] Ansible role provisions MongoDB via apk
+- [ ] MongoDB service starts automatically on VM boot
+- [ ] Port 27017 is accessible after provisioning
 
-**Implementation**: src/clauded/detect/database.py (detect_databases)
+**Links to**: `specs/mongodb-spec.md`
 
 ---
 
 ## Feature Implementation Status Summary
 
-- **Total Stories**: 42
-- **Implemented**: 42
+- **Total Stories**: 48
+- **Implemented**: 47
 - **In Progress**: 0
-- **Planned**: 0
+- **Planned**: 1
 
-The project is feature-complete for v0.1.0 scope. All epics, including Epic 8 (Detection System Enhancements), have been implemented.
+All core features are implemented. MongoDB provisioning is documented for future implementation (detection is complete, but Ansible role is pending). See `specs/mongodb-spec.md`.
