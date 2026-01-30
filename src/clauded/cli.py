@@ -16,6 +16,25 @@ from .lima import LimaVM
 from .provisioner import Provisioner
 
 
+def _require_interactive_terminal() -> None:
+    """Check that stdin is an interactive terminal.
+
+    The wizard requires an interactive terminal for questionary prompts.
+    This prevents hangs when running in CI/CD, piped input, or other
+    non-interactive contexts.
+
+    Raises:
+        SystemExit: If stdin is not a TTY.
+    """
+    if not sys.stdin.isatty():
+        click.echo(
+            "Interactive terminal required. "
+            "Use an existing .clauded.yaml or create one manually.",
+            err=True,
+        )
+        raise SystemExit(1)
+
+
 def _reset_terminal() -> None:
     """Reset terminal to a sane state after subprocess calls.
 
@@ -145,6 +164,9 @@ def main(
         # may output escape sequences that interfere with questionary's prompts
         _reset_terminal()
 
+        # Require interactive terminal for wizard prompts
+        _require_interactive_terminal()
+
         try:
             new_config = wizard.run_edit(config, project_path)
             new_config.save(config_path)
@@ -163,6 +185,9 @@ def main(
 
     # No config? Run wizard (with or without detection)
     if not config_path.exists():
+        # Require interactive terminal for wizard prompts
+        _require_interactive_terminal()
+
         try:
             if no_detect:
                 # Skip detection, use default wizard

@@ -193,20 +193,22 @@ class TestCliNoConfig:
     def test_runs_wizard_when_no_config(self, runner: CliRunner) -> None:
         """Runs wizard when no .clauded.yaml exists."""
         with runner.isolated_filesystem():
-            with patch("clauded.cli.wizard") as mock_wizard:
-                mock_config = MagicMock()
-                mock_wizard.run.return_value = mock_config
+            # Bypass TTY check for this test
+            with patch("clauded.cli._require_interactive_terminal", return_value=None):
+                with patch("clauded.cli.wizard") as mock_wizard:
+                    mock_config = MagicMock()
+                    mock_wizard.run.return_value = mock_config
 
-                with patch("clauded.cli.LimaVM") as MockVM:
-                    mock_vm = MagicMock()
-                    mock_vm.exists.return_value = False
-                    MockVM.return_value = mock_vm
+                    with patch("clauded.cli.LimaVM") as MockVM:
+                        mock_vm = MagicMock()
+                        mock_vm.exists.return_value = False
+                        MockVM.return_value = mock_vm
 
-                    with patch("clauded.cli.Provisioner"):
-                        # This will try to run the wizard with --no-detect flag
-                        runner.invoke(main, ["--no-detect"])
+                        with patch("clauded.cli.Provisioner"):
+                            # This will try to run the wizard with --no-detect flag
+                            runner.invoke(main, ["--no-detect"])
 
-                        mock_wizard.run.assert_called_once()
+                            mock_wizard.run.assert_called_once()
 
 
 class TestCliWithConfig:
@@ -321,3 +323,96 @@ class TestCliWithConfig:
                     mock_vm.start.assert_called_once()
                     mock_provisioner.run.assert_called_once()
                     mock_vm.shell.assert_called_once()
+
+
+class TestCliNonInteractiveDetection:
+    """Tests for non-interactive terminal detection."""
+
+    def test_wizard_requires_interactive_terminal(self, runner: CliRunner) -> None:
+        """Wizard exits with error when stdin is not a TTY.
+
+        CliRunner doesn't provide a TTY by default, so the wizard should fail
+        with an informative error message.
+        """
+        with runner.isolated_filesystem():
+            # CliRunner doesn't provide a TTY, so wizard should fail immediately
+            result = runner.invoke(main, ["--no-detect"])
+
+            assert result.exit_code == 1
+            assert "Interactive terminal required" in result.output
+
+    def test_edit_requires_interactive_terminal(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--edit exits with error when stdin is not a TTY."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                # CliRunner doesn't provide a TTY, so edit should fail
+                result = runner.invoke(main, ["--edit"])
+
+                assert result.exit_code == 1
+                assert "Interactive terminal required" in result.output
+
+    def test_keyboard_interrupt_during_wizard_cancels_cleanly(
+        self, runner: CliRunner
+    ) -> None:
+        """KeyboardInterrupt during wizard prints 'Setup cancelled.'"""
+        with runner.isolated_filesystem():
+            # Bypass TTY check, then trigger KeyboardInterrupt in wizard
+            with patch("clauded.cli._require_interactive_terminal", return_value=None):
+                with patch("clauded.cli.wizard") as mock_wizard:
+                    mock_wizard.run.side_effect = KeyboardInterrupt()
+
+                    result = runner.invoke(main, ["--no-detect"])
+
+                    assert result.exit_code == 1
+                    assert "Setup cancelled" in result.output
+
+    def test_keyboard_interrupt_during_edit_cancels_cleanly(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """KeyboardInterrupt during edit prints 'Edit cancelled.'"""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                # Bypass TTY check, then trigger KeyboardInterrupt in wizard
+                with patch(
+                    "clauded.cli._require_interactive_terminal", return_value=None
+                ):
+                    with patch("clauded.cli.wizard") as mock_wizard:
+                        mock_wizard.run_edit.side_effect = KeyboardInterrupt()
+
+                        result = runner.invoke(main, ["--edit"])
+
+                        assert result.exit_code == 1
+                        assert "Edit cancelled" in result.output
+
+    def test_no_partial_config_file_on_cancel(self, runner: CliRunner) -> None:
+        """Config file should not exist if wizard is cancelled."""
+        with runner.isolated_filesystem():
+            config_path = Path(".clauded.yaml")
+
+            # Bypass TTY check, then trigger KeyboardInterrupt
+            with patch("clauded.cli._require_interactive_terminal", return_value=None):
+                with patch("clauded.cli.wizard") as mock_wizard:
+                    mock_wizard.run.side_effect = KeyboardInterrupt()
+
+                    runner.invoke(main, ["--no-detect"])
+
+                    # Ensure no partial config was left behind
+                    assert not config_path.exists()

@@ -102,6 +102,9 @@
 - Multi-select for frameworks (claude-code, playwright)
 - Optional VM resource customization
 - Return populated `Config` object
+- Non-interactive terminal detection: Exit with error if stdin is not a TTY
+- Keyboard interrupt handling: Clean exit with "Setup cancelled." message
+- Questionary None handling: Treat None returns as user cancellation
 
 **`detect/` module**
 - Automatic language detection using GitHub Linguist data
@@ -369,6 +372,8 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 
 - Idempotent Ansible playbooks (safe to re-run)
 - VM name determinism (same project → same VM name)
+- Non-interactive terminal detection: CLI refuses to launch wizard when stdin is not a TTY, preventing hangs in CI/CD or piped input contexts
+- Wizard cancellation handling: KeyboardInterrupt (CTRL+C) cleanly exits without leaving partial config files
 - Graceful error handling for missing dependencies and subprocess failures:
   - Lima not installed → "Lima is not installed. Install with: brew install lima"
   - VM creation failure → "VM creation failed (exit code N). Check Lima logs: ~/.lima/{vm-name}/ha.stderr.log"
