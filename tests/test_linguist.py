@@ -447,3 +447,67 @@ class TestLinguistDataIntegration:
         assert languages_size < 1_000_000, "languages.yml is suspiciously large"
         assert heuristics_size < 500_000, "heuristics.yml is suspiciously large"
         assert vendor_size < 100_000, "vendor.yml is suspiciously large"
+
+
+class TestLinguistCaching:
+    """Test thread-safe caching behavior of linguist loading functions.
+
+    All loading functions use functools.lru_cache which is thread-safe for
+    initialization in CPython (GIL protects the cache dict). This prevents
+    race conditions where multiple threads might initialize the cache
+    simultaneously with partially-initialized data.
+    """
+
+    def test_load_languages_returns_same_object(self) -> None:
+        """load_languages() returns identical object on repeated calls (cached)."""
+        src_dir = Path(__file__).parent.parent / "src"
+        if str(src_dir) not in sys.path:
+            sys.path.insert(0, str(src_dir))
+
+        from clauded.linguist import load_languages
+
+        data1 = load_languages()
+        data2 = load_languages()
+        assert data1 is data2, "lru_cache should return same object"
+
+    def test_load_heuristics_returns_same_object(self) -> None:
+        """load_heuristics() returns identical object on repeated calls (cached)."""
+        src_dir = Path(__file__).parent.parent / "src"
+        if str(src_dir) not in sys.path:
+            sys.path.insert(0, str(src_dir))
+
+        from clauded.linguist import load_heuristics
+
+        data1 = load_heuristics()
+        data2 = load_heuristics()
+        assert data1 is data2, "lru_cache should return same object"
+
+    def test_load_vendor_patterns_returns_same_object(self) -> None:
+        """load_vendor_patterns() returns identical object on repeated calls."""
+        src_dir = Path(__file__).parent.parent / "src"
+        if str(src_dir) not in sys.path:
+            sys.path.insert(0, str(src_dir))
+
+        from clauded.linguist import load_vendor_patterns
+
+        data1 = load_vendor_patterns()
+        data2 = load_vendor_patterns()
+        assert data1 is data2, "lru_cache should return same object"
+
+    def test_lru_cache_info_shows_hits(self) -> None:
+        """Verify lru_cache is working by checking cache_info stats."""
+        src_dir = Path(__file__).parent.parent / "src"
+        if str(src_dir) not in sys.path:
+            sys.path.insert(0, str(src_dir))
+
+        from clauded.linguist import load_languages
+
+        # Call multiple times
+        load_languages()
+        load_languages()
+        load_languages()
+
+        # Check that cache hits increased (misses should be 0 or 1)
+        cache_info = load_languages.cache_info()
+        assert cache_info.hits >= 2, "Should have cache hits after multiple calls"
+        assert cache_info.misses <= 1, "Should have at most 1 miss (initial load)"

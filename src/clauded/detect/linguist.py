@@ -2,6 +2,7 @@
 
 import logging
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
@@ -69,12 +70,14 @@ SKIP_DIRECTORIES: frozenset[str] = frozenset(
     }
 )
 
-# Cache for loaded data to avoid re-parsing YAML files
-_cached_data: dict[str, Any] | None = None
 
-
+@lru_cache(maxsize=1)
 def load_linguist_data() -> dict[str, Any]:
     """Load vendored Linguist YAML files.
+
+    Thread-safe: Uses lru_cache for initialization protection. The underlying
+    load_languages(), load_heuristics(), and load_vendor_patterns() functions
+    are also cached with lru_cache.
 
     CONTRACT:
       Inputs:
@@ -93,23 +96,19 @@ def load_linguist_data() -> dict[str, Any]:
 
       Properties:
         - Cached: subsequent calls return same data (no re-parsing)
+        - Thread-safe: lru_cache is thread-safe in CPython (GIL protects cache)
         - Deterministic: same vendored files yield same parsed data
     """
-    global _cached_data
-    if _cached_data is not None:
-        return _cached_data
-
     try:
         languages = load_languages()
         heuristics = load_heuristics()
         vendor_patterns = load_vendor_patterns()
 
-        _cached_data = {
+        return {
             "languages": languages,
             "heuristics": heuristics,
             "vendor_patterns": vendor_patterns,
         }
-        return _cached_data
     except Exception as e:
         logger.warning(f"Failed to load Linguist data: {e}")
         return {
