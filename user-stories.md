@@ -2,14 +2,21 @@
 
 ## Personas
 
-### Backend Developer
-Develops backend applications using Python and/or Node.js. Needs isolated development environments per project. Requires databases and development tools without cluttering their local machine. Primary user of core functionality.
+### Developer
+Develops applications using various technologies (Python, Node.js, Java, Kotlin, Go, Rust). Needs isolated development environments per project. Requires databases and development tools without cluttering their local machine. Primary user of core functionality. Values quick setup and consistent environments across team members.
 
-### Full-Stack Developer
-Works on projects combining multiple technologies (Python, Node.js, databases). Needs end-to-end testing with Playwright. Uses AWS for deployment. Requires consistent, reproducible development environments across team members.
+**Sub-types**:
+- Backend Developer: Focuses on server-side applications, APIs, databases
+- Full-Stack Developer: Works across frontend and backend, needs end-to-end testing with Playwright
+- Solo Developer: Works on side projects, appreciates sensible defaults and guided setup
+- AI-Assisted Developer: Uses Claude Code for development within VMs
 
-### DevOps/Infrastructure Engineer
-Manages VM provisioning and configuration. Uses infrastructure-as-code patterns (Ansible). Needs repeatability and configuration version control. Benefits from simplified VM lifecycle management.
+### DevOps Engineer
+Manages VM provisioning and configuration. Uses infrastructure-as-code patterns (Ansible). Needs repeatability, configuration version control, and reliable provisioning. Benefits from simplified VM lifecycle management. Requires stable downloads and clear security models for supply chain integrity.
+
+**Related personas**:
+- Infrastructure Engineer: Similar to DevOps, focuses on environment consistency
+- Team Lead: Manages team environments, needs onboarding efficiency
 
 ### Solo Developer
 Works on side projects locally. Wants quick setup without complex configuration. Appreciates sensible defaults. Values simplicity and guided interactive setup.
@@ -295,6 +302,29 @@ Ansible-based installation of tools, databases, and frameworks.
 - [ ] `go version` shows selected version
 - [ ] Go is accessible system-wide
 - [ ] Go modules work correctly
+
+#### [Implemented] Story: Reliable Installer Script Downloads
+
+**As a** DevOps Engineer, **I want** installer scripts (uv, bun, rustup) to download reliably without hash verification failures, **so that** provisioning doesn't break when upstream providers update scripts in-place.
+
+**Acceptance Criteria**:
+- [x] uv installer script downloads via HTTPS without checksum verification
+- [x] bun installer script downloads via HTTPS without checksum verification
+- [x] rustup installer script downloads via HTTPS without checksum verification
+- [x] Binary downloads (Go, Kotlin, Maven, Gradle, Node, bun binary) retain SHA256 verification
+- [x] Documentation explains security model (HTTPS for mutable scripts, checksums for immutable binaries)
+- [x] Follows same pattern as Alpine Linux cloud images
+- [x] No Ansible warnings about missing checksum variables
+- [x] Provisioning succeeds even when upstream updates installer scripts
+
+**Rationale**: Upstream providers (astral.sh, bun.sh, sh.rustup.rs) update installer scripts in-place for bug fixes and security patches without changing URLs or version numbers. This breaks checksum verification. Security relies on HTTPS transport security instead.
+
+**Implementation**:
+- src/clauded/downloads.yml: Removed installer_sha256 for uv, bun, rustup
+- src/clauded/roles/uv/tasks/main.yml: Removed checksum parameter
+- src/clauded/roles/rust/tasks/main.yml: Removed checksum parameter
+- tests/test_downloads.py: Updated to verify security model
+- docs/supply-chain-security.md: Documented known limitations
 
 ---
 
@@ -596,8 +626,8 @@ Extended detection system support for additional manifest formats and databases.
 
 ## Feature Implementation Status Summary
 
-- **Total Stories**: 48
-- **Implemented**: 47
+- **Total Stories**: 49
+- **Implemented**: 48
 - **In Progress**: 0
 - **Planned**: 1
 

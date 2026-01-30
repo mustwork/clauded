@@ -396,8 +396,25 @@ All external downloads (language runtimes, tools) are verified for integrity whe
 - No "latest" pointers or dynamic version fetching
 
 **Integrity Verification**
-- Binary downloads (Go, Kotlin, Maven, Gradle, Bun): SHA256 checksums validated via Ansible `get_url` checksum parameter
-- Installer scripts (uv, rustup): Downloaded, checksum-verified, then executed
+
+The system uses different verification approaches based on artifact mutability:
+
+*Immutable Release Artifacts (SHA256 checksums)*:
+- Go compiler binaries
+- Kotlin compiler binaries
+- Maven binaries
+- Gradle binaries
+- Node.js binaries
+- Bun binaries (direct download)
+
+These tools publish immutable release artifacts with stable checksums. Checksums are validated via Ansible `get_url` checksum parameter.
+
+*Mutable Installer Scripts (HTTPS only)*:
+- uv installer script (astral.sh)
+- bun installer script (bun.sh)
+- rustup installer script (sh.rustup.rs)
+
+These installer scripts are updated in-place by upstream providers without changing version numbers, making hash verification impractical. Security relies on HTTPS transport security.
 
 **Version Pinning**
 - All tools are pinned to specific versions
@@ -406,6 +423,7 @@ All external downloads (language runtimes, tools) are verified for integrity whe
 
 **Known Limitations**
 - Alpine Linux cloud image: Alpine rebuilds images in-place for security patches without changing version numbers, making hash pinning impractical. Integrity relies on HTTPS transport security.
+- Installer scripts (uv, bun, rustup): Updated in-place by upstream providers, making hash verification impractical. Integrity relies on HTTPS transport security.
 - Claude Code binary: Downloaded from Anthropic's distribution bucket without checksum (no official checksums published)
 - Custom VM images: User-specified images bypass checksum verification (user's responsibility)
 

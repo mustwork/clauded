@@ -13,12 +13,11 @@
     path: /usr/local/cargo/bin/rustup
   register: rustup_installed
 
-- name: Download rustup installer with integrity verification
+- name: Download rustup installer via HTTPS
   get_url:
     url: "{{ downloads.rustup.installer_url }}"
     dest: /tmp/rustup-init.sh
     mode: '0755'
-    checksum: "sha256:{{ downloads.rustup.installer_sha256 }}"
   when: not rustup_installed.stat.exists
 
 - name: Install Rust via rustup

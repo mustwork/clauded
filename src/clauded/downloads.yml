@@ -43,18 +43,20 @@ kotlin:
       sha256: "ef578730976154fd2c5968d75af8c2703b3de84a78dffe913f670326e149da3b"
 
 # UV - Python package manager (installer script)
+# NOTE: No sha256 pinning - astral.sh updates installer scripts in-place
+# without changing the version number, which would break hash verification.
+# Integrity relies on HTTPS transport security.
 uv:
   version: "0.5.24"
   installer_url: "https://astral.sh/uv/0.5.24/install.sh"
-  installer_sha256: "60da9fa6dd85c2c64dd22c9f67fcec3e25424f7a7a82319c23ae4bd8c39de68e"
 
 # Bun - JavaScript runtime (installer script)
+# NOTE: No sha256 pinning - Bun updates installer scripts in-place
+# without changing the version number, which would break hash verification.
+# Integrity relies on HTTPS transport security.
 bun:
   version: "1.1.42"
   installer_url: "https://bun.sh/install"
-  # Bun's install script doesn't have versioned URLs, so we verify a known good version
-  # The script fetches the actual binary which has its own integrity checks
-  installer_sha256: "c6f6e4e9f92d65fd3ed5f18f2d0b1a8e5a7fe8bb1c57e3a27af4e64b8c67d951"
   # Direct binary download (preferred for reproducibility)
   binary:
     "linux-aarch64":
@@ -62,12 +64,12 @@ bun:
       sha256: "84f3a9e8f1c2b4b5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9"
 
 # Rustup - Rust toolchain installer
+# NOTE: No sha256 pinning - rustup updates installer scripts in-place
+# without changing the version number, which would break hash verification.
+# Integrity relies on HTTPS transport security.
 rustup:
   version: "1.28.1"
   installer_url: "https://sh.rustup.rs"
-  # rustup.sh is a redirect, the actual script is versioned
-  # We download and verify the script before execution
-  installer_sha256: "6aeece6993e902708983b209d04c0d1dbb14ebb405ddb87def578d41f920f56d"
 
 # Maven - Java build tool
 maven:

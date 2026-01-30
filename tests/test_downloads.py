@@ -106,7 +106,7 @@ class TestGetToolMetadata:
 
         assert "version" in meta
         assert "installer_url" in meta
-        assert "installer_sha256" in meta
+        # No installer_sha256 - updated in-place by upstream
 
     def test_unknown_tool_raises_error(self) -> None:
         """Raises DownloadMetadataError for unknown tool."""
@@ -177,8 +177,9 @@ class TestDownloadsYamlIntegrity:
     def test_all_tools_have_sha256(self) -> None:
         """All tools with immutable releases have SHA256 checksums defined.
 
-        Note: Alpine image intentionally excluded - Alpine rebuilds images
-        in-place for security patches without changing the version.
+        Note: Alpine image, uv, bun, and rustup installer scripts intentionally
+        excluded - these are updated in-place by upstream providers without
+        changing version numbers, which would break hash verification.
         """
         downloads = get_downloads()
 
@@ -190,11 +191,34 @@ class TestDownloadsYamlIntegrity:
                 sha256_len = len(meta["sha256"])
                 assert sha256_len == 64, f"{tool} {version} invalid sha256 length"
 
-        # Single-version tools
-        assert "installer_sha256" in downloads["uv"]
-        assert "installer_sha256" in downloads["rustup"]
+        # Node.js binaries (immutable releases)
+        for version, meta in downloads["node"]["versions"].items():
+            assert "sha256" in meta, f"node {version} missing sha256"
 
-        # Alpine image intentionally has no sha256 - rebuilt in-place upstream
+        # Bun binary (immutable release)
+        assert "sha256" in downloads["bun"]["binary"]["linux-aarch64"]
+
+        # Alpine image, uv, bun installer, rustup installer intentionally have
+        # no sha256 - updated in-place upstream
+
+    def test_installer_scripts_have_no_checksums(self) -> None:
+        """Installer scripts for uv, bun, rustup have no checksum verification.
+
+        These installer scripts are updated in-place by upstream providers
+        without changing version numbers. Hash verification is not feasible.
+        Security relies on HTTPS transport security.
+        """
+        downloads = get_downloads()
+
+        # Verify installer scripts lack checksums (following Alpine pattern)
+        assert "installer_sha256" not in downloads["uv"]
+        assert "installer_sha256" not in downloads["bun"]
+        assert "installer_sha256" not in downloads["rustup"]
+
+        # But verify URLs are present and use HTTPS
+        assert downloads["uv"]["installer_url"].startswith("https://")
+        assert downloads["bun"]["installer_url"].startswith("https://")
+        assert downloads["rustup"]["installer_url"].startswith("https://")
 
     def test_all_tools_have_urls(self) -> None:
         """All tools have download URLs defined."""

@@ -17,11 +17,28 @@ All external downloads are defined in a single source of truth (`src/clauded/dow
 | Kotlin | JetBrains GitHub releases | SHA256 checksum via Ansible get_url |
 | Maven | Apache CDN | SHA256 checksum via Ansible get_url |
 | Gradle | Gradle distributions | SHA256 checksum via Ansible get_url |
-| uv | astral.sh | Installer script SHA256 verified before execution |
+| Node.js | nodejs.org | SHA256 checksum via Ansible get_url |
 | Bun | GitHub releases | Binary SHA256 checksum via Ansible get_url |
-| Rustup | sh.rustup.rs | Installer script SHA256 verified before execution |
 
 ## Known Limitations
+
+### Installer Scripts Without Hash Verification
+
+The following tools use installer scripts that are updated in-place by upstream providers without changing version numbers:
+
+- **uv** (astral.sh): Python package manager installer
+- **bun** (bun.sh): JavaScript runtime installer
+- **rustup** (sh.rustup.rs): Rust toolchain installer
+
+Hash verification is not feasible for these scripts because upstream providers update them in-place for bug fixes and security patches without changing URLs or version numbers. This breaks checksum verification.
+
+**Security Model**: These installer scripts rely on HTTPS transport security rather than checksum verification. This is the same approach used for Alpine Linux cloud images.
+
+**Mitigation**: Version-pinned URLs are still used where available (e.g., uv), and all downloads use HTTPS to prevent tampering in transit.
+
+Note: Binary downloads for bun still use hash verification. Only the installer script lacks hash verification.
+
+### Other Limitations
 
 - **Alpine Linux cloud image**: Alpine rebuilds cloud images in-place for security patches without changing the version number, making hash pinning impractical. Integrity relies on HTTPS transport security. Lima caches the image after first download.
 - **Claude Code**: Downloaded from Anthropic's distribution bucket without checksum verification (no official checksums published by Anthropic)
