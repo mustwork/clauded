@@ -297,3 +297,27 @@ class TestCliWithConfig:
 
                     mock_provisioner.run.assert_called_once()
                     mock_vm.shell.assert_called_once()
+
+    def test_reprovision_starts_stopped_vm_and_provisions(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--reprovision starts stopped VM then runs provisioner."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = False
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                with patch("clauded.cli.Provisioner") as MockProvisioner:
+                    mock_provisioner = MagicMock()
+                    MockProvisioner.return_value = mock_provisioner
+
+                    runner.invoke(main, ["--reprovision"])
+
+                    mock_vm.start.assert_called_once()
+                    mock_provisioner.run.assert_called_once()
+                    mock_vm.shell.assert_called_once()

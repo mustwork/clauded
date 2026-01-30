@@ -185,13 +185,15 @@ def main(
         vm.create(debug=debug)
         provisioner = Provisioner(config, vm, debug=debug)
         provisioner.run()
-    elif not vm.is_running():
+    else:
         # VM exists but stopped? Start it
-        vm.start(debug=debug)
-    elif reprovision:
-        # VM running and --reprovision? Re-run provisioning
-        provisioner = Provisioner(config, vm, debug=debug)
-        provisioner.run()
+        if not vm.is_running():
+            vm.start(debug=debug)
+
+        # Re-run provisioning if requested (independent of start)
+        if reprovision:
+            provisioner = Provisioner(config, vm, debug=debug)
+            provisioner.run()
 
     # Enter Claude Code
     click.echo(f"\nStarting Claude Code in VM '{vm.name}' at {config.mount_guest}...")
