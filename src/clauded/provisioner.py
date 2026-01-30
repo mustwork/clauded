@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import click
 import yaml
 
 from . import __version__
@@ -106,7 +107,22 @@ class Provisioner:
             if self.debug:
                 cmd.append("-vv")
 
-            subprocess.run(cmd, env=env, check=True)
+            try:
+                subprocess.run(cmd, env=env, check=True)
+            except FileNotFoundError:
+                click.echo(
+                    "Ansible is not installed. Install with: uv tool install clauded",
+                    err=True,
+                )
+                raise SystemExit(1) from None
+            except subprocess.CalledProcessError as e:
+                click.echo(
+                    f"Provisioning failed (exit code {e.returncode}).\n"
+                    f"  • Retry with: clauded --reprovision\n"
+                    f"  • Debug via SSH: limactl shell {self.vm.name}",
+                    err=True,
+                )
+                raise SystemExit(1) from None
 
     def _get_roles(self) -> list[str]:
         """Determine which roles to include based on config."""

@@ -353,3 +353,111 @@ class TestLimaVMCommands:
                 "USE_BUILTIN_RIPGREP=0 claude",
             ]
         )
+
+
+class TestLimaVMErrorHandling:
+    """Tests for LimaVM subprocess error handling."""
+
+    def test_create_handles_lima_not_installed(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """create() exits with message when limactl is not found."""
+        vm = LimaVM(sample_config)
+
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+            patch("subprocess.run", side_effect=FileNotFoundError()),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                vm.create()
+
+        assert exc_info.value.code == 1
+
+    def test_create_handles_subprocess_failure(
+        self, sample_config: Config, tmp_path: Path
+    ) -> None:
+        """create() exits with message when limactl start fails."""
+        vm = LimaVM(sample_config)
+
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+            patch(
+                "subprocess.run",
+                side_effect=subprocess.CalledProcessError(1, "limactl"),
+            ),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                vm.create()
+
+        assert exc_info.value.code == 1
+
+    def test_start_handles_lima_not_installed(self, sample_config: Config) -> None:
+        """start() exits with message when limactl is not found."""
+        vm = LimaVM(sample_config)
+
+        with patch("subprocess.run", side_effect=FileNotFoundError()):
+            with pytest.raises(SystemExit) as exc_info:
+                vm.start()
+
+        assert exc_info.value.code == 1
+
+    def test_start_handles_subprocess_failure(self, sample_config: Config) -> None:
+        """start() exits with message when limactl start fails."""
+        vm = LimaVM(sample_config)
+
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.CalledProcessError(1, "limactl"),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                vm.start()
+
+        assert exc_info.value.code == 1
+
+    def test_stop_handles_lima_not_installed(self, sample_config: Config) -> None:
+        """stop() exits with message when limactl is not found."""
+        vm = LimaVM(sample_config)
+
+        with patch("subprocess.run", side_effect=FileNotFoundError()):
+            with pytest.raises(SystemExit) as exc_info:
+                vm.stop()
+
+        assert exc_info.value.code == 1
+
+    def test_stop_handles_subprocess_failure(self, sample_config: Config) -> None:
+        """stop() exits with message when limactl stop fails."""
+        vm = LimaVM(sample_config)
+
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.CalledProcessError(1, "limactl"),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                vm.stop()
+
+        assert exc_info.value.code == 1
+
+    def test_destroy_handles_lima_not_installed(self, sample_config: Config) -> None:
+        """destroy() exits with message when limactl is not found."""
+        vm = LimaVM(sample_config)
+
+        with patch("subprocess.run", side_effect=FileNotFoundError()):
+            with pytest.raises(SystemExit) as exc_info:
+                vm.destroy()
+
+        assert exc_info.value.code == 1
+
+    def test_destroy_handles_subprocess_failure(self, sample_config: Config) -> None:
+        """destroy() exits with message when limactl delete fails."""
+        vm = LimaVM(sample_config)
+
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.CalledProcessError(1, "limactl"),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                vm.destroy()
+
+        assert exc_info.value.code == 1

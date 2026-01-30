@@ -7,9 +7,16 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import click
 import yaml
 
 from .config import Config
+
+
+class LimaError(Exception):
+    """Error during Lima VM operations."""
+
+    pass
 
 
 class LimaVM:
@@ -68,6 +75,18 @@ class LimaVM:
                 check=True,
                 stdin=subprocess.DEVNULL,
             )
+        except FileNotFoundError:
+            click.echo(
+                "Lima is not installed. Install with: brew install lima", err=True
+            )
+            raise SystemExit(1) from None
+        except subprocess.CalledProcessError as e:
+            click.echo(
+                f"VM creation failed (exit code {e.returncode}). "
+                f"Check Lima logs: ~/.lima/{self.name}/ha.stderr.log",
+                err=True,
+            )
+            raise SystemExit(1) from None
         finally:
             Path(config_path).unlink(missing_ok=True)
 
@@ -79,21 +98,54 @@ class LimaVM:
             cmd.extend(["--debug", "--log-level", "debug"])
         # --tty=false prevents TUI prompt when stdin is devnull
         cmd.extend(["start", "--tty=false", self.name])
-        subprocess.run(
-            cmd,
-            check=True,
-            stdin=subprocess.DEVNULL,
-        )
+        try:
+            subprocess.run(
+                cmd,
+                check=True,
+                stdin=subprocess.DEVNULL,
+            )
+        except FileNotFoundError:
+            click.echo(
+                "Lima is not installed. Install with: brew install lima", err=True
+            )
+            raise SystemExit(1) from None
+        except subprocess.CalledProcessError:
+            click.echo(
+                f"Failed to start VM '{self.name}'. "
+                "Is it in a valid state? Try: clauded --destroy",
+                err=True,
+            )
+            raise SystemExit(1) from None
 
     def stop(self) -> None:
         """Stop the VM."""
         print(f"\nStopping VM '{self.name}'...")
-        subprocess.run(["limactl", "stop", self.name], check=True)
+        try:
+            subprocess.run(["limactl", "stop", self.name], check=True)
+        except FileNotFoundError:
+            click.echo(
+                "Lima is not installed. Install with: brew install lima", err=True
+            )
+            raise SystemExit(1) from None
+        except subprocess.CalledProcessError:
+            click.echo(
+                f"Failed to stop VM '{self.name}'. VM may not be running.", err=True
+            )
+            raise SystemExit(1) from None
 
     def destroy(self) -> None:
         """Delete the VM."""
         print(f"\nDestroying VM '{self.name}'...")
-        subprocess.run(["limactl", "delete", "-f", self.name], check=True)
+        try:
+            subprocess.run(["limactl", "delete", "-f", self.name], check=True)
+        except FileNotFoundError:
+            click.echo(
+                "Lima is not installed. Install with: brew install lima", err=True
+            )
+            raise SystemExit(1) from None
+        except subprocess.CalledProcessError:
+            click.echo(f"Failed to destroy VM '{self.name}'.", err=True)
+            raise SystemExit(1) from None
 
     def shell(self) -> None:
         """Open the Claude Code shell in the VM."""

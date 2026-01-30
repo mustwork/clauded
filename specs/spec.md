@@ -348,7 +348,13 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 
 - Idempotent Ansible playbooks (safe to re-run)
 - VM name determinism (same project → same VM name)
-- Graceful error handling for missing dependencies (Lima, Ansible)
+- Graceful error handling for missing dependencies and subprocess failures:
+  - Lima not installed → "Lima is not installed. Install with: brew install lima"
+  - VM creation failure → "VM creation failed (exit code N). Check Lima logs: ~/.lima/{vm-name}/ha.stderr.log"
+  - VM start failure → "Failed to start VM. Is it in a valid state? Try: clauded --destroy"
+  - VM stop failure → "Failed to stop VM. VM may not be running."
+  - Provisioning failure → "Provisioning failed. Retry with: clauded --reprovision. Debug via SSH: limactl shell {vm-name}"
+- All errors exit with code 1 and output to stderr
 
 ### Compatibility
 

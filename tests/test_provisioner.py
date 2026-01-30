@@ -1,8 +1,9 @@
 """Tests for clauded.provisioner module."""
 
 import getpass
+import subprocess
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -643,10 +644,51 @@ def test_provisioner_with_sqlite_config() -> None:
         frameworks=["claude-code"],
     )
 
-    from unittest.mock import MagicMock
-
     vm = MagicMock()
     provisioner = Provisioner(config, vm)
     roles = provisioner._get_roles()
 
     assert "sqlite" in roles
+
+
+class TestProvisionerErrorHandling:
+    """Tests for Provisioner subprocess error handling."""
+
+    def test_run_handles_ansible_not_found(
+        self, full_config: Config, tmp_path: Path
+    ) -> None:
+        """run() exits with message when ansible-playbook is not found."""
+        vm = MagicMock()
+        vm.name = "test-vm"
+        vm.get_ssh_config_path.return_value = tmp_path / "ssh.config"
+        provisioner = Provisioner(full_config, vm)
+
+        with (
+            patch("clauded.provisioner.Path.home", return_value=tmp_path),
+            patch("subprocess.run", side_effect=FileNotFoundError()),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                provisioner.run()
+
+        assert exc_info.value.code == 1
+
+    def test_run_handles_ansible_failure(
+        self, full_config: Config, tmp_path: Path
+    ) -> None:
+        """run() exits with message when ansible-playbook fails."""
+        vm = MagicMock()
+        vm.name = "test-vm"
+        vm.get_ssh_config_path.return_value = tmp_path / "ssh.config"
+        provisioner = Provisioner(full_config, vm)
+
+        with (
+            patch("clauded.provisioner.Path.home", return_value=tmp_path),
+            patch(
+                "subprocess.run",
+                side_effect=subprocess.CalledProcessError(1, "ansible-playbook"),
+            ),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                provisioner.run()
+
+        assert exc_info.value.code == 1
