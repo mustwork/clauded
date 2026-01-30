@@ -1,5 +1,6 @@
 ---
-# Install Node.js from official binaries with version pinning and integrity verification
+# Install Node.js from Alpine packages (native musl binaries)
+# Official Node.js binaries are compiled against glibc and don't work on Alpine/musl
 
 - name: Remove any previous Node.js installation
   file:
@@ -9,72 +10,18 @@
     - /opt/fnm
     - /usr/local/bin/fnm
     - /opt/node
-    - /usr/local/bin/node
-    - /usr/local/bin/npm
-    - /usr/local/bin/npx
-    - /usr/local/bin/corepack
   ignore_errors: yes
 
-- name: Install Node.js dependencies
+- name: Install Node.js from Alpine packages
   apk:
     name:
-      - curl
-      - libstdc++
+      - nodejs
+      - npm
     state: present
     update_cache: yes
 
-- name: Set Node.js download metadata
-  set_fact:
-    node_download: "{{ downloads.node.versions[node_version] | default(downloads.node.versions[downloads.node.default_version]) }}"
-    node_effective_version: "{{ node_version if node_version in downloads.node.versions else downloads.node.default_version }}"
-
-- name: Download Node.js {{ node_download.version }}
-  get_url:
-    url: "{{ node_download.url }}"
-    dest: /tmp/node.tar.gz
-    mode: '0644'
-    checksum: "sha256:{{ node_download.sha256 }}"
-
-- name: Create Node.js installation directory
-  file:
-    path: /opt/node
-    state: directory
-    mode: '0755'
-
-- name: Extract Node.js
-  unarchive:
-    src: /tmp/node.tar.gz
-    dest: /opt/node
-    remote_src: yes
-    extra_opts:
-      - --strip-components=1
-
-- name: Create symlinks for Node.js binaries
-  file:
-    src: "/opt/node/bin/{{ item }}"
-    dest: "/usr/local/bin/{{ item }}"
-    state: link
-    force: yes
-  loop:
-    - node
-    - npm
-    - npx
-    - corepack
-
-- name: Set Node.js environment variables
-  copy:
-    dest: /etc/profile.d/node.sh
-    content: |
-      export PATH=/opt/node/bin:$PATH
-    mode: '0644'
-
-- name: Clean up Node.js download
-  file:
-    path: /tmp/node.tar.gz
-    state: absent
-
 - name: Verify Node.js installation
-  command: /opt/node/bin/node --version
+  command: node --version
   register: node_version_output
   changed_when: false
 
