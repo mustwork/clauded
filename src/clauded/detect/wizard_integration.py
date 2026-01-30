@@ -10,6 +10,7 @@ import questionary
 from questionary import Choice, Separator, Style
 
 from ..config import Config
+from ..constants import LANGUAGE_CONFIG
 from ..spinner import spinner
 from . import detect
 from .result import DetectionResult
@@ -98,50 +99,16 @@ def run_with_detection(
 
     answers: dict[str, str | list[str]] = {}
 
-    # Language version choices, display names, and package managers
-    language_config: dict[str, dict[str, str | list[str]]] = {
-        "python": {
-            "name": "Python",
-            "versions": ["3.12", "3.11", "3.10"],
-            "label": "Python (uv, uvx, pip, pipx)",
-        },
-        "node": {
-            "name": "Node.js",
-            "versions": ["22", "20", "18"],
-            "label": "Node.js (npm, npx)",
-        },
-        "java": {
-            "name": "Java",
-            "versions": ["21", "17", "11"],
-            "label": "Java (maven, gradle)",
-        },
-        "kotlin": {
-            "name": "Kotlin",
-            "versions": ["2.0", "1.9"],
-            "label": "Kotlin (maven, gradle)",
-        },
-        "rust": {
-            "name": "Rust",
-            "versions": ["stable", "nightly"],
-            "label": "Rust (cargo)",
-        },
-        "go": {
-            "name": "Go",
-            "versions": ["1.25.6", "1.24.12"],
-            "label": "Go (go mod)",
-        },
-    }
-
     # Languages - single checkbox for all
     selected_languages = questionary.checkbox(
         "Select languages:",
         choices=[
             Choice(
-                str(language_config[lang]["label"]),
+                str(LANGUAGE_CONFIG[lang]["label"]),
                 value=lang,
                 checked=defaults.get(lang) != "None",
             )
-            for lang in language_config
+            for lang in LANGUAGE_CONFIG
         ],
         style=WIZARD_STYLE,
         instruction="(space to select, enter to confirm)",
@@ -151,11 +118,10 @@ def run_with_detection(
         raise KeyboardInterrupt()
 
     # For each selected language, ask for version (default to detected)
-    for lang in language_config:
+    for lang in LANGUAGE_CONFIG:
         if lang in selected_languages:
-            config = language_config[lang]
-            versions = config["versions"]
-            assert isinstance(versions, list)
+            lang_cfg = LANGUAGE_CONFIG[lang]
+            versions = lang_cfg["versions"]
             default_val = defaults.get(lang, versions[0])
             default_version = (
                 str(default_val) if not isinstance(default_val, list) else versions[0]
@@ -164,7 +130,7 @@ def run_with_detection(
                 default_version = versions[0]
 
             version = questionary.select(
-                f"{config['name']} version?",
+                f"{lang_cfg['name']} version?",
                 choices=versions,
                 default=default_version if default_version in versions else versions[0],
                 use_indicator=True,

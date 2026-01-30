@@ -10,6 +10,7 @@ import logging
 
 import click
 
+from ..constants import confidence_marker
 from .result import DetectionResult
 
 logger = logging.getLogger(__name__)
@@ -61,14 +62,9 @@ def display_detection_summary(result: DetectionResult) -> None:
                 size_kb = lang.byte_count / 1024
                 primary_marker = " (primary)" if lang.name == primary else ""
                 # SPEC-002: Differentiate confidence display
-                if lang.confidence == "high":
-                    confidence_marker = ""  # Brief indicator only
-                elif lang.confidence == "medium":
-                    confidence_marker = " (detected)"
-                else:  # low
-                    confidence_marker = " (suggestion)"
+                marker = confidence_marker(lang.confidence)
                 click.echo(
-                    f"  • {lang.name}{confidence_marker}{primary_marker} - "
+                    f"  • {lang.name}{marker}{primary_marker} - "
                     f"{lang.file_count} files, {size_kb:.0f}KB"
                 )
             click.echo()
@@ -83,43 +79,22 @@ def display_detection_summary(result: DetectionResult) -> None:
             click.echo("Frameworks:")
             for item in result.frameworks:
                 # SPEC-002: Differentiate confidence display
-                if item.confidence == "high":
-                    confidence_marker = ""
-                elif item.confidence == "medium":
-                    confidence_marker = " (detected)"
-                else:
-                    confidence_marker = " (suggestion)"
-                click.echo(
-                    f"  • {item.name}{confidence_marker} - from {item.source_file}"
-                )
+                marker = confidence_marker(item.confidence)
+                click.echo(f"  • {item.name}{marker} - from {item.source_file}")
             click.echo()
 
         if result.tools:
             click.echo("Tools:")
             for item in result.tools:
-                if item.confidence == "high":
-                    confidence_marker = ""
-                elif item.confidence == "medium":
-                    confidence_marker = " (detected)"
-                else:
-                    confidence_marker = " (suggestion)"
-                click.echo(
-                    f"  • {item.name}{confidence_marker} - {item.source_evidence}"
-                )
+                marker = confidence_marker(item.confidence)
+                click.echo(f"  • {item.name}{marker} - {item.source_evidence}")
             click.echo()
 
         if result.databases:
             click.echo("Databases:")
             for item in result.databases:
-                if item.confidence == "high":
-                    confidence_marker = ""
-                elif item.confidence == "medium":
-                    confidence_marker = " (detected)"
-                else:
-                    confidence_marker = " (suggestion)"
-                click.echo(
-                    f"  • {item.name}{confidence_marker} - from {item.source_file}"
-                )
+                marker = confidence_marker(item.confidence)
+                click.echo(f"  • {item.name}{marker} - from {item.source_file}")
             click.echo()
 
         if result.scan_stats:

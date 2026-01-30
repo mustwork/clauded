@@ -95,6 +95,10 @@
 - Generate ansible.cfg with host_key_checking=False and pipelining=True
 - Execute ansible-playbook with generated files in temp directory
 
+**`constants.py`**
+- Shared configuration constants (language versions, display names, package manager labels)
+- `confidence_marker()` helper for consistent confidence level display across CLI output
+
 **`wizard.py`**
 - Interactive questionary prompts for Python/Node.js/Java/Kotlin/Rust/Go versions
 - Multi-select for tools (docker, git, aws-cli, gh, gradle)

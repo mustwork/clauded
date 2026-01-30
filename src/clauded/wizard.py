@@ -6,6 +6,7 @@ import questionary
 from questionary import Choice, Separator, Style
 
 from .config import Config
+from .constants import DEFAULT_LANGUAGES, LANGUAGE_CONFIG
 
 # Custom style: no text inversion, use cyan highlighting and circle indicators
 WIZARD_STYLE = Style(
@@ -36,53 +37,16 @@ def run(project_path: Path) -> Config:
 
     answers: dict[str, str | list[str] | bool] = {}
 
-    # Language version choices, display names, and package managers
-    language_config: dict[str, dict[str, str | list[str]]] = {
-        "python": {
-            "name": "Python",
-            "versions": ["3.12", "3.11", "3.10"],
-            "label": "Python (uv, uvx, pip, pipx)",
-        },
-        "node": {
-            "name": "Node.js",
-            "versions": ["22", "20", "18"],
-            "label": "Node.js (npm, npx)",
-        },
-        "java": {
-            "name": "Java",
-            "versions": ["21", "17", "11"],
-            "label": "Java (maven, gradle)",
-        },
-        "kotlin": {
-            "name": "Kotlin",
-            "versions": ["2.0", "1.9"],
-            "label": "Kotlin (maven, gradle)",
-        },
-        "rust": {
-            "name": "Rust",
-            "versions": ["stable", "nightly"],
-            "label": "Rust (cargo)",
-        },
-        "go": {
-            "name": "Go",
-            "versions": ["1.25.6", "1.24.12"],
-            "label": "Go (go mod)",
-        },
-    }
-
-    # Default languages to pre-select
-    default_languages = {"python", "node"}
-
     # Languages - checkbox to select which to include
     selected_languages = questionary.checkbox(
         "Select languages:",
         choices=[
             Choice(
-                str(language_config[lang]["label"]),
+                str(LANGUAGE_CONFIG[lang]["label"]),
                 value=lang,
-                checked=lang in default_languages,
+                checked=lang in DEFAULT_LANGUAGES,
             )
-            for lang in language_config
+            for lang in LANGUAGE_CONFIG
         ],
         style=WIZARD_STYLE,
         instruction="(space to select, enter to confirm)",
@@ -92,11 +56,10 @@ def run(project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     # For each selected language, ask for version (default to first/latest)
-    for lang in language_config:
+    for lang in LANGUAGE_CONFIG:
         if lang in selected_languages:
-            lang_cfg = language_config[lang]
+            lang_cfg = LANGUAGE_CONFIG[lang]
             versions = lang_cfg["versions"]
-            assert isinstance(versions, list)
 
             version = questionary.select(
                 f"{lang_cfg['name']} version?",
@@ -201,50 +164,16 @@ def run_edit(config: Config, project_path: Path) -> Config:
 
     answers: dict[str, str | list[str] | bool] = {}
 
-    # Language version choices, display names, and package managers
-    language_config: dict[str, dict[str, str | list[str]]] = {
-        "python": {
-            "name": "Python",
-            "versions": ["3.12", "3.11", "3.10"],
-            "label": "Python (uv, uvx, pip, pipx)",
-        },
-        "node": {
-            "name": "Node.js",
-            "versions": ["22", "20", "18"],
-            "label": "Node.js (npm, npx)",
-        },
-        "java": {
-            "name": "Java",
-            "versions": ["21", "17", "11"],
-            "label": "Java (maven, gradle)",
-        },
-        "kotlin": {
-            "name": "Kotlin",
-            "versions": ["2.0", "1.9"],
-            "label": "Kotlin (maven, gradle)",
-        },
-        "rust": {
-            "name": "Rust",
-            "versions": ["stable", "nightly"],
-            "label": "Rust (cargo)",
-        },
-        "go": {
-            "name": "Go",
-            "versions": ["1.25.6", "1.24.12"],
-            "label": "Go (go mod)",
-        },
-    }
-
     # Languages - checkbox to select which to include (pre-check currently configured)
     selected_languages = questionary.checkbox(
         "Select languages:",
         choices=[
             Choice(
-                str(language_config[lang]["label"]),
+                str(LANGUAGE_CONFIG[lang]["label"]),
                 value=lang,
                 checked=getattr(config, lang) is not None,
             )
-            for lang in language_config
+            for lang in LANGUAGE_CONFIG
         ],
         style=WIZARD_STYLE,
         instruction="(space to select, enter to confirm)",
@@ -254,11 +183,10 @@ def run_edit(config: Config, project_path: Path) -> Config:
         raise KeyboardInterrupt()
 
     # For each selected language, ask for version (default to current or latest)
-    for lang in language_config:
+    for lang in LANGUAGE_CONFIG:
         if lang in selected_languages:
-            lang_cfg = language_config[lang]
+            lang_cfg = LANGUAGE_CONFIG[lang]
             versions = lang_cfg["versions"]
-            assert isinstance(versions, list)
 
             # Get current version, default to first (latest) if not set or invalid
             current_version = getattr(config, lang)
