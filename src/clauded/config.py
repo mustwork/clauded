@@ -129,7 +129,7 @@ class Config:
     def from_wizard(cls, answers: dict[str, Any], project_path: Path) -> "Config":
         """Create a Config from wizard answers."""
         project_name = _sanitize_vm_name(project_path.name)
-        path_hash = hashlib.md5(str(project_path).encode()).hexdigest()[:6]
+        path_hash = hashlib.sha256(str(project_path).encode()).hexdigest()[:6]
         vm_name = f"clauded-{project_name}-{path_hash}"
 
         return cls(
