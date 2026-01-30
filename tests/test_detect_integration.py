@@ -279,7 +279,7 @@ class TestCreateWizardDefaults:
             "java": {"21", "17", "11", "None"},
             "kotlin": {"2.0", "1.9", "None"},
             "rust": {"stable", "nightly", "None"},
-            "go": {"1.25.6", "1.24.12", "None"},
+            "go": {"1.23.5", "1.22.10", "None"},
         }
 
         for runtime, choices in valid_choices.items():
@@ -475,17 +475,17 @@ class TestNormalizeVersionForChoice:
             assert result == "nightly"
 
     @given(
-        version=st.sampled_from(["1.25", "1.25.6", "1.24", "1.24.12"]),
-        choices=st.just(["1.25.6", "1.24.12", "None"]),
+        version=st.sampled_from(["1.23", "1.23.5", "1.22", "1.22.10"]),
+        choices=st.just(["1.23.5", "1.22.10", "None"]),
     )
     def test_go_version_normalization(self, version, choices):
         """Property: Go versions normalize to major.minor.patch."""
         result = normalize_version_for_choice(version, "go", choices)
         assert result in choices or result is None
-        if "1.25.6" in choices and version.startswith("1.25"):
-            assert result == "1.25.6"
-        if "1.24.12" in choices and version.startswith("1.24"):
-            assert result == "1.24.12"
+        if "1.23.5" in choices and version.startswith("1.23"):
+            assert result == "1.23.5"
+        if "1.22.10" in choices and version.startswith("1.22"):
+            assert result == "1.22.10"
 
     def test_normalization_with_empty_choices(self):
         """Example: Empty choices list returns None."""

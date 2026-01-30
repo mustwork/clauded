@@ -255,7 +255,7 @@ def normalize_version_for_choice(
            - Java: extract major (21 from 21 or 21.0.1)
            - Kotlin: extract major.minor (2.0 from 2.0.10)
            - Rust: use as-is (stable, nightly, or version)
-           - Go: find choice matching major.minor (1.25.6 from 1.25)
+           - Go: find choice matching major.minor (1.23.5 from 1.23)
         2. Check if normalized version in choices list
         3. Return matching choice or None
     """
@@ -305,7 +305,7 @@ def normalize_version_for_choice(
             if "stable" in choices and clean_version and clean_version[0].isdigit():
                 return "stable"
         elif runtime == "go":
-            # Go choices now include full patch versions (1.25.6, 1.24.12)
+            # Go choices now include full patch versions (1.23.5, 1.22.10)
             # First check if exact match
             if clean_version in choices:
                 return clean_version

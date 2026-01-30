@@ -23,7 +23,7 @@ def _get_valid_default(value: str | None, choices: list[str]) -> str:
     """Return value if it's in choices, otherwise return 'None'.
 
     This handles the case where a config has an old version that's no longer
-    in the available choices (e.g., Go "1.22" when choices are now "1.25.6", "1.24.12").
+    in the available choices (e.g., Go "1.20" when choices are now "1.23.5", "1.22.10").
     """
     if value and value in choices:
         return value

@@ -261,7 +261,7 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
             "java": ["21", "17", "11", "None"],
             "kotlin": ["2.0", "1.9", "None"],
             "rust": ["stable", "nightly", "None"],
-            "go": ["1.25.6", "1.24.12", "None"],
+            "go": ["1.23.5", "1.22.10", "None"],
         }
 
         # Build set of detected languages (high/medium confidence)

@@ -9,8 +9,10 @@ import yaml
 from clauded.config import (
     CURRENT_VERSION,
     Config,
+    ConfigValidationError,
     ConfigVersionError,
     _migrate_config,
+    _validate_runtime_version,
     _validate_version,
 )
 
@@ -26,7 +28,7 @@ class TestConfigFromWizard:
             "java": "21",
             "kotlin": "2.0",
             "rust": "stable",
-            "go": "1.25.6",
+            "go": "1.23.5",
             "tools": ["docker", "git", "aws-cli", "gradle"],
             "databases": ["postgresql", "redis"],
             "frameworks": ["playwright", "claude-code"],
@@ -42,7 +44,7 @@ class TestConfigFromWizard:
         assert config.java == "21"
         assert config.kotlin == "2.0"
         assert config.rust == "stable"
-        assert config.go == "1.25.6"
+        assert config.go == "1.23.5"
         assert config.tools == ["docker", "git", "aws-cli", "gradle"]
         assert config.databases == ["postgresql", "redis"]
         assert config.frameworks == ["playwright", "claude-code"]
@@ -159,7 +161,7 @@ class TestConfigSaveAndLoad:
             java="21",
             kotlin="2.0",
             rust="stable",
-            go="1.25.6",
+            go="1.23.5",
             tools=["docker", "git", "gradle"],
             databases=["postgresql"],
             frameworks=["claude-code"],
@@ -200,7 +202,7 @@ class TestConfigSaveAndLoad:
             java="21",
             kotlin="2.0",
             rust="stable",
-            go="1.25.6",
+            go="1.23.5",
             tools=["docker", "gradle"],
             databases=[],
             frameworks=["claude-code"],
@@ -224,7 +226,7 @@ class TestConfigSaveAndLoad:
         assert data["environment"]["java"] == "21"
         assert data["environment"]["kotlin"] == "2.0"
         assert data["environment"]["rust"] == "stable"
-        assert data["environment"]["go"] == "1.25.6"
+        assert data["environment"]["go"] == "1.23.5"
         assert data["environment"]["tools"] == ["docker", "gradle"]
         assert data["environment"]["databases"] == []
         assert data["environment"]["frameworks"] == ["claude-code"]
@@ -612,3 +614,159 @@ class TestMigrateConfig:
         result = _migrate_config(data)
 
         assert result == data
+
+
+class TestRuntimeVersionValidation:
+    """Tests for runtime version validation."""
+
+    def test_accepts_valid_python_version(self) -> None:
+        """Valid Python version is accepted."""
+        result = _validate_runtime_version("python", "3.12")
+        assert result == "3.12"
+
+    def test_accepts_valid_node_version(self) -> None:
+        """Valid Node.js version is accepted."""
+        result = _validate_runtime_version("node", "20")
+        assert result == "20"
+
+    def test_accepts_valid_go_version(self) -> None:
+        """Valid Go version is accepted."""
+        result = _validate_runtime_version("go", "1.23.5")
+        assert result == "1.23.5"
+
+    def test_accepts_none_version(self) -> None:
+        """None version (language not selected) is accepted."""
+        result = _validate_runtime_version("python", None)
+        assert result is None
+
+    def test_strict_mode_raises_for_invalid_version(self) -> None:
+        """Strict mode raises ConfigValidationError for invalid version."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            _validate_runtime_version("python", "2.7", strict=True)
+
+        assert "Unsupported Python version '2.7'" in str(exc_info.value)
+        assert "Supported versions:" in str(exc_info.value)
+
+    def test_non_strict_mode_warns_for_invalid_version(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Non-strict mode logs warning but returns version."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_runtime_version("python", "2.7", strict=False)
+
+        assert result == "2.7"
+        assert "Unsupported Python version '2.7'" in caplog.text
+
+    def test_unknown_language_passes_through(self) -> None:
+        """Unknown language versions pass through unchanged."""
+        result = _validate_runtime_version("unknown", "1.0")
+        assert result == "1.0"
+
+    def test_load_config_rejects_invalid_python_version(self, tmp_path: Path) -> None:
+        """Loading config with invalid Python version fails."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  python: "2.7"
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        with pytest.raises(ConfigValidationError) as exc_info:
+            Config.load(config_path)
+
+        assert "Unsupported Python version '2.7'" in str(exc_info.value)
+
+    def test_load_config_rejects_invalid_node_version(self, tmp_path: Path) -> None:
+        """Loading config with invalid Node.js version fails."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  node: "16"
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        with pytest.raises(ConfigValidationError) as exc_info:
+            Config.load(config_path)
+
+        assert "Unsupported Node.js version '16'" in str(exc_info.value)
+
+    def test_load_config_rejects_invalid_go_version(self, tmp_path: Path) -> None:
+        """Loading config with invalid Go version fails."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  go: "1.18"
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        with pytest.raises(ConfigValidationError) as exc_info:
+            Config.load(config_path)
+
+        assert "Unsupported Go version '1.18'" in str(exc_info.value)
+
+    def test_load_config_accepts_valid_versions(self, tmp_path: Path) -> None:
+        """Loading config with valid versions succeeds."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  python: "3.12"
+  node: "20"
+  java: "21"
+  kotlin: "2.0"
+  rust: "stable"
+  go: "1.23.5"
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        config = Config.load(config_path)
+
+        assert config.python == "3.12"
+        assert config.node == "20"
+        assert config.java == "21"
+        assert config.kotlin == "2.0"
+        assert config.rust == "stable"
+        assert config.go == "1.23.5"

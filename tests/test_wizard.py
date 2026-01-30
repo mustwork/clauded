@@ -25,7 +25,7 @@ def sample_config() -> Config:
         java=None,
         kotlin=None,
         rust="stable",
-        go="1.25.6",
+        go="1.23.5",
         tools=["docker"],
         databases=["postgresql"],
         frameworks=["claude-code"],
@@ -48,7 +48,7 @@ def outdated_config() -> Config:
         java="8",  # No longer in choices (21, 17, 11)
         kotlin="1.8",  # No longer in choices (2.0, 1.9)
         rust="beta",  # No longer in choices (stable, nightly)
-        go="1.22",  # No longer in choices (1.25.6, 1.24.12)
+        go="1.22",  # No longer in choices (1.23.5, 1.22.10)
         tools=["docker"],
         databases=[],
         frameworks=["claude-code"],
@@ -289,8 +289,8 @@ class TestWizardRunEditValidDefaults:
 
             # Find the Go version select
             go_call = next(
-                (c for c in select_calls if c.get("choices") == ["1.25.6", "1.24.12"]),
+                (c for c in select_calls if c.get("choices") == ["1.23.5", "1.22.10"]),
                 None,
             )
             assert go_call is not None
-            assert go_call["default"] == "1.25.6"  # sample_config.go
+            assert go_call["default"] == "1.23.5"  # sample_config.go

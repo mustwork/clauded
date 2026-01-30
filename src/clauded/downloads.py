@@ -146,6 +146,7 @@ def get_ansible_download_vars() -> dict[str, Any]:
             "rustup": downloads["rustup"],
             "maven": downloads["maven"],
             "gradle": downloads["gradle"],
+            "node": downloads["node"],
         },
         "_normalize_go_version": normalize_go_version,
     }

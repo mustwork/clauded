@@ -1,20 +1,26 @@
 ---
-- name: Install Python and tools
+# Install base Python tools for system compatibility
+# The uv role will install the specific Python version requested by the user
+
+- name: Install Python build dependencies
   apk:
     name:
       - python3
       - python3-dev
       - py3-pip
       - py3-virtualenv
+      # Build dependencies for compiling Python from source
+      - build-base
+      - libffi-dev
+      - openssl-dev
+      - zlib-dev
+      - readline-dev
+      - bzip2-dev
+      - xz-dev
+      - sqlite-dev
+      - ncurses-dev
     state: present
     update_cache: yes
-
-- name: Create python3 symlink
-  file:
-    src: /usr/bin/python3
-    dest: /usr/bin/python
-    state: link
-    force: yes
 
 - name: Install pipx via pip
   pip:
@@ -27,11 +33,11 @@
   changed_when: false
   ignore_errors: yes
 
-- name: Verify Python installation
+- name: Display system Python version
   command: python3 --version
-  register: python_version_output
+  register: system_python_output
   changed_when: false
 
-- name: Display Python version
+- name: Note system Python
   debug:
-    msg: "Python version: {{ python_version_output.stdout }}"
+    msg: "System Python: {{ system_python_output.stdout }} (uv will install Python {{ python_version }})"

@@ -204,6 +204,14 @@ environment:
   - Missing version: treat as "1", log warning
   - Higher version than supported: exit with error indicating upgrade needed
   - Unrecognized version format: exit with error
+- Runtime version validation on load:
+  - Python: 3.10, 3.11, 3.12
+  - Node.js: 18, 20, 22
+  - Java: 11, 17, 21
+  - Kotlin: 1.9, 2.0
+  - Rust: stable, nightly
+  - Go: 1.22.10, 1.23.5
+  - Invalid versions: exit with error listing supported versions
 - Mount path validation on load:
   - If mount_guest differs from mount_host: log warning, auto-correct mount_guest to match mount_host
   - Ensures consistent path mapping between host and VM
@@ -240,10 +248,10 @@ environment:
 | Role | Purpose | Key Tasks |
 |------|---------|-----------|
 | `common` | Base system packages | ca-certificates, coreutils, curl, git, gnupg, alpine-sdk, bash |
-| `python` | Python version installation | apk python3, python3-dev, py3-pip |
-| `uv` | Python package manager | uv installation via pipx (auto-bundled with Python) |
+| `python` | Python build dependencies | apk python3, python3-dev, py3-pip, build dependencies |
+| `uv` | Python package manager | uv installation, then `uv python install {{ python_version }}` |
 | `poetry` | Python dependency manager | poetry installation via pipx (auto-bundled with Python) |
-| `node` | Node.js installation | apk nodejs-current/npm from community repository |
+| `node` | Node.js installation | Download official binary from nodejs.org with checksum verification |
 | `java` | Java version installation | apk openjdk{{ java_version }} |
 | `kotlin` | Kotlin compiler installation | Download from GitHub releases, kotlin{{ kotlin_version }} |
 | `maven` | Java/Kotlin build tool | Maven binary installation (auto-bundled with Java/Kotlin) |

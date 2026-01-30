@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Runtime Version Enforcement**: Provisioning now respects user-selected runtime versions
+  - Python versions (3.10, 3.11, 3.12) installed via `uv python install` instead of system Python
+  - Node.js versions (18, 20, 22) downloaded from official nodejs.org binaries with checksum verification
+  - Config validation rejects unsupported runtime versions with clear error messages listing valid options
+  - Go versions updated to 1.22.10 and 1.23.5 (aligned with downloads.yml)
+
 ### Security
 
 - **Supply Chain Integrity**: All external downloads now use pinned versions and SHA256 checksum verification
-  - Centralized download metadata in `downloads.yml` for all tools (Go, Kotlin, Maven, Gradle, uv, Bun, Rustup)
+  - Centralized download metadata in `downloads.yml` for all tools (Go, Kotlin, Maven, Gradle, uv, Bun, Rustup, Node.js)
   - Lima cloud image verified via SHA256 digest
   - Installer scripts (uv, rustup) downloaded and verified before execution
   - Eliminated `curl | sh` patterns and dynamic "latest" version fetching
@@ -48,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Java 11, 17, 21 with Maven, Gradle
   - Kotlin 1.9, 2.0 with Maven, Gradle
   - Rust stable/nightly with Cargo
-  - Go 1.24.12, 1.25.6 with built-in modules
+  - Go 1.22.10, 1.23.5 with built-in modules
 
 - **Database Support**
   - PostgreSQL with contrib and libpq-dev

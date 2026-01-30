@@ -82,3 +82,20 @@ gradle:
     "8.12":
       url: "https://services.gradle.org/distributions/gradle-8.12-bin.zip"
       sha256: "7a00d51fb93147819aab76024feece20b6b84e420694101f276be952e08bef03"
+
+# Node.js runtime (official binaries for ARM64)
+node:
+  default_version: "22"
+  versions:
+    "22":
+      version: "22.22.0"
+      url: "https://nodejs.org/dist/v22.22.0/node-v22.22.0-linux-arm64.tar.gz"
+      sha256: "25ba95dfb96871fa2ef977f11f95ea90818c8fa15c0f2110771db08d4ba423be"
+    "20":
+      version: "20.20.0"
+      url: "https://nodejs.org/dist/v20.20.0/node-v20.20.0-linux-arm64.tar.gz"
+      sha256: "2b640b7fc19a1d2f12a226d7dfba9baff2de87cc15db5a3e58bcdb15582ac604"
+    "18":
+      version: "18.20.8"
+      url: "https://nodejs.org/dist/v18.20.8/node-v18.20.8-linux-arm64.tar.gz"
+      sha256: "2e3dfc51154e6fea9fc86a90c4ea8f3ecb8b60acaf7367c4b76691da192571c1"

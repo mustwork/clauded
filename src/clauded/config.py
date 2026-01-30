@@ -9,6 +9,8 @@ from typing import Any
 
 import yaml
 
+from .constants import LANGUAGE_CONFIG
+
 logger = logging.getLogger(__name__)
 
 # Current config schema version
@@ -19,6 +21,49 @@ class ConfigVersionError(Exception):
     """Raised when config version is incompatible."""
 
     pass
+
+
+class ConfigValidationError(Exception):
+    """Raised when config values are invalid."""
+
+    pass
+
+
+def _validate_runtime_version(
+    language: str, version: str | None, *, strict: bool = True
+) -> str | None:
+    """Validate that a runtime version is supported.
+
+    Args:
+        language: Language key (python, node, java, kotlin, rust, go)
+        version: Version string to validate, or None
+        strict: If True, raise error for unsupported versions.
+                If False, log warning and return the version anyway.
+
+    Returns:
+        The version string if valid, or None if version was None
+
+    Raises:
+        ConfigValidationError: If strict=True and version is not supported
+    """
+    if version is None:
+        return None
+
+    if language not in LANGUAGE_CONFIG:
+        return version
+
+    supported = LANGUAGE_CONFIG[language]["versions"]
+    if version not in supported:
+        lang_name = LANGUAGE_CONFIG[language]["name"]
+        msg = (
+            f"Unsupported {lang_name} version '{version}'. "
+            f"Supported versions: {', '.join(supported)}"
+        )
+        if strict:
+            raise ConfigValidationError(msg)
+        logger.warning(msg)
+
+    return version
 
 
 def _migrate_config(data: dict) -> dict:
@@ -185,6 +230,15 @@ class Config:
             )
             mount_guest = mount_host
 
+        # Validate runtime versions (strict validation for supported versions)
+        env = data.get("environment", {})
+        python_ver = _validate_runtime_version("python", env.get("python"))
+        node_ver = _validate_runtime_version("node", env.get("node"))
+        java_ver = _validate_runtime_version("java", env.get("java"))
+        kotlin_ver = _validate_runtime_version("kotlin", env.get("kotlin"))
+        rust_ver = _validate_runtime_version("rust", env.get("rust"))
+        go_ver = _validate_runtime_version("go", env.get("go"))
+
         return cls(
             version=version,
             vm_name=data["vm"]["name"],
@@ -194,15 +248,15 @@ class Config:
             vm_image=data["vm"].get("image"),
             mount_host=mount_host,
             mount_guest=mount_guest,
-            python=data["environment"].get("python"),
-            node=data["environment"].get("node"),
-            java=data["environment"].get("java"),
-            kotlin=data["environment"].get("kotlin"),
-            rust=data["environment"].get("rust"),
-            go=data["environment"].get("go"),
-            tools=data["environment"].get("tools") or [],
-            databases=data["environment"].get("databases") or [],
-            frameworks=data["environment"].get("frameworks") or [],
+            python=python_ver,
+            node=node_ver,
+            java=java_ver,
+            kotlin=kotlin_ver,
+            rust=rust_ver,
+            go=go_ver,
+            tools=env.get("tools") or [],
+            databases=env.get("databases") or [],
+            frameworks=env.get("frameworks") or [],
             claude_dangerously_skip_permissions=data.get("claude", {}).get(
                 "dangerously_skip_permissions", True
             ),

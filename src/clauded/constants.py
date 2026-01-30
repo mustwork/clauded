@@ -13,6 +13,11 @@ class LanguageInfo(TypedDict):
 
 # Language version choices, display names, and package managers
 # Used by wizard.py and wizard_integration.py
+#
+# IMPORTANT: These versions must match what's available in downloads.yml for
+# Node.js and Go. For Python, versions are installed via uv python install.
+# For Java/Kotlin, versions are installed via apk (openjdk packages).
+# For Rust, versions are installed via rustup.
 LANGUAGE_CONFIG: dict[str, LanguageInfo] = {
     "python": {
         "name": "Python",
@@ -41,10 +46,51 @@ LANGUAGE_CONFIG: dict[str, LanguageInfo] = {
     },
     "go": {
         "name": "Go",
-        "versions": ["1.25.6", "1.24.12"],
+        "versions": ["1.23.5", "1.22.10"],
         "label": "Go (go mod)",
     },
 }
+
+
+def get_supported_versions(language: str) -> list[str]:
+    """Get supported versions for a language.
+
+    Args:
+        language: Language key (python, node, java, kotlin, rust, go)
+
+    Returns:
+        List of supported version strings
+
+    Raises:
+        KeyError: If language is not recognized
+    """
+    return LANGUAGE_CONFIG[language]["versions"]
+
+
+def validate_version(language: str, version: str | None) -> str | None:
+    """Validate that a version is supported for a language.
+
+    Args:
+        language: Language key (python, node, java, kotlin, rust, go)
+        version: Version string to validate, or None
+
+    Returns:
+        The version string if valid, or None if version was None
+
+    Raises:
+        ValueError: If version is not supported for the language
+    """
+    if version is None:
+        return None
+
+    supported = get_supported_versions(language)
+    if version not in supported:
+        raise ValueError(
+            f"Unsupported {LANGUAGE_CONFIG[language]['name']} version '{version}'. "
+            f"Supported versions: {', '.join(supported)}"
+        )
+    return version
+
 
 # Default languages to pre-select in wizard
 DEFAULT_LANGUAGES = {"python", "node"}
