@@ -234,7 +234,7 @@ environment:
 
 **Installation Details**:
 - Installed via Alpine apk from edge/community repository
-- Includes `npm` and `npx`
+- Includes `npm`, `npx`, and `corepack` (enables yarn/pnpm)
 - System-wide installation
 
 **Version Selection**:

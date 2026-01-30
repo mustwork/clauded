@@ -198,13 +198,15 @@ Ansible-based installation of tools, databases, and frameworks.
 
 #### [Implemented] Story: Install Node.js Version
 
-**As a** Node.js Developer, **I want** my chosen Node.js version (18, 20, 22) to be installed, **so that** I have the correct runtime for my project.
+**As a** Node.js Developer, **I want** my chosen Node.js version (18, 20, 22) to be installed with all standard package managers, **so that** I have the correct runtime and tooling for my project.
 
 **Acceptance Criteria**:
-- [ ] Selected Node.js version is installed via apk
-- [ ] `node --version` shows selected version
-- [ ] npm is available
-- [ ] Node.js is accessible system-wide
+- [x] Selected Node.js version is installed via apk
+- [x] `node --version` shows selected version
+- [x] npm and npx are available
+- [x] corepack is installed and enabled (provides yarn and pnpm)
+- [x] `yarn --version` and `pnpm --version` work after corepack enable
+- [x] Node.js is accessible system-wide
 
 #### [Implemented] Story: Pre-install Docker
 

@@ -417,6 +417,111 @@ All Ansible roles are idempotent:
 
 **Rationale**: Supports `--reprovision` safely without side effects.
 
+#### Ansible Role Patterns
+
+All roles follow standardized patterns for consistency, idempotency, and maintainability:
+
+**Package Manager Installation Pattern**:
+```yaml
+- name: Install {tool} via {package_manager}
+  command: {package_manager} install {flags} {tool}
+  args:
+    creates: {path_to_installed_binary}
+```
+
+- `creates` flag ensures idempotency - task skips if binary exists
+- Security flags included where applicable (e.g., `--ignore-scripts` for npm)
+- Examples: corepack (`npm install -g corepack --ignore-scripts`, creates: `/usr/bin/corepack`)
+
+**Binary Download Pattern**:
+```yaml
+- name: Download {tool} binary
+  get_url:
+    url: "{{ downloads.{tool}.binary[arch].url }}"
+    dest: /tmp/{tool}.archive
+
+- name: Extract {tool} binary
+  unarchive:
+    src: /tmp/{tool}.archive
+    dest: /tmp
+    remote_src: yes
+
+- name: Install {tool} binary
+  copy:
+    src: /tmp/{tool}-{arch}/{tool}
+    dest: /opt/{tool}/bin/{tool}
+    mode: '0755'
+    remote_src: yes
+
+- name: Clean up {tool} download artifacts
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/{tool}.archive
+    - /tmp/{tool}-{arch}
+
+- name: Create {tool} symlink
+  file:
+    src: /opt/{tool}/bin/{tool}
+    dest: /usr/local/bin/{tool}
+    state: link
+    force: yes
+```
+
+- Downloads versioned binary from URL catalog (downloads.yml)
+- Installs to `/opt/{tool}/bin/` for isolation
+- Creates symlink in `/usr/local/bin/` for PATH availability
+- Cleans up temporary download artifacts
+- Examples: bun, dart, go, gradle, kotlin, maven
+
+**Verification Pattern**:
+```yaml
+- name: Verify {tool} installation
+  command: {tool} --version
+  register: {tool}_version_output
+  changed_when: false
+
+- name: Display {tool} version
+  debug:
+    msg: "{Tool} version: {{ {tool}_version_output.stdout }}"
+```
+
+- All installations followed by verification
+- `changed_when: false` - verification is read-only
+- Version output displayed for user feedback
+- Ensures installation succeeded before continuing
+
+**Installer Script Pattern**:
+```yaml
+- name: Download {tool} installer
+  get_url:
+    url: "{{ downloads.{tool}.installer.url }}"
+    dest: /tmp/{tool}-installer.sh
+    mode: '0755'
+
+- name: Run {tool} installer
+  shell: /tmp/{tool}-installer.sh {flags}
+  args:
+    creates: {path_to_installed_binary}
+
+- name: Clean up {tool} installer
+  file:
+    path: /tmp/{tool}-installer.sh
+    state: absent
+```
+
+- Used when upstream provides official installer script
+- `creates` flag for idempotency
+- Cleanup removes temporary installer
+- Examples: rustup, uv
+
+**When to Use Each Pattern**:
+- **Package Manager**: Tool available via npm, pipx, cargo - simplest approach
+- **Binary Download**: Official binaries available, need version pinning
+- **Installer Script**: Upstream provides installer handling all complexity
+- **APK Package**: Alpine package available and version-appropriate
+
 ### 5. Deterministic VM Naming
 
 VM names are MD5 hashes of project paths:

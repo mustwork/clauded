@@ -40,7 +40,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 | Language | Versions | Package Managers (auto-installed) |
 |----------|----------|-----------------------------------|
 | Python | 3.10, 3.11, 3.12 | pip, pipx, uv, uvx, poetry |
-| Node.js | 18, 20, 22 | npm, npx, yarn, pnpm, bun |
+| Node.js | 18, 20, 22 | npm, npx, corepack, yarn, pnpm, bun |
 | Java | 11, 17, 21 | maven, gradle |
 | Kotlin | 1.9, 2.0 | maven, gradle |
 | Rust | stable, nightly | cargo |

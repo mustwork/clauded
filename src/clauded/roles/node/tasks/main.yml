@@ -29,11 +29,24 @@
   debug:
     msg: "Node.js version: {{ node_version_output.stdout }}"
 
-# Enable corepack for yarn/pnpm version management
+# Install and enable corepack for yarn/pnpm version management
+- name: Install corepack via npm
+  command: npm install -g corepack --ignore-scripts
+  args:
+    creates: /usr/local/bin/corepack
+
+- name: Verify corepack installation
+  command: corepack --version
+  register: corepack_version_output
+  changed_when: false
+
+- name: Display corepack version
+  debug:
+    msg: "Corepack version: {{ corepack_version_output.stdout }}"
+
 - name: Enable corepack
   command: corepack enable
   changed_when: false
-  ignore_errors: yes
 
 # Install bun
 - name: Install bun dependencies

@@ -272,7 +272,7 @@ ssh:
 | `python` | Python build dependencies | apk python3, python3-dev, py3-pip, build dependencies |
 | `uv` | Python package manager | uv installation, then `uv python install {{ python_version }}` |
 | `poetry` | Python dependency manager | poetry installation via pipx (auto-bundled with Python) |
-| `node` | Node.js installation | Alpine packages for musl compatibility |
+| `node` | Node.js installation | Alpine packages for musl compatibility, includes npm/npx/corepack (enables yarn/pnpm) |
 | `java` | Java version installation | apk openjdk{{ java_version }} |
 | `kotlin` | Kotlin compiler installation | Download from GitHub releases, kotlin{{ kotlin_version }} |
 | `maven` | Java/Kotlin build tool | Maven binary installation (auto-bundled with Java/Kotlin) |
@@ -608,3 +608,9 @@ Future enhancements may include:
 6. **Resource Monitoring**: Track CPU/memory usage per VM
 7. **x86_64 Support**: Cross-architecture compatibility
 8. **Non-interactive Mode**: CI/CD integration for automated testing
+
+## References
+
+- **Architecture Documentation**: See `docs/architecture.md` for system design, module interactions, and Ansible role patterns
+- **Testing Strategy**: See `docs/testing-infrastructure.md` for infrastructure testing approach and manual verification procedures
+- **Configuration Guide**: See `docs/configuration.md` for detailed configuration options and examples
