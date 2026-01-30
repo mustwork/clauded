@@ -412,6 +412,7 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 
 **Command**: `clauded`
 **Options**:
+- `--version`: Display version and exit
 - `--destroy`: Destroy VM and optionally remove config
 - `--stop`: Stop VM without entering shell
 - `--reprovision`: Re-run Ansible provisioning

@@ -3,6 +3,7 @@
 import logging
 import subprocess
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
 import click
@@ -60,6 +61,10 @@ def _reset_terminal() -> None:
 
 
 @click.command()
+@click.version_option(
+    version=version("clauded"),
+    prog_name="clauded",
+)
 @click.option(
     "--destroy", is_flag=True, help="Destroy the VM and optionally remove config"
 )

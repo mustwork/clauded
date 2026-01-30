@@ -1,5 +1,6 @@
 """Tests for clauded.cli module."""
 
+from importlib.metadata import version
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -66,6 +67,30 @@ class TestCliHelp:
         result = runner.invoke(main, ["--help"])
 
         assert "--stop" in result.output
+
+    def test_help_shows_version_option(self, runner: CliRunner) -> None:
+        """Help shows --version option."""
+        result = runner.invoke(main, ["--help"])
+
+        assert "--version" in result.output
+
+
+class TestCliVersion:
+    """Tests for CLI --version option."""
+
+    def test_version_shows_package_version(self, runner: CliRunner) -> None:
+        """--version shows the package version from metadata."""
+        result = runner.invoke(main, ["--version"])
+
+        assert result.exit_code == 0
+        expected_version = version("clauded")
+        assert f"clauded, version {expected_version}" in result.output
+
+    def test_version_exits_cleanly(self, runner: CliRunner) -> None:
+        """--version exits with code 0."""
+        result = runner.invoke(main, ["--version"])
+
+        assert result.exit_code == 0
 
 
 class TestCliDestroy:
