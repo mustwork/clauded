@@ -142,6 +142,27 @@ class TestConfigFromWizard:
         assert config.databases == []
         assert config.frameworks == []
 
+    def test_claude_permissions_defaults_to_true(self, tmp_path: Path) -> None:
+        """Missing claude_dangerously_skip_permissions defaults to True."""
+        answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+
+        config = Config.from_wizard(answers, tmp_path)
+
+        assert config.claude_dangerously_skip_permissions is True
+
+    def test_claude_permissions_explicit_false(self, tmp_path: Path) -> None:
+        """Explicit False for claude_dangerously_skip_permissions is honored."""
+        answers = {
+            "cpus": "4",
+            "memory": "8GiB",
+            "disk": "20GiB",
+            "claude_dangerously_skip_permissions": False,
+        }
+
+        config = Config.from_wizard(answers, tmp_path)
+
+        assert config.claude_dangerously_skip_permissions is False
+
 
 class TestConfigSaveAndLoad:
     """Tests for Config.save() and Config.load()."""
@@ -312,6 +333,56 @@ environment:
 
         assert config.vm_image is None
 
+    def test_load_without_claude_section_defaults_permissions_to_true(
+        self, tmp_path: Path
+    ) -> None:
+        """Loading config without claude section defaults permissions to True."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        config = Config.load(config_path)
+
+        assert config.claude_dangerously_skip_permissions is True
+
+    def test_load_with_claude_permissions_false(self, tmp_path: Path) -> None:
+        """Loading config with explicit false permissions is honored."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+claude:
+  dangerously_skip_permissions: false
+""")
+
+        config = Config.load(config_path)
+
+        assert config.claude_dangerously_skip_permissions is False
+
     def test_save_with_custom_image(self, tmp_path: Path) -> None:
         """Saving config includes vm.image when set."""
         config = Config(
@@ -369,6 +440,12 @@ class TestConfigDefaults:
         assert config.tools == []
         assert config.databases == []
         assert config.frameworks == []
+
+    def test_claude_dangerously_skip_permissions_defaults_to_true(self) -> None:
+        """Claude Code permissions default to skip (auto-accept) for VM convenience."""
+        config = Config()
+
+        assert config.claude_dangerously_skip_permissions is True
 
 
 # Backward compatibility tests for SQLite

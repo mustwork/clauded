@@ -389,6 +389,15 @@ All external downloads (language runtimes, tools, cloud images) are verified for
 - Claude Code binary: Downloaded from Anthropic's distribution bucket without checksum (no official checksums published)
 - Custom VM images: User-specified images bypass checksum verification (user's responsibility)
 
+### Claude Code Permissions
+
+Claude Code's `dangerously_skip_permissions` setting controls whether tool permission prompts are auto-accepted inside the VM.
+
+- **Default**: `true` (auto-accept for VM convenience)
+- **Wizard prompt**: Visible during initial configuration and `--edit`
+- **Config location**: `claude.dangerously_skip_permissions` in `.clauded.yaml`
+- **Ansible role**: `claude_code` role respects this setting via `claude_dangerously_skip_permissions` variable
+
 ### Sensitive Data Handling
 
 - `.clauded.yaml` may be committed to version control (no secrets)
