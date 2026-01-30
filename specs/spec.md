@@ -375,6 +375,7 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 - VM name determinism (same project → same VM name)
 - Non-interactive terminal detection: CLI refuses to launch wizard when stdin is not a TTY, preventing hangs in CI/CD or piped input contexts
 - Wizard cancellation handling: KeyboardInterrupt (CTRL+C) cleanly exits without leaving partial config files
+- Specific exception handling: Use specific exception types (OSError, YAMLError, JSONDecodeError, etc.) instead of broad catches. Critical exceptions (KeyboardInterrupt, SystemExit) always propagate. Caught exceptions logged at DEBUG level for diagnosis with `--debug` flag.
 - Graceful error handling for missing dependencies and subprocess failures:
   - Lima not installed → "Lima is not installed. Install with: brew install lima"
   - VM creation failure → "VM creation failed (exit code N). Check Lima logs: ~/.lima/{vm-name}/ha.stderr.log"

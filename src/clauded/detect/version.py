@@ -212,8 +212,8 @@ def parse_python_version(project_path: Path) -> VersionSpec | None:
                     source_file=str(pyproject_file.absolute()),
                     constraint_type=_classify_constraint_type(requires_python),
                 )
-        except Exception as e:
-            logger.warning(f"Failed to parse pyproject.toml: {e}")
+        except tomllib.TOMLDecodeError as e:
+            logger.debug(f"Failed to parse pyproject.toml: {e}")
 
     # Fallback to setup.py
     setup_py_file = project_path / "setup.py"
@@ -238,8 +238,8 @@ def parse_python_version(project_path: Path) -> VersionSpec | None:
                             source_file=str(setup_py_file.absolute()),
                             constraint_type=_classify_constraint_type(python_requires),
                         )
-            except Exception as e:
-                logger.warning(f"Failed to parse setup.py: {e}")
+            except (ValueError, re.error) as e:
+                logger.debug(f"Failed to parse setup.py: {e}")
 
     return None
 
@@ -321,8 +321,8 @@ def parse_node_version(project_path: Path) -> VersionSpec | None:
                         source_file=str(package_json_file.absolute()),
                         constraint_type=_classify_constraint_type(engines_node),
                     )
-            except Exception as e:
-                logger.warning(f"Failed to parse package.json: {e}")
+            except json.JSONDecodeError as e:
+                logger.debug(f"Failed to parse package.json: {e}")
 
     return None
 
@@ -391,8 +391,8 @@ def parse_java_version(project_path: Path) -> VersionSpec | None:
                             source_file=str(pom_file.absolute()),
                             constraint_type="exact",
                         )
-            except Exception as e:
-                logger.warning(f"Failed to parse pom.xml: {e}")
+            except (ValueError, re.error) as e:
+                logger.debug(f"Failed to parse pom.xml: {e}")
 
     build_gradle = project_path / "build.gradle"
     if build_gradle.exists() and is_safe_path(build_gradle, project_path):
@@ -411,8 +411,8 @@ def parse_java_version(project_path: Path) -> VersionSpec | None:
                             source_file=str(build_gradle.absolute()),
                             constraint_type="exact",
                         )
-            except Exception as e:
-                logger.warning(f"Failed to parse build.gradle: {e}")
+            except (ValueError, re.error) as e:
+                logger.debug(f"Failed to parse build.gradle: {e}")
 
     # Check build.gradle.kts for Java version
     build_gradle_kts = project_path / "build.gradle.kts"
@@ -442,8 +442,8 @@ def parse_java_version(project_path: Path) -> VersionSpec | None:
                             source_file=str(build_gradle_kts.absolute()),
                             constraint_type="exact",
                         )
-            except Exception as e:
-                logger.warning(f"Failed to parse build.gradle.kts: {e}")
+            except (ValueError, re.error) as e:
+                logger.debug(f"Failed to parse build.gradle.kts: {e}")
 
     return None
 
@@ -497,8 +497,8 @@ def parse_kotlin_version(project_path: Path) -> VersionSpec | None:
                         source_file=str(build_gradle_kts.absolute()),
                         constraint_type="exact",
                     )
-            except Exception as e:
-                logger.warning(f"Failed to parse build.gradle.kts: {e}")
+            except (ValueError, re.error) as e:
+                logger.debug(f"Failed to parse build.gradle.kts: {e}")
 
     return None
 
@@ -541,8 +541,8 @@ def parse_rust_version(project_path: Path) -> VersionSpec | None:
                     source_file=str(rust_toolchain_toml.absolute()),
                     constraint_type="exact",
                 )
-        except Exception as e:
-            logger.warning(f"Failed to parse rust-toolchain.toml: {e}")
+        except tomllib.TOMLDecodeError as e:
+            logger.debug(f"Failed to parse rust-toolchain.toml: {e}")
 
     rust_toolchain = project_path / "rust-toolchain"
     if rust_toolchain.exists() and is_safe_path(rust_toolchain, project_path):
@@ -602,8 +602,8 @@ def parse_go_version(project_path: Path) -> VersionSpec | None:
                                 source_file=str(go_mod_file.absolute()),
                                 constraint_type="minimum",
                             )
-            except Exception as e:
-                logger.warning(f"Failed to parse go.mod: {e}")
+            except (ValueError, UnicodeDecodeError) as e:
+                logger.debug(f"Failed to parse go.mod: {e}")
 
     return None
 
@@ -672,7 +672,7 @@ def parse_tool_versions(project_path: Path) -> dict[str, VersionSpec]:
                     source_file=str(tool_versions_file.absolute()),
                     constraint_type="exact",
                 )
-    except Exception as e:
-        logger.warning(f"Failed to parse .tool-versions: {e}")
+    except (ValueError, UnicodeDecodeError) as e:
+        logger.debug(f"Failed to parse .tool-versions: {e}")
 
     return versions

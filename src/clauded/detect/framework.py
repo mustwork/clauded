@@ -259,8 +259,8 @@ def parse_python_dependencies(project_path: Path) -> list[DetectedItem]:
                                 source_evidence=package_name,
                             )
                         )
-        except Exception as e:
-            logger.warning(f"Failed to parse pyproject.toml: {e}")
+        except tomllib.TOMLDecodeError as e:
+            logger.debug(f"Failed to parse pyproject.toml: {e}")
 
         return items
 
@@ -353,8 +353,8 @@ def parse_node_dependencies(project_path: Path) -> list[DetectedItem]:
                         source_evidence=package_name,
                     )
                 )
-    except Exception as e:
-        logger.warning(f"Failed to parse package.json: {e}")
+    except json.JSONDecodeError as e:
+        logger.debug(f"Failed to parse package.json: {e}")
 
     return items
 
@@ -411,8 +411,8 @@ def parse_java_dependencies(project_path: Path) -> list[DetectedItem]:
                                     )
                                 )
                                 break
-            except Exception as e:
-                logger.warning(f"Failed to parse pom.xml: {e}")
+            except ET.ParseError as e:
+                logger.debug(f"Failed to parse pom.xml: {e}")
 
     # Parse build.gradle (Groovy DSL)
     build_gradle_path = project_path / "build.gradle"
@@ -448,8 +448,8 @@ def parse_java_dependencies(project_path: Path) -> list[DetectedItem]:
                                             )
                                         )
                                         break
-            except Exception as e:
-                logger.warning(f"Failed to parse build.gradle: {e}")
+            except (ValueError, UnicodeDecodeError) as e:
+                logger.debug(f"Failed to parse build.gradle: {e}")
 
     return items
 
@@ -518,8 +518,8 @@ def parse_kotlin_dependencies(project_path: Path) -> list[DetectedItem]:
                                     )
                                 )
                                 break
-    except Exception as e:
-        logger.warning(f"Failed to parse build.gradle.kts: {e}")
+    except (ValueError, UnicodeDecodeError) as e:
+        logger.debug(f"Failed to parse build.gradle.kts: {e}")
 
     return items
 
@@ -585,8 +585,8 @@ def parse_rust_dependencies(project_path: Path) -> list[DetectedItem]:
                         source_evidence=crate_name,
                     )
                 )
-    except Exception as e:
-        logger.warning(f"Failed to parse Cargo.toml: {e}")
+    except tomllib.TOMLDecodeError as e:
+        logger.debug(f"Failed to parse Cargo.toml: {e}")
 
     return items
 
@@ -644,8 +644,8 @@ def parse_go_dependencies(project_path: Path) -> list[DetectedItem]:
                     in_require_block = False
                 elif line and not line.startswith("#"):
                     _check_go_module(line, go_mod_path, items)
-    except Exception as e:
-        logger.warning(f"Failed to parse go.mod: {e}")
+    except (ValueError, UnicodeDecodeError) as e:
+        logger.debug(f"Failed to parse go.mod: {e}")
 
     return items
 

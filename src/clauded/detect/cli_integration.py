@@ -6,10 +6,13 @@ coordinates detection with wizard invocation.
 """
 
 import json
+import logging
 
 import click
 
 from .result import DetectionResult
+
+logger = logging.getLogger(__name__)
 
 
 def display_detection_summary(result: DetectionResult) -> None:
@@ -132,9 +135,13 @@ def display_detection_summary(result: DetectionResult) -> None:
             )
 
         click.echo("Press Enter to continue with these defaults...\n")
-    except Exception:
-        # Never raise exceptions - just silently continue
-        pass
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except (OSError, TypeError, ValueError, AttributeError) as e:
+        # Log display errors at DEBUG level for diagnosis with --debug
+        logger.debug(f"Error displaying detection summary: {e}")
+    except click.ClickException as e:
+        logger.debug(f"Click error displaying detection summary: {e}")
 
 
 def display_detection_json(result: DetectionResult) -> None:
@@ -342,8 +349,11 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
         defaults["disk"] = "20GiB"
 
         return defaults
-    except Exception:
-        # Graceful fallback on any error
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except (ImportError, TypeError, ValueError, KeyError, AttributeError) as e:
+        # Graceful fallback on any error - log for diagnosis
+        logger.debug(f"Error creating wizard defaults, using fallback: {e}")
         result_dict: dict[str, str | list[str]] = {
             "python": "None",
             "node": "None",

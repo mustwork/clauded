@@ -2,6 +2,7 @@
 
 import json
 import logging
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 try:
@@ -102,32 +103,40 @@ def detect_databases(project_path: Path) -> list[DetectedItem]:
         compose_dbs = parse_docker_compose(project_path)
         logger.debug(f"    Found {len(compose_dbs)} databases from docker-compose")
         databases.extend(compose_dbs)
-    except Exception as e:
-        logger.warning(f"Error parsing docker-compose files: {e}")
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except (OSError, yaml.YAMLError) as e:
+        logger.debug(f"Error parsing docker-compose files: {e}")
 
     try:
         logger.debug("  Parsing environment files...")
         env_dbs = parse_env_files(project_path)
         logger.debug(f"    Found {len(env_dbs)} databases from env files")
         databases.extend(env_dbs)
-    except Exception as e:
-        logger.warning(f"Error parsing environment files: {e}")
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except OSError as e:
+        logger.debug(f"Error parsing environment files: {e}")
 
     try:
         logger.debug("  Detecting ORM adapters...")
         orm_dbs = detect_orm_adapters(project_path)
         logger.debug(f"    Found {len(orm_dbs)} databases from ORM adapters")
         databases.extend(orm_dbs)
-    except Exception as e:
-        logger.warning(f"Error detecting ORM adapters: {e}")
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except (OSError, tomllib.TOMLDecodeError, json.JSONDecodeError) as e:
+        logger.debug(f"Error detecting ORM adapters: {e}")
 
     try:
         logger.debug("  Detecting SQLite files...")
         sqlite_dbs = detect_sqlite_files(project_path)
         logger.debug(f"    Found {len(sqlite_dbs)} SQLite databases from files")
         databases.extend(sqlite_dbs)
-    except Exception as e:
-        logger.warning(f"Error detecting SQLite files: {e}")
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except OSError as e:
+        logger.debug(f"Error detecting SQLite files: {e}")
 
     logger.debug(f"Detected {len(databases)} database items before deduplication")
     result = deduplicate_databases(databases)
@@ -219,8 +228,8 @@ def parse_docker_compose(project_path: Path) -> list[DetectedItem]:
                         )
                     )
 
-        except Exception as e:
-            logger.warning(f"Error parsing {compose_file}: {e}")
+        except yaml.YAMLError as e:
+            logger.debug(f"Error parsing {compose_file}: {e}")
 
     return databases
 
@@ -323,8 +332,8 @@ def parse_env_files(project_path: Path) -> list[DetectedItem]:
                         )
                     )
 
-        except Exception as e:
-            logger.warning(f"Error parsing {env_file}: {e}")
+        except (ValueError, UnicodeDecodeError) as e:
+            logger.debug(f"Error parsing {env_file}: {e}")
 
     return databases
 
@@ -423,8 +432,8 @@ def detect_orm_adapters(project_path: Path) -> list[DetectedItem]:
                         )
                     )
 
-        except Exception as e:
-            logger.warning(f"Error parsing {pyproject_file}: {e}")
+        except tomllib.TOMLDecodeError as e:
+            logger.debug(f"Error parsing {pyproject_file}: {e}")
 
     # Check Node dependencies
     package_json_file = project_path / "package.json"
@@ -484,8 +493,8 @@ def detect_orm_adapters(project_path: Path) -> list[DetectedItem]:
                             )
                         )
 
-            except Exception as e:
-                logger.warning(f"Error parsing {package_json_file}: {e}")
+            except json.JSONDecodeError as e:
+                logger.debug(f"Error parsing {package_json_file}: {e}")
 
     # Check pom.xml for Java dependencies
     pom_file = project_path / "pom.xml"
@@ -493,8 +502,6 @@ def detect_orm_adapters(project_path: Path) -> list[DetectedItem]:
         content = safe_read_text(pom_file, project_path)
         if content:
             try:
-                import xml.etree.ElementTree as ET
-
                 root = ET.fromstring(content)
                 # Handle Maven namespace
                 ns = {"mvn": "http://maven.apache.org/POM/4.0.0"}
@@ -535,8 +542,8 @@ def detect_orm_adapters(project_path: Path) -> list[DetectedItem]:
                                 )
                             )
 
-            except Exception as e:
-                logger.warning(f"Error parsing {pom_file}: {e}")
+            except ET.ParseError as e:
+                logger.debug(f"Error parsing {pom_file}: {e}")
 
     return databases
 
@@ -580,8 +587,8 @@ def detect_sqlite_files(project_path: Path) -> list[DetectedItem]:
                             source_evidence=file_path.name,
                         )
                     )
-    except Exception as e:
-        logger.warning(f"Error detecting SQLite files: {e}")
+    except OSError as e:
+        logger.debug(f"Error detecting SQLite files: {e}")
 
     return databases
 

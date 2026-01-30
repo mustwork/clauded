@@ -826,3 +826,118 @@ class TestScanStatsPopulation:
         assert result.scan_stats is not None
         assert result.scan_stats.scan_truncated is True
         assert result.scan_stats.files_scanned == 25
+
+
+# ============================================================================
+# Tests for Specific Exception Handling (Audit #10)
+# ============================================================================
+
+
+class TestSpecificExceptionHandling:
+    """Tests for FR-1, FR-2, FR-3: Specific exception types and critical propagation."""
+
+    def test_display_detection_summary_handles_attribute_error(self, capsys):
+        """display_detection_summary catches AttributeError gracefully."""
+        result = DetectionResult(
+            languages=[],
+            versions={},
+            frameworks=[],
+            tools=[],
+            databases=[],
+            scan_stats=None,
+        )
+        # Should not raise even with minimal/empty data
+        display_detection_summary(result)
+        captured = capsys.readouterr()
+        assert "📋 Auto-detected" in captured.out
+
+    def test_display_detection_summary_propagates_keyboard_interrupt(self):
+        """FR-2: KeyboardInterrupt propagates from display_detection_summary."""
+        from unittest.mock import patch
+
+        result = DetectionResult()
+
+        with patch("click.echo", side_effect=KeyboardInterrupt):
+            with pytest.raises(KeyboardInterrupt):
+                display_detection_summary(result)
+
+    def test_display_detection_summary_propagates_system_exit(self):
+        """FR-2: SystemExit propagates from display_detection_summary."""
+        from unittest.mock import patch
+
+        result = DetectionResult()
+
+        with patch("click.echo", side_effect=SystemExit(1)):
+            with pytest.raises(SystemExit):
+                display_detection_summary(result)
+
+    def test_database_detection_handles_yaml_error(self, tmp_path):
+        """FR-1: YAMLError caught gracefully in database detection."""
+        from clauded.detect.database import parse_docker_compose
+
+        # Create invalid YAML file
+        compose_file = tmp_path / "docker-compose.yml"
+        compose_file.write_text("invalid: yaml: [\n")
+
+        # Should not raise, returns empty list
+        result = parse_docker_compose(tmp_path)
+        assert result == []
+
+    def test_database_detection_handles_json_error(self, tmp_path):
+        """FR-1: JSONDecodeError caught gracefully in ORM detection."""
+        from clauded.detect.database import detect_orm_adapters
+
+        # Create invalid JSON file
+        package_json = tmp_path / "package.json"
+        package_json.write_text("{invalid json")
+
+        # Should not raise, may return partial results
+        result = detect_orm_adapters(tmp_path)
+        assert isinstance(result, list)
+
+    def test_version_detection_handles_toml_error(self, tmp_path):
+        """FR-1: TOMLDecodeError caught gracefully in version detection."""
+        from clauded.detect.version import parse_python_version
+
+        # Create invalid TOML file
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("[invalid toml\n")
+
+        # Should not raise, returns None
+        result = parse_python_version(tmp_path)
+        assert result is None
+
+    def test_framework_detection_handles_xml_error(self, tmp_path):
+        """FR-1: XML ParseError caught gracefully in Java detection."""
+        from clauded.detect.framework import parse_java_dependencies
+
+        # Create invalid XML file
+        pom = tmp_path / "pom.xml"
+        pom.write_text("<invalid xml>")
+
+        # Should not raise, returns empty list
+        result = parse_java_dependencies(tmp_path)
+        assert isinstance(result, list)
+
+    def test_create_wizard_defaults_returns_fallback_on_error(self):
+        """FR-1, FR-3: Errors caught and fallback returned with logging."""
+        from unittest.mock import patch
+
+        result = DetectionResult(
+            versions={
+                "python": VersionSpec(
+                    version="3.12", source_file="test", constraint_type="exact"
+                )
+            }
+        )
+
+        # Patch normalize to raise a handled exception
+        with patch(
+            "clauded.detect.wizard_integration.normalize_version_for_choice",
+            side_effect=ValueError("test error"),
+        ):
+            defaults = create_wizard_defaults(result)
+            # Should return fallback dict
+            assert defaults["python"] == "None"
+            assert defaults["tools"] == []
+            assert "claude-code" in defaults["frameworks"]
