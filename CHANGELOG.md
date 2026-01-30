@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Claude permissions prompt missing in detection wizard**: The "Auto-accept Claude Code permission prompts in VM?" prompt was only shown when using `--no-detect` flag, but not in the default detection-based wizard flow. Users can now configure this setting during initial setup regardless of detection mode.
+- **Python installation fails on Alpine/musl systems**: `uv python install` doesn't support musl libc distributions yet. The uv role now detects Alpine and falls back to system Python (installed via apk), with `UV_PYTHON_PREFERENCE=only-system` set to ensure uv uses the system interpreter.
 
 ### Security
 

@@ -38,6 +38,7 @@ Alpine Linux was chosen for the following reasons:
   - Some npm packages with native bindings (rare, most work fine)
   - Pre-compiled binaries that assume glibc (mitigated by using `gcompat` where needed)
   - Python packages with C extensions (typically work with proper dev headers)
+  - **uv python install**: uv doesn't provide musl Python distributions yet ([#6890](https://github.com/astral-sh/uv/issues/6890)). The uv role falls back to system Python on Alpine with `UV_PYTHON_PREFERENCE=only-system`.
 
 - **BusyBox coreutils**: Alpine ships BusyBox which provides minimal implementations of standard Unix tools. BusyBox's `env` lacks the `-S` (split-string) flag required by Node.js tools and Claude Code internal scripts. The `coreutils` package replaces BusyBox utilities with full GNU implementations.
 
@@ -59,6 +60,7 @@ Alpine Linux was chosen for the following reasons:
 5. **System browsers for Playwright**: Uses Alpine's Chromium/Firefox packages instead of Playwright's bundled browsers.
 6. **Direct downloads**: Go, Rust, Kotlin, and build tools are downloaded directly from official sources, bypassing package manager differences.
 7. **pip-based AWS CLI**: AWS CLI v2 binary requires glibc. We install v1 via pip instead.
+8. **System Python for uv**: Since uv can't install Python on musl, the uv role detects Alpine and uses system Python (from apk) instead of `uv python install`. Sets `UV_PYTHON_PREFERENCE=only-system` to ensure uv uses the system interpreter.
 
 ## Implementation Details
 

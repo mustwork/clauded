@@ -31,16 +31,25 @@
   debug:
     msg: "uv version: {{ uv_version_output.stdout }}"
 
-# Install the user-requested Python version using uv
+# Check if running on Alpine (musl) - uv doesn't support musl Python distributions yet
+# See: https://github.com/astral-sh/uv/issues/6890
+- name: Check for Alpine Linux
+  stat:
+    path: /etc/alpine-release
+  register: alpine_check
+
+# On non-Alpine systems: Install Python via uv
 - name: Install Python {{ python_version }} via uv
   command: uv python install {{ python_version }}
   register: uv_python_install
   changed_when: "'Installed' in uv_python_install.stderr or 'Installed' in uv_python_install.stdout"
+  when: not alpine_check.stat.exists
 
-- name: Find installed Python binary path
+- name: Find uv-installed Python binary path
   shell: uv python find {{ python_version }}
   register: python_path
   changed_when: false
+  when: not alpine_check.stat.exists
 
 - name: Create python symlink to uv-managed Python
   file:
@@ -48,6 +57,7 @@
     dest: /usr/local/bin/python
     state: link
     force: yes
+  when: not alpine_check.stat.exists
 
 - name: Create python3 symlink to uv-managed Python
   file:
@@ -55,12 +65,34 @@
     dest: /usr/local/bin/python3
     state: link
     force: yes
+  when: not alpine_check.stat.exists
 
+# On Alpine systems: Use system Python (installed by python role via apk)
+- name: Find system Python path on Alpine
+  command: which python3
+  register: alpine_python_path
+  changed_when: false
+  when: alpine_check.stat.exists
+
+- name: Create python symlink to system Python on Alpine
+  file:
+    src: "{{ alpine_python_path.stdout | trim }}"
+    dest: /usr/local/bin/python
+    state: link
+    force: yes
+  when: alpine_check.stat.exists
+
+- name: Note Alpine Python limitation
+  debug:
+    msg: "Using system Python on Alpine (uv python install not supported on musl)"
+  when: alpine_check.stat.exists
+
+# Environment configuration (both platforms)
 - name: Set UV_PYTHON_PREFERENCE environment variable
   copy:
     dest: /etc/profile.d/uv-python.sh
     content: |
-      export UV_PYTHON_PREFERENCE=managed
+      export UV_PYTHON_PREFERENCE={{ 'only-system' if alpine_check.stat.exists else 'managed' }}
       export PATH=/usr/local/bin:$PATH
     mode: '0644'
 
