@@ -282,7 +282,7 @@ def _get_roles(self) -> list[str]:
 **Playbook Structure**:
 ```yaml
 - name: Provision clauded VM
-  hosts: all
+  hosts: vm
   become: true
   vars:
     python_version: "{{ config.python_version }}"
@@ -296,11 +296,8 @@ def _get_roles(self) -> list[str]:
 
 **Inventory Format**:
 ```ini
-[lima]
-lima-{vm-name} ansible_connection=ssh ansible_user={user}
-
-[all:vars]
-ansible_ssh_common_args=-F {lima-ssh-config-path}
+[vm]
+{vm-name} ansible_host=lima-{vm-name} ansible_connection=ssh ansible_user={user}
 ```
 
 **Ansible Config**:

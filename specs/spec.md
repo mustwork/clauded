@@ -115,6 +115,7 @@
 - Version detection from manifest files (.python-version, package.json, go.mod, etc.)
 - Framework and tool detection from dependency manifests
 - Database detection from docker-compose, environment files, and project manifests (package.json, database files)
+- MCP configuration detection from `.mcp.json`, `mcp.json`, `mcp.json.example`, and `~/.claude.json`; extracts runtime requirements (python, node) and tools (uv, docker) from MCP server commands
 - Pre-population of wizard defaults based on detection results
 - Bounded file scanning: Limit file scanning to 50,000 files maximum to prevent memory/time issues on monorepos. When limit reached, continue with partial results and display warning
 
@@ -262,7 +263,7 @@ environment:
 **Playbook Generation**
 ```yaml
 - name: Provision clauded VM
-  hosts: all
+  hosts: vm
   become: true
   vars:
     python_version: "{{ config.environment.python }}"
@@ -284,16 +285,13 @@ environment:
 
 **Inventory Generation**
 ```ini
-[lima]
-lima-{vm-name} ansible_connection=ssh ansible_user={user}
-
-[all:vars]
-ansible_ssh_common_args=-F {lima-ssh-config-path}
+[vm]
+{vm-name} ansible_host=lima-{vm-name} ansible_connection=ssh ansible_user={user}
 ```
 
 **Provisioning Execution**
 - Generate playbook, inventory, and ansible.cfg in temp directory
-- Execute: `ansible-playbook -i <inventory> <playbook> --limit lima-{vm-name}`
+- Execute: `ansible-playbook -i <inventory> <playbook> --ssh-extra-args "-F {lima-ssh-config}"`
 - Cleanup temp files after execution
 
 ### 4. CLI Workflows
