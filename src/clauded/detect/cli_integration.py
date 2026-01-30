@@ -144,8 +144,6 @@ def display_detection_json(result: DetectionResult) -> None:
         2. Use json.dumps with indent=2
         3. Print to stdout
     """
-    # TODO: Implement JSON output
-    # This is trivial - will implement directly
     data = {
         "languages": [
             {

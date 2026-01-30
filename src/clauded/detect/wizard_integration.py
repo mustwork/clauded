@@ -343,5 +343,4 @@ def map_confidence_to_checked(confidence: str) -> bool:
       Algorithm:
         Simple mapping: high|medium → True, low → False
     """
-    # TODO: Trivial implementation - will implement directly
     return confidence in ("high", "medium")
