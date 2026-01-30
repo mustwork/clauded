@@ -6,17 +6,39 @@
 - name: Install common packages
   apk:
     name:
+      # SSL/TLS and HTTP clients
       - ca-certificates
-      - coreutils
       - curl
-      - direnv
+      - wget
+      # Archive and compression
+      - tar
+      - gzip
+      - xz
+      - unzip
+      # File sync
+      - rsync
+      # SSH server and client
+      - openssh
+      # Privilege escalation
+      - sudo
+      # JSON processor
+      - jq
+      # Version control
       - git
+      # Directory-local environment
+      - direnv
+      # Debugging and diagnostics
+      - strace
+      - lsof
+      - iproute2
+      - bind-tools
+      - htop
+      # Build tools and core utilities
+      - coreutils
       - gnupg
       - alpine-sdk
       - bash
       - shadow
-      - sudo
-      - openssh
     state: present
 
 - name: Set bash as default shell for {{ ansible_user }}

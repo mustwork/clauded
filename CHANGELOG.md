@@ -41,6 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Expanded Baseline Tools**: All VMs now include a comprehensive set of common system utilities:
+  - HTTP clients: curl, wget
+  - Archive/compression: tar, gzip, xz, unzip
+  - File sync: rsync
+  - SSH: openssh (server + client)
+  - JSON: jq
+  - Diagnostics: strace, lsof, iproute2, bind-tools (dnsutils), htop
+
 - **Installer Script Hash Verification Removed**: Removed SHA256 checksum verification for installer scripts (uv, bun, rustup) that are updated in-place by upstream providers. These now rely on HTTPS transport security, following the same pattern as Alpine Linux cloud images.
 - **Alpine Image Hash Verification Removed**: Alpine Linux cloud images no longer use SHA256 hash verification. Alpine rebuilds images in-place for security patches without changing the version number, which caused tool failures when upstream hashes changed. Integrity now relies on HTTPS transport security and Lima's image caching.
 
