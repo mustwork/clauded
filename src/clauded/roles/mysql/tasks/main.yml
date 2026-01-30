@@ -1,50 +1,10 @@
 ---
-- name: Install MariaDB (MySQL-compatible)
+# Install MariaDB client libraries and development headers only.
+# The actual database server runs externally.
+- name: Install MariaDB client and development libraries
   apk:
     name:
-      - mariadb
       - mariadb-client
       - mariadb-dev
+      - mariadb-connector-c
     state: present
-
-- name: Ensure MariaDB data directory exists
-  file:
-    path: /var/lib/mysql
-    state: directory
-    owner: mysql
-    group: mysql
-    mode: '0755'
-
-- name: Initialize MariaDB database
-  command: mariadb-install-db --user=mysql --datadir=/var/lib/mysql
-  args:
-    creates: /var/lib/mysql/mysql
-
-- name: Add MariaDB service to boot
-  command: rc-update add mariadb default
-  changed_when: false
-  ignore_errors: yes
-
-- name: Start MariaDB service via rc-service
-  command: rc-service mariadb start
-  register: mariadb_start
-  changed_when: "'started' in mariadb_start.stdout or mariadb_start.rc == 0"
-  failed_when: false
-
-- name: Wait for MariaDB to be ready
-  wait_for:
-    port: 3306
-    host: 127.0.0.1
-    delay: 2
-    timeout: 30
-  ignore_errors: yes
-
-- name: Check MariaDB status
-  command: rc-service mariadb status
-  register: mariadb_status
-  changed_when: false
-  failed_when: false
-
-- name: Display MariaDB status
-  debug:
-    msg: "MariaDB status: {{ mariadb_status.stdout | default('unknown') }}"

@@ -1,52 +1,10 @@
 ---
-- name: Install PostgreSQL
+# Install PostgreSQL client libraries and development headers only.
+# The actual database server runs externally.
+- name: Install PostgreSQL client and development libraries
   apk:
     name:
-      - postgresql
-      - postgresql-contrib
+      - postgresql-client
       - postgresql-dev
+      - libpq
     state: present
-
-- name: Ensure PostgreSQL data directory exists
-  file:
-    path: /var/lib/postgresql/data
-    state: directory
-    owner: postgres
-    group: postgres
-    mode: '0700'
-
-- name: Initialize PostgreSQL database
-  command: initdb -D /var/lib/postgresql/data
-  become: yes
-  become_user: postgres
-  args:
-    creates: /var/lib/postgresql/data/PG_VERSION
-
-- name: Add PostgreSQL service to boot
-  command: rc-update add postgresql default
-  changed_when: false
-  ignore_errors: yes
-
-- name: Start PostgreSQL service via rc-service
-  command: rc-service postgresql start
-  register: pg_start
-  changed_when: "'started' in pg_start.stdout or pg_start.rc == 0"
-  failed_when: false
-
-- name: Wait for PostgreSQL to be ready
-  wait_for:
-    port: 5432
-    host: 127.0.0.1
-    delay: 2
-    timeout: 30
-  ignore_errors: yes
-
-- name: Check PostgreSQL status
-  command: rc-service postgresql status
-  register: pg_status
-  changed_when: false
-  failed_when: false
-
-- name: Display PostgreSQL status
-  debug:
-    msg: "PostgreSQL status: {{ pg_status.stdout | default('unknown') }}"
