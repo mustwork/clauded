@@ -7,6 +7,17 @@
       - docker-compose
     state: present
 
+- name: Ensure docker group exists
+  group:
+    name: docker
+    state: present
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
 - name: Add Docker service to boot
   command: rc-update add docker boot
   changed_when: false
@@ -16,9 +27,3 @@
   service:
     name: docker
     state: started
-
-- name: Add user to docker group
-  user:
-    name: "{{ ansible_user }}"
-    groups: docker
-    append: yes
