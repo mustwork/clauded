@@ -91,6 +91,7 @@ def run(project_path: Path) -> Config:
             Choice("redis", checked=False),
             Choice("mysql", checked=False),
             Choice("sqlite", checked=False),
+            Choice("mongodb", checked=False),
             Separator("── Frameworks ──"),
             Choice("playwright", checked=False),
         ],
@@ -103,7 +104,7 @@ def run(project_path: Path) -> Config:
 
     # Split selections into tools, databases, and frameworks
     tool_options = {"docker", "aws-cli", "gh"}
-    database_options = {"postgresql", "redis", "mysql", "sqlite"}
+    database_options = {"postgresql", "redis", "mysql", "sqlite", "mongodb"}
     answers["tools"] = [s for s in selections if s in tool_options]
     answers["databases"] = [s for s in selections if s in database_options]
     # Always include claude-code
@@ -224,6 +225,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
             Choice("redis", checked="redis" in config.databases),
             Choice("mysql", checked="mysql" in config.databases),
             Choice("sqlite", checked="sqlite" in config.databases),
+            Choice("mongodb", checked="mongodb" in config.databases),
             Separator("── Frameworks ──"),
             Choice("playwright", checked="playwright" in config.frameworks),
         ],
@@ -236,7 +238,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
 
     # Split selections into tools, databases, and frameworks
     tool_options = {"docker", "aws-cli", "gh"}
-    database_options = {"postgresql", "redis", "mysql", "sqlite"}
+    database_options = {"postgresql", "redis", "mysql", "sqlite", "mongodb"}
     answers["tools"] = [s for s in selections if s in tool_options]
     answers["databases"] = [s for s in selections if s in database_options]
     # Always include claude-code

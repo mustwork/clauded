@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - MIT License file and metadata in pyproject.toml
+- MongoDB as selectable database option in wizard (initial setup, edit mode, and detection wizard) regardless of detection status
 - **Detection System Enhancements**
   - Python version detection from setup.py (`python_requires` parameter)
   - Java version detection from build.gradle.kts (Kotlin DSL syntax)
