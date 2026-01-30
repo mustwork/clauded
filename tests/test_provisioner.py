@@ -502,6 +502,35 @@ class TestProvisionerGeneratePlaybook:
 
         assert playbook[0]["vars"]["gitconfig_content"] == ""
 
+    def test_play_gitconfig_handles_adversarial_content(
+        self, full_config: Config, tmp_path: Path
+    ) -> None:
+        """Gitconfig with shell-hostile content is passed through safely.
+
+        The Ansible copy module with content parameter avoids shell heredoc
+        parsing, so content that would break shell heredocs (like EOF markers,
+        backticks, dollar signs) is handled safely.
+        """
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        # Content that would break shell heredocs if not properly escaped
+        adversarial_content = """[user]
+\tname = GITCONFIG_EOF
+\temail = $(whoami)@`hostname`.local
+[alias]
+\tpwn = !echo 'GITCONFIG_EOF'; cat /etc/passwd
+\teof = GITCONFIG_EOF
+"""
+        gitconfig = tmp_path / ".gitconfig"
+        gitconfig.write_text(adversarial_content)
+
+        with patch("clauded.provisioner.Path.home", return_value=tmp_path):
+            playbook = provisioner._generate_playbook()
+
+        # Content should pass through unchanged - Ansible handles escaping
+        assert playbook[0]["vars"]["gitconfig_content"] == adversarial_content
+
 
 class TestProvisionerGenerateInventory:
     """Tests for Provisioner._generate_inventory()."""
