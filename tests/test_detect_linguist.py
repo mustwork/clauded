@@ -855,3 +855,105 @@ class TestConfidenceLevelProperties:
                 f"With {file_count} files, {py_langs[0].byte_count} bytes, "
                 f"confidence should be 'low', got '{py_langs[0].confidence}'"
             )
+
+
+# ============================================================================
+# Bounded File Scanning Tests
+# ============================================================================
+
+
+class TestBoundedFileScanning:
+    """Tests for bounded file scanning with MAX_FILE_SCAN_LIMIT."""
+
+    def test_scan_stats_includes_truncated_flag(self, tmp_path: Path) -> None:
+        """Property: scan_stats includes scan_truncated flag."""
+        (tmp_path / "test.py").write_text("x = 1\n" * 10)
+
+        scan_stats: dict[str, int | bool] = {}
+        detect_languages(tmp_path, scan_stats=scan_stats)
+
+        assert "scan_truncated" in scan_stats
+        assert isinstance(scan_stats["scan_truncated"], bool)
+
+    def test_scan_not_truncated_for_small_project(self, tmp_path: Path) -> None:
+        """Property: scan_truncated is False for projects under the limit."""
+        for i in range(100):
+            (tmp_path / f"file{i}.py").write_text("x = 1\n")
+
+        scan_stats: dict[str, int | bool] = {}
+        detect_languages(tmp_path, scan_stats=scan_stats)
+
+        assert scan_stats.get("scan_truncated") is False
+        assert scan_stats.get("files_scanned", 0) == 100
+
+    def test_scan_truncated_at_limit(self, tmp_path: Path, monkeypatch) -> None:
+        """Property: scan truncates at MAX_FILE_SCAN_LIMIT."""
+        from clauded.detect import linguist
+
+        # Temporarily reduce the limit for testing
+        monkeypatch.setattr(linguist, "MAX_FILE_SCAN_LIMIT", 50)
+
+        # Create more files than the limit
+        for i in range(100):
+            (tmp_path / f"file{i}.py").write_text("x = 1\n")
+
+        scan_stats: dict[str, int | bool] = {}
+        detect_languages(tmp_path, scan_stats=scan_stats)
+
+        assert scan_stats.get("scan_truncated") is True
+        assert scan_stats.get("files_scanned", 0) == 50
+
+    def test_scan_truncated_still_returns_results(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Property: truncated scan still returns valid detection results."""
+        from clauded.detect import linguist
+
+        # Temporarily reduce the limit for testing
+        monkeypatch.setattr(linguist, "MAX_FILE_SCAN_LIMIT", 20)
+
+        # Create more files than the limit
+        for i in range(50):
+            (tmp_path / f"file{i}.py").write_text("x = 1\n" * 100)
+
+        result = detect_languages(tmp_path)
+
+        # Should still detect Python from the files that were scanned
+        assert len(result) > 0
+        assert any(lang.name == "Python" for lang in result)
+
+    def test_scan_truncated_logs_warning(
+        self, tmp_path: Path, monkeypatch, caplog
+    ) -> None:
+        """Property: truncation logs a warning message."""
+        import logging
+
+        from clauded.detect import linguist
+
+        # Temporarily reduce the limit for testing
+        monkeypatch.setattr(linguist, "MAX_FILE_SCAN_LIMIT", 10)
+
+        # Create more files than the limit
+        for i in range(20):
+            (tmp_path / f"file{i}.py").write_text("x = 1\n")
+
+        with caplog.at_level(logging.WARNING):
+            detect_languages(tmp_path)
+
+        assert any(
+            "detection results may be incomplete" in record.message
+            for record in caplog.records
+        )
+
+    def test_max_file_scan_limit_constant_exists(self) -> None:
+        """Property: MAX_FILE_SCAN_LIMIT constant is defined."""
+        from clauded.detect.linguist import MAX_FILE_SCAN_LIMIT
+
+        assert isinstance(MAX_FILE_SCAN_LIMIT, int)
+        assert MAX_FILE_SCAN_LIMIT > 0
+
+    def test_default_limit_is_50000(self) -> None:
+        """Property: default MAX_FILE_SCAN_LIMIT is 50000."""
+        from clauded.detect.linguist import MAX_FILE_SCAN_LIMIT
+
+        assert MAX_FILE_SCAN_LIMIT == 50000

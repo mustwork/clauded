@@ -17,6 +17,9 @@ from .utils import is_safe_path
 
 logger = logging.getLogger(__name__)
 
+# Maximum files to scan before truncating (prevents memory/time issues on monorepos)
+MAX_FILE_SCAN_LIMIT = 50000
+
 # Directories to skip during file scanning (build outputs, caches, VCS internals)
 SKIP_DIRECTORIES: frozenset[str] = frozenset(
     {
@@ -380,6 +383,7 @@ def detect_languages(
     # Track file counts for scan_stats
     files_scanned = 0
     files_excluded = 0
+    scan_truncated = False
 
     if not project_path.is_dir():
         logger.warning(f"Project path does not exist: {project_path}")
@@ -387,6 +391,15 @@ def detect_languages(
 
     try:
         for file_path in project_path.rglob("*"):
+            # Check file limit before processing
+            if files_scanned >= MAX_FILE_SCAN_LIMIT:
+                scan_truncated = True
+                logger.warning(
+                    f"Scanned {MAX_FILE_SCAN_LIMIT} files; "
+                    "detection results may be incomplete for large projects"
+                )
+                break
+
             if not file_path.is_file():
                 continue
 
@@ -480,5 +493,6 @@ def detect_languages(
     if scan_stats is not None:
         scan_stats["files_scanned"] = files_scanned
         scan_stats["files_excluded"] = files_excluded
+        scan_stats["scan_truncated"] = scan_truncated
 
     return results

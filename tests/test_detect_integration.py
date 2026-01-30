@@ -127,6 +127,7 @@ def detection_results(draw):
                 files_scanned=st.integers(min_value=0, max_value=10000),
                 files_excluded=st.integers(min_value=0, max_value=1000),
                 duration_ms=st.integers(min_value=0, max_value=5000),
+                scan_truncated=st.booleans(),
             ),
         )
     )
@@ -794,3 +795,34 @@ class TestScanStatsPopulation:
         assert result.scan_stats.files_scanned == 0
         assert result.scan_stats.files_excluded == 0
         assert result.scan_stats.duration_ms >= 0
+
+    def test_scan_stats_includes_truncated_flag(self, tmp_path):
+        """E2E: scan_stats includes scan_truncated field."""
+        from clauded.detect import detect
+
+        # Create some files
+        for i in range(10):
+            (tmp_path / f"file{i}.py").write_text("x = 1\n" * 10)
+
+        result = detect(tmp_path)
+
+        assert result.scan_stats is not None
+        assert hasattr(result.scan_stats, "scan_truncated")
+        assert result.scan_stats.scan_truncated is False
+
+    def test_scan_truncation_at_limit(self, tmp_path, monkeypatch):
+        """E2E: scan truncates at MAX_FILE_SCAN_LIMIT."""
+        from clauded.detect import detect, linguist
+
+        # Temporarily reduce the limit for testing
+        monkeypatch.setattr(linguist, "MAX_FILE_SCAN_LIMIT", 25)
+
+        # Create more files than the limit
+        for i in range(50):
+            (tmp_path / f"file{i}.py").write_text("x = 1\n")
+
+        result = detect(tmp_path)
+
+        assert result.scan_stats is not None
+        assert result.scan_stats.scan_truncated is True
+        assert result.scan_stats.files_scanned == 25

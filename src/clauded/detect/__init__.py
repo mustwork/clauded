@@ -87,7 +87,7 @@ def detect(
     # Run all detection strategies
     # Language detection also gathers file scan statistics
     logger.debug("Running language detection...")
-    file_stats: dict[str, int] = {}
+    file_stats: dict[str, int | bool] = {}
     languages = detect_languages(project_path, scan_stats=file_stats)
     logger.debug(
         f"Language detection complete: {len(languages)} languages found "
@@ -145,9 +145,10 @@ def detect(
     logger.debug(f"Detection completed in {duration_ms}ms")
 
     scan_stats = ScanStats(
-        files_scanned=file_stats.get("files_scanned", 0),
-        files_excluded=file_stats.get("files_excluded", 0),
+        files_scanned=int(file_stats.get("files_scanned", 0)),
+        files_excluded=int(file_stats.get("files_excluded", 0)),
         duration_ms=duration_ms,
+        scan_truncated=bool(file_stats.get("scan_truncated", False)),
     )
 
     return DetectionResult(

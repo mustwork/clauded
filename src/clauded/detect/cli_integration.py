@@ -120,6 +120,11 @@ def display_detection_summary(result: DetectionResult) -> None:
             click.echo()
 
         if result.scan_stats:
+            if result.scan_stats.scan_truncated:
+                click.echo(
+                    f"⚠️  Scan truncated at {result.scan_stats.files_scanned} files; "
+                    "detection results may be incomplete for large projects\n"
+                )
             click.echo(
                 f"Scan: {result.scan_stats.files_scanned} files scanned, "
                 f"{result.scan_stats.files_excluded} excluded in "
@@ -209,6 +214,7 @@ def display_detection_json(result: DetectionResult) -> None:
                 "files_scanned": result.scan_stats.files_scanned,
                 "files_excluded": result.scan_stats.files_excluded,
                 "duration_ms": result.scan_stats.duration_ms,
+                "scan_truncated": result.scan_stats.scan_truncated,
             }
             if result.scan_stats
             else None

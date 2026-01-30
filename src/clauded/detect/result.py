@@ -41,6 +41,7 @@ class ScanStats:
     files_scanned: int
     files_excluded: int
     duration_ms: int
+    scan_truncated: bool = False
 
 
 @dataclass

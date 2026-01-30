@@ -112,6 +112,7 @@
 - Framework and tool detection from dependency manifests
 - Database detection from docker-compose, environment files, and project manifests (package.json, database files)
 - Pre-population of wizard defaults based on detection results
+- Bounded file scanning: Limit file scanning to 50,000 files maximum to prevent memory/time issues on monorepos. When limit reached, continue with partial results and display warning
 
 ## Core Functionality
 
