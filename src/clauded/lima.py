@@ -54,47 +54,46 @@ class LimaVM:
         """Create and start a new VM."""
         lima_config = self._generate_lima_config()
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            yaml.dump(lima_config, f, default_flow_style=False)
-            config_path = f.name
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "lima.yaml"
+            with open(config_path, "w") as f:
+                yaml.dump(lima_config, f, default_flow_style=False)
 
-        try:
-            print(f"\nCreating VM '{self.name}'...")
-            cmd = ["limactl"]
-            if debug:
-                cmd.extend(["--debug", "--log-level", "debug"])
-            # --tty=false prevents TUI prompt when stdin is devnull
-            # --timeout allows more time for package installation during provisioning
-            cmd.extend(
-                [
-                    "start",
-                    "--tty=false",
-                    "--timeout",
-                    "20m",
-                    "--name",
-                    self.name,
-                    config_path,
-                ]
-            )
-            subprocess.run(
-                cmd,
-                check=True,
-                stdin=subprocess.DEVNULL,
-            )
-        except FileNotFoundError:
-            click.echo(
-                "Lima is not installed. Install with: brew install lima", err=True
-            )
-            raise SystemExit(1) from None
-        except subprocess.CalledProcessError as e:
-            click.echo(
-                f"VM creation failed (exit code {e.returncode}). "
-                f"Check Lima logs: ~/.lima/{self.name}/ha.stderr.log",
-                err=True,
-            )
-            raise SystemExit(1) from None
-        finally:
-            Path(config_path).unlink(missing_ok=True)
+            try:
+                print(f"\nCreating VM '{self.name}'...")
+                cmd = ["limactl"]
+                if debug:
+                    cmd.extend(["--debug", "--log-level", "debug"])
+                # --tty=false prevents TUI prompt when stdin is devnull
+                # --timeout allows more time for package installation
+                cmd.extend(
+                    [
+                        "start",
+                        "--tty=false",
+                        "--timeout",
+                        "20m",
+                        "--name",
+                        self.name,
+                        str(config_path),
+                    ]
+                )
+                subprocess.run(
+                    cmd,
+                    check=True,
+                    stdin=subprocess.DEVNULL,
+                )
+            except FileNotFoundError:
+                click.echo(
+                    "Lima is not installed. Install with: brew install lima", err=True
+                )
+                raise SystemExit(1) from None
+            except subprocess.CalledProcessError as e:
+                click.echo(
+                    f"VM creation failed (exit code {e.returncode}). "
+                    f"Check Lima logs: ~/.lima/{self.name}/ha.stderr.log",
+                    err=True,
+                )
+                raise SystemExit(1) from None
 
     def start(self, *, debug: bool = False) -> None:
         """Start an existing VM."""

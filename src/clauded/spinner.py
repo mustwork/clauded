@@ -6,10 +6,17 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+# ANSI escape sequences for cursor control
+_HIDE_CURSOR = "\033[?25l"
+_SHOW_CURSOR = "\033[?25h"
+
 
 @contextmanager
 def spinner(message: str) -> Iterator[None]:
     """Display a spinner with a message while code executes.
+
+    Hides the cursor during animation and restores it on completion or
+    interruption. The spinner line is cleared on exit.
 
     Usage:
         with spinner("Detecting frameworks"):
@@ -28,6 +35,10 @@ def spinner(message: str) -> Iterator[None]:
             current_frame[0] += 1
             time.sleep(0.08)
 
+    # Hide cursor during animation
+    sys.stdout.write(_HIDE_CURSOR)
+    sys.stdout.flush()
+
     thread = threading.Thread(target=animate, daemon=True)
     thread.start()
 
@@ -36,6 +47,7 @@ def spinner(message: str) -> Iterator[None]:
     finally:
         stop_event.set()
         thread.join(timeout=0.2)
-        # Clear the spinner line
+        # Clear the spinner line and restore cursor visibility
         sys.stdout.write("\r" + " " * (len(message) + 6) + "\r")
+        sys.stdout.write(_SHOW_CURSOR)
         sys.stdout.flush()

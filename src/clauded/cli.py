@@ -1,6 +1,7 @@
 """Main CLI entry point for clauded."""
 
 import logging
+import signal
 import subprocess
 import sys
 from importlib.metadata import version
@@ -15,6 +16,16 @@ from .detect.cli_integration import display_detection_json
 from .detect.wizard_integration import run_with_detection
 from .lima import LimaVM
 from .provisioner import Provisioner
+
+
+def _sigint_handler(signum: int, frame: object) -> None:
+    """Handle SIGINT (CTRL+C) gracefully.
+
+    Prints a cleanup message and raises KeyboardInterrupt to allow
+    context managers and finally blocks to execute properly.
+    """
+    click.echo("\nInterrupted. Cleaning up...", err=True)
+    raise KeyboardInterrupt
 
 
 def _require_interactive_terminal() -> None:
@@ -100,6 +111,9 @@ def main(
 
     Run in any directory to create or connect to a project-specific VM.
     """
+    # Register SIGINT handler for graceful cleanup
+    signal.signal(signal.SIGINT, _sigint_handler)
+
     # Configure debug logging for detection
     if debug:
         logging.basicConfig(
@@ -180,7 +194,7 @@ def main(
             provisioner.run()
         except KeyboardInterrupt:
             click.echo("\nEdit cancelled.")
-            raise SystemExit(1) from None
+            raise SystemExit(130) from None
 
         click.echo(
             f"\nStarting Claude Code in VM '{vm.name}' at {new_config.mount_guest}..."
@@ -204,7 +218,7 @@ def main(
             click.echo("\nCreated .clauded.yaml")
         except KeyboardInterrupt:
             click.echo("\nSetup cancelled.")
-            raise SystemExit(1) from None
+            raise SystemExit(130) from None
     else:
         config = Config.load(config_path)
 

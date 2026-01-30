@@ -380,7 +380,12 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
 - Idempotent Ansible playbooks (safe to re-run)
 - VM name determinism (same project → same VM name)
 - Non-interactive terminal detection: CLI refuses to launch wizard when stdin is not a TTY, preventing hangs in CI/CD or piped input contexts
-- Wizard cancellation handling: KeyboardInterrupt (CTRL+C) cleanly exits without leaving partial config files
+- Graceful interrupt handling: CTRL+C (SIGINT) during any operation:
+  - Prints "Interrupted. Cleaning up..." message
+  - Allows context managers and finally blocks to execute for proper cleanup
+  - Spinner restores terminal state (cursor visibility, line clearing)
+  - Temporary files cleaned up via TemporaryDirectory context managers
+  - Exits with code 130 (standard SIGINT exit code: 128 + signal number)
 - Specific exception handling: Use specific exception types (OSError, YAMLError, JSONDecodeError, etc.) instead of broad catches. Critical exceptions (KeyboardInterrupt, SystemExit) always propagate. Caught exceptions logged at DEBUG level for diagnosis with `--debug` flag.
 - Graceful error handling for missing dependencies and subprocess failures:
   - Lima not installed → "Lima is not installed. Install with: brew install lima"
@@ -392,7 +397,7 @@ ansible_ssh_common_args=-F {lima-ssh-config-path}
     - Debug in the VM: `limactl shell {vm-name}`
     - Start fresh: `clauded --destroy && clauded`
     Note: VM remains running after provisioning failure to preserve partial state
-- All errors exit with code 1 and output to stderr
+- All errors exit with code 1 and output to stderr (except SIGINT which exits 130)
 
 ### Compatibility
 

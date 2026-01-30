@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from clauded.cli import main
+from clauded.cli import _sigint_handler, main
 
 
 @pytest.fixture
@@ -389,7 +389,7 @@ class TestCliNonInteractiveDetection:
     def test_keyboard_interrupt_during_wizard_cancels_cleanly(
         self, runner: CliRunner
     ) -> None:
-        """KeyboardInterrupt during wizard prints 'Setup cancelled.'"""
+        """KeyboardInterrupt during wizard prints 'Setup cancelled.' and exits 130."""
         with runner.isolated_filesystem():
             # Bypass TTY check, then trigger KeyboardInterrupt in wizard
             with patch("clauded.cli._require_interactive_terminal", return_value=None):
@@ -398,13 +398,14 @@ class TestCliNonInteractiveDetection:
 
                     result = runner.invoke(main, ["--no-detect"])
 
-                    assert result.exit_code == 1
+                    # Exit code 130 = 128 + SIGINT (2), standard convention
+                    assert result.exit_code == 130
                     assert "Setup cancelled" in result.output
 
     def test_keyboard_interrupt_during_edit_cancels_cleanly(
         self, runner: CliRunner, sample_config_yaml: str
     ) -> None:
-        """KeyboardInterrupt during edit prints 'Edit cancelled.'"""
+        """KeyboardInterrupt during edit prints 'Edit cancelled.' and exits 130."""
         with runner.isolated_filesystem():
             Path(".clauded.yaml").write_text(sample_config_yaml)
 
@@ -424,7 +425,8 @@ class TestCliNonInteractiveDetection:
 
                         result = runner.invoke(main, ["--edit"])
 
-                        assert result.exit_code == 1
+                        # Exit code 130 = 128 + SIGINT (2), standard convention
+                        assert result.exit_code == 130
                         assert "Edit cancelled" in result.output
 
     def test_no_partial_config_file_on_cancel(self, runner: CliRunner) -> None:
@@ -441,3 +443,24 @@ class TestCliNonInteractiveDetection:
 
                     # Ensure no partial config was left behind
                     assert not config_path.exists()
+
+
+class TestSigintHandler:
+    """Tests for SIGINT signal handler."""
+
+    def test_sigint_handler_raises_keyboard_interrupt(self) -> None:
+        """SIGINT handler raises KeyboardInterrupt to allow cleanup."""
+        with pytest.raises(KeyboardInterrupt):
+            _sigint_handler(2, None)
+
+    def test_sigint_handler_prints_cleanup_message(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """SIGINT handler prints cleanup message to stderr."""
+        try:
+            _sigint_handler(2, None)
+        except KeyboardInterrupt:
+            pass
+
+        captured = capsys.readouterr()
+        assert "Interrupted. Cleaning up..." in captured.err
