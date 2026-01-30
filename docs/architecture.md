@@ -303,7 +303,7 @@ def _get_roles(self) -> list[str]:
 **Ansible Config**:
 ```ini
 [defaults]
-host_key_checking = False
+host_key_checking = True  # default; set ssh.host_key_checking: false in .clauded.yaml to disable
 retry_files_enabled = False
 pipelining = True
 roles_path = {roles-directory-path}

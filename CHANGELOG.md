@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **SSH Host Key Checking Enabled by Default**: Ansible provisioning now verifies SSH host keys by default
+  - Strengthens host authenticity guarantees for VM connections
+  - Can be disabled via `ssh.host_key_checking: false` in `.clauded.yaml` for local development
+  - Previous configs without this setting will use the secure default (enabled)
+
 - **Supply Chain Integrity**: All external downloads now use pinned versions and SHA256 checksum verification
   - Centralized download metadata in `downloads.yml` for all tools (Go, Kotlin, Maven, Gradle, uv, Bun, Rustup, Node.js)
   - Lima cloud image verified via SHA256 digest

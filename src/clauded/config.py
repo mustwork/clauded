@@ -171,6 +171,9 @@ class Config:
     # Claude Code settings
     claude_dangerously_skip_permissions: bool = True
 
+    # SSH settings
+    ssh_host_key_checking: bool = True
+
     @classmethod
     def from_wizard(cls, answers: dict[str, Any], project_path: Path) -> "Config":
         """Create a Config from wizard answers."""
@@ -197,6 +200,7 @@ class Config:
             claude_dangerously_skip_permissions=answers.get(
                 "claude_dangerously_skip_permissions", True
             ),
+            ssh_host_key_checking=answers.get("ssh_host_key_checking", True),
         )
 
     @classmethod
@@ -260,6 +264,7 @@ class Config:
             claude_dangerously_skip_permissions=data.get("claude", {}).get(
                 "dangerously_skip_permissions", True
             ),
+            ssh_host_key_checking=data.get("ssh", {}).get("host_key_checking", True),
         )
 
     def save(self, path: Path) -> None:
@@ -295,6 +300,9 @@ class Config:
                 "dangerously_skip_permissions": (
                     self.claude_dangerously_skip_permissions
                 ),
+            },
+            "ssh": {
+                "host_key_checking": self.ssh_host_key_checking,
             },
         }
 

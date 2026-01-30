@@ -163,6 +163,27 @@ class TestConfigFromWizard:
 
         assert config.claude_dangerously_skip_permissions is False
 
+    def test_ssh_host_key_checking_defaults_to_true(self, tmp_path: Path) -> None:
+        """Missing ssh_host_key_checking defaults to True (secure default)."""
+        answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+
+        config = Config.from_wizard(answers, tmp_path)
+
+        assert config.ssh_host_key_checking is True
+
+    def test_ssh_host_key_checking_explicit_false(self, tmp_path: Path) -> None:
+        """Explicit False for ssh_host_key_checking is honored (opt-out)."""
+        answers = {
+            "cpus": "4",
+            "memory": "8GiB",
+            "disk": "20GiB",
+            "ssh_host_key_checking": False,
+        }
+
+        config = Config.from_wizard(answers, tmp_path)
+
+        assert config.ssh_host_key_checking is False
+
 
 class TestConfigSaveAndLoad:
     """Tests for Config.save() and Config.load()."""
@@ -383,6 +404,76 @@ claude:
 
         assert config.claude_dangerously_skip_permissions is False
 
+    def test_load_without_ssh_section_defaults_host_key_checking_to_true(
+        self, tmp_path: Path
+    ) -> None:
+        """Loading config without ssh section defaults host_key_checking to True."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        config = Config.load(config_path)
+
+        assert config.ssh_host_key_checking is True
+
+    def test_load_with_ssh_host_key_checking_false(self, tmp_path: Path) -> None:
+        """Loading config with explicit false host_key_checking is honored."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+ssh:
+  host_key_checking: false
+""")
+
+        config = Config.load(config_path)
+
+        assert config.ssh_host_key_checking is False
+
+    def test_save_includes_ssh_host_key_checking(self, tmp_path: Path) -> None:
+        """Saving config includes ssh.host_key_checking field."""
+        config = Config(
+            vm_name="clauded-test",
+            cpus=4,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            ssh_host_key_checking=False,
+        )
+        config_path = tmp_path / ".clauded.yaml"
+
+        config.save(config_path)
+
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+
+        assert data["ssh"]["host_key_checking"] is False
+
     def test_save_with_custom_image(self, tmp_path: Path) -> None:
         """Saving config includes vm.image when set."""
         config = Config(
@@ -446,6 +537,12 @@ class TestConfigDefaults:
         config = Config()
 
         assert config.claude_dangerously_skip_permissions is True
+
+    def test_ssh_host_key_checking_defaults_to_true(self) -> None:
+        """SSH host key checking defaults to True for security."""
+        config = Config()
+
+        assert config.ssh_host_key_checking is True
 
 
 # Backward compatibility tests for SQLite

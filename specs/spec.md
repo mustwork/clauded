@@ -92,7 +92,7 @@
 - Select Ansible roles based on config environment selections
 - Generate dynamic Ansible playbook YAML with role list and variables
 - Generate Ansible inventory INI with Lima SSH connection details
-- Generate ansible.cfg with host_key_checking=False and pipelining=True
+- Generate ansible.cfg with configurable host_key_checking (default: True) and pipelining=True
 - Execute ansible-playbook with generated files in temp directory
 
 **`constants.py`**
@@ -185,6 +185,8 @@ environment:
   frameworks:
     - claude-code  # optional
     - playwright   # optional
+ssh:
+  host_key_checking: true  # default: true, set false to disable
 ```
 
 **Config Generation**
@@ -361,7 +363,7 @@ environment:
 
 - VMs run under host user's privileges (not root on host)
 - Ansible playbooks run with `become: true` (root inside VM)
-- SSH host key checking disabled for Lima VMs (ansible.cfg)
+- SSH host key checking enabled by default for Lima VMs (ansible.cfg); can be disabled via `ssh.host_key_checking: false` in `.clauded.yaml` for local development convenience
 - No authentication required for VM access (SSH key-based via Lima)
 - VMs are local-only (not exposed to network)
 - Environment variable sanitization: The provisioner passes only allowlisted environment variables to `ansible-playbook`, preventing leakage of sensitive variables (AWS credentials, API keys, database passwords) into logs or the VM. Allowlisted variables include: PATH, HOME, USER, LOGNAME, locale settings (LANG, LC_*), TERM, SSH_AUTH_SOCK, temp directories (TMPDIR, TEMP, TMP), and XDG directories.

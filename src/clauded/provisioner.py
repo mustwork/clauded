@@ -275,11 +275,12 @@ class Provisioner:
 
     def _generate_ansible_cfg(self) -> str:
         """Generate ansible.cfg content."""
-        return """[defaults]
-host_key_checking = False
+        host_key_checking = "True" if self.config.ssh_host_key_checking else "False"
+        return f"""[defaults]
+host_key_checking = {host_key_checking}
 retry_files_enabled = False
 interpreter_python = auto_silent
-remote_tmp = /tmp/.ansible-${USER}
+remote_tmp = /tmp/.ansible-${{USER}}
 
 [privilege_escalation]
 become_ask_pass = False

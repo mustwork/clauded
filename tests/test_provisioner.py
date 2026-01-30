@@ -617,10 +617,28 @@ class TestProvisionerGenerateInventory:
 class TestProvisionerGenerateAnsibleCfg:
     """Tests for Provisioner._generate_ansible_cfg()."""
 
-    def test_disables_host_key_checking(self, full_config: Config) -> None:
-        """Ansible config disables host key checking."""
+    def test_enables_host_key_checking_by_default(self, full_config: Config) -> None:
+        """Ansible config enables host key checking by default (security)."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
+
+        cfg = provisioner._generate_ansible_cfg()
+
+        assert "host_key_checking = True" in cfg
+
+    def test_disables_host_key_checking_when_opted_out(self) -> None:
+        """Ansible config disables host key checking when explicitly opted out."""
+        config = Config(
+            vm_name="clauded-test1234",
+            cpus=4,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            ssh_host_key_checking=False,
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
 
         cfg = provisioner._generate_ansible_cfg()
 
