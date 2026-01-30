@@ -4,13 +4,24 @@
     name: curl
     state: present
 
+- name: Download uv installer script with integrity verification
+  get_url:
+    url: "{{ downloads.uv.installer_url }}"
+    dest: /tmp/uv-install.sh
+    mode: '0755'
+    checksum: "sha256:{{ downloads.uv.installer_sha256 }}"
+
 - name: Install uv (Python package manager)
-  shell: |
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+  command: /tmp/uv-install.sh
   args:
     creates: /usr/local/bin/uv
   environment:
     UV_INSTALL_DIR: /usr/local/bin
+
+- name: Clean up uv installer
+  file:
+    path: /tmp/uv-install.sh
+    state: absent
 
 - name: Verify uv installation
   command: uv --version

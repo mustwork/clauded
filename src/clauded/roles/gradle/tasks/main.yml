@@ -7,15 +7,10 @@
     state: present
     update_cache: yes
 
-- name: Get latest Gradle version
-  uri:
-    url: https://services.gradle.org/versions/current
-    return_content: yes
-  register: gradle_latest
-
-- name: Set Gradle version
+- name: Set Gradle download metadata
   set_fact:
-    gradle_version: "{{ gradle_latest.json.version }}"
+    gradle_version: "{{ downloads.gradle.default_version }}"
+    gradle_download: "{{ downloads.gradle.versions[downloads.gradle.default_version] }}"
 
 - name: Create Gradle installation directory
   file:
@@ -23,11 +18,12 @@
     state: directory
     mode: '0755'
 
-- name: Download Gradle
+- name: Download Gradle with integrity verification
   get_url:
-    url: "https://services.gradle.org/distributions/gradle-{{ gradle_version }}-bin.zip"
+    url: "{{ gradle_download.url }}"
     dest: /tmp/gradle.zip
     mode: '0644'
+    checksum: "sha256:{{ gradle_download.sha256 }}"
 
 - name: Extract Gradle
   unarchive:

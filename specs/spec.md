@@ -358,6 +358,29 @@ environment:
 - VMs are local-only (not exposed to network)
 - Environment variable sanitization: The provisioner passes only allowlisted environment variables to `ansible-playbook`, preventing leakage of sensitive variables (AWS credentials, API keys, database passwords) into logs or the VM. Allowlisted variables include: PATH, HOME, USER, LOGNAME, locale settings (LANG, LC_*), TERM, SSH_AUTH_SOCK, temp directories (TMPDIR, TEMP, TMP), and XDG directories.
 
+### Supply Chain Integrity
+
+All external downloads (language runtimes, tools, cloud images) are verified for integrity:
+
+**Centralized Download Metadata**
+- All download URLs, versions, and SHA256 checksums are defined in `src/clauded/downloads.yml`
+- Single source of truth for all external dependencies
+- No "latest" pointers or dynamic version fetching
+
+**Integrity Verification**
+- Lima cloud images: SHA256 digest verified by Lima during download
+- Binary downloads (Go, Kotlin, Maven, Gradle, Bun): SHA256 checksums validated via Ansible `get_url` checksum parameter
+- Installer scripts (uv, rustup): Downloaded, checksum-verified, then executed
+
+**Version Pinning**
+- All tools are pinned to specific versions
+- No dynamic API calls to fetch "latest" versions
+- Version updates require explicit changes to downloads.yml
+
+**Known Limitations**
+- Claude Code binary: Downloaded from Anthropic's distribution bucket without checksum (no official checksums published)
+- Custom VM images: User-specified images bypass checksum verification (user's responsibility)
+
 ### Sensitive Data Handling
 
 - `.clauded.yaml` may be committed to version control (no secrets)

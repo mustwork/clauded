@@ -5,15 +5,10 @@
     state: present
     update_cache: yes
 
-- name: Get latest Maven version
-  uri:
-    url: https://api.github.com/repos/apache/maven/releases/latest
-    return_content: yes
-  register: maven_latest
-
-- name: Set Maven version
+- name: Set Maven download metadata
   set_fact:
-    maven_version: "{{ maven_latest.json.tag_name | regex_replace('^maven-', '') }}"
+    maven_version: "{{ downloads.maven.default_version }}"
+    maven_download: "{{ downloads.maven.versions[downloads.maven.default_version] }}"
 
 - name: Create Maven installation directory
   file:
@@ -21,11 +16,12 @@
     state: directory
     mode: '0755'
 
-- name: Download Maven
+- name: Download Maven with integrity verification
   get_url:
-    url: "https://dlcdn.apache.org/maven/maven-3/{{ maven_version }}/binaries/apache-maven-{{ maven_version }}-bin.tar.gz"
+    url: "{{ maven_download.url }}"
     dest: /tmp/maven.tar.gz
     mode: '0644'
+    checksum: "sha256:{{ maven_download.sha256 }}"
 
 - name: Extract Maven
   unarchive:

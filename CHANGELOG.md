@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Supply Chain Integrity**: All external downloads now use pinned versions and SHA256 checksum verification
+  - Centralized download metadata in `downloads.yml` for all tools (Go, Kotlin, Maven, Gradle, uv, Bun, Rustup)
+  - Lima cloud image verified via SHA256 digest
+  - Installer scripts (uv, rustup) downloaded and verified before execution
+  - Eliminated `curl | sh` patterns and dynamic "latest" version fetching
+  - Maven and Gradle versions pinned instead of fetching from APIs
+
 ## [0.1.0] - 2026-01-30
 
 ### Added

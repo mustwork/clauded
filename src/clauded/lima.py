@@ -11,12 +11,7 @@ import click
 import yaml
 
 from .config import Config
-
-# Default Alpine Linux cloud image for aarch64
-DEFAULT_ALPINE_IMAGE = (
-    "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/"
-    "nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2"
-)
+from .downloads import get_alpine_image
 
 
 class LimaError(Exception):
@@ -202,6 +197,29 @@ class LimaVM:
         """Get the path to Lima's SSH config for this VM."""
         return Path.home() / ".lima" / self.name / "ssh.config"
 
+    def _get_image_config(self) -> dict[str, str]:
+        """Get the Lima image configuration with integrity verification.
+
+        Returns:
+            Dict with 'location', 'arch', and 'digest' for Lima image config.
+            Uses custom image URL if configured, otherwise defaults to verified
+            Alpine Linux cloud image.
+        """
+        if self.config.vm_image:
+            # User-specified image - no checksum verification available
+            return {
+                "location": self.config.vm_image,
+                "arch": "aarch64",
+            }
+
+        # Use verified Alpine image from centralized downloads
+        alpine = get_alpine_image()
+        return {
+            "location": alpine["url"],
+            "arch": alpine["arch"],
+            "digest": f"sha256:{alpine['sha256']}",
+        }
+
     def _generate_lima_config(self) -> dict[str, Any]:
         """Generate Lima YAML configuration."""
         mounts = [
@@ -242,12 +260,7 @@ class LimaVM:
             "cpus": self.config.cpus,
             "memory": self.config.memory,
             "disk": self.config.disk,
-            "images": [
-                {
-                    "location": self.config.vm_image or DEFAULT_ALPINE_IMAGE,
-                    "arch": "aarch64",
-                }
-            ],
+            "images": [self._get_image_config()],
             "containerd": {
                 "system": False,
                 "user": False,

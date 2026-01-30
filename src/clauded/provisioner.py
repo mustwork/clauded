@@ -14,6 +14,7 @@ import yaml
 
 from . import __version__
 from .config import Config
+from .downloads import get_downloads
 from .lima import LimaVM
 
 # Allowlist of safe environment variables to pass to ansible-playbook.
@@ -229,6 +230,9 @@ class Provisioner:
         if gitconfig_path.exists():
             gitconfig_content = gitconfig_path.read_text()
 
+        # Get centralized download metadata for supply chain integrity
+        downloads = get_downloads()
+
         return [
             {
                 "name": "Provision clauded VM",
@@ -240,7 +244,7 @@ class Provisioner:
                     "java_version": self.config.java or "21",
                     "kotlin_version": self.config.kotlin or "2.0",
                     "rust_version": self.config.rust or "stable",
-                    "go_version": self.config.go or "1.25.6",
+                    "go_version": self.config.go or "1.23.5",
                     "claude_dangerously_skip_permissions": (
                         self.config.claude_dangerously_skip_permissions
                     ),
@@ -249,6 +253,8 @@ class Provisioner:
                     "clauded_provision_timestamp": provision_timestamp,
                     "clauded_project_name": self.config.project_name,
                     "gitconfig_content": gitconfig_content,
+                    # Centralized download metadata for integrity verification
+                    "downloads": downloads,
                 },
                 "roles": self._get_roles(),
             }

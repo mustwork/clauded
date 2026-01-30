@@ -13,11 +13,18 @@
     state: directory
     mode: '0755'
 
-- name: Download Kotlin compiler {{ kotlin_version }}
+- name: Set Kotlin download metadata
+  set_fact:
+    # Normalize version: "2.0" -> "2.0.21" if not fully specified
+    kotlin_full_version: "{{ kotlin_version if '.' in kotlin_version and kotlin_version.count('.') > 1 else downloads.kotlin.default_version }}"
+    kotlin_download: "{{ downloads.kotlin.versions[kotlin_version] | default(downloads.kotlin.versions[downloads.kotlin.default_version]) }}"
+
+- name: Download Kotlin compiler {{ kotlin_full_version }}
   get_url:
-    url: "https://github.com/JetBrains/kotlin/releases/download/v{{ kotlin_version }}.0/kotlin-compiler-{{ kotlin_version }}.0.zip"
+    url: "{{ kotlin_download.url }}"
     dest: /tmp/kotlin-compiler.zip
     mode: '0644'
+    checksum: "sha256:{{ kotlin_download.sha256 }}"
 
 - name: Extract Kotlin compiler
   unarchive:

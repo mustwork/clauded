@@ -497,13 +497,13 @@ class TestProvisionerGeneratePlaybook:
         assert playbook[0]["vars"]["go_version"] == "1.25.6"
 
     def test_play_defaults_go_version_when_none(self, minimal_config: Config) -> None:
-        """Go version defaults to 1.25.6 when None."""
+        """Go version defaults to 1.23.5 when None."""
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
         playbook = provisioner._generate_playbook()
 
-        assert playbook[0]["vars"]["go_version"] == "1.25.6"
+        assert playbook[0]["vars"]["go_version"] == "1.23.5"
 
     def test_play_includes_roles(self, full_config: Config) -> None:
         """Play includes roles from _get_roles()."""
