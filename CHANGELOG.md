@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Config validation rejects unsupported runtime versions with clear error messages listing valid options
   - Go versions updated to 1.22.10 and 1.23.5 (aligned with downloads.yml)
 
+### Fixed
+
+- **Claude permissions prompt missing in detection wizard**: The "Auto-accept Claude Code permission prompts in VM?" prompt was only shown when using `--no-detect` flag, but not in the default detection-based wizard flow. Users can now configure this setting during initial setup regardless of detection mode.
+
 ### Security
 
 - **SSH Host Key Checking Enabled by Default**: Ansible provisioning now verifies SSH host keys by default

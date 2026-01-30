@@ -97,7 +97,7 @@ def run_with_detection(
         }
         defaults = defaults_dict
 
-    answers: dict[str, str | list[str]] = {}
+    answers: dict[str, str | list[str] | bool] = {}
 
     # Languages - single checkbox for all
     selected_languages = questionary.checkbox(
@@ -186,6 +186,16 @@ def run_with_detection(
     answers["frameworks"] = ["claude-code"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
+
+    # Claude Code permissions - default is to skip (auto-accept all)
+    answers["claude_dangerously_skip_permissions"] = questionary.confirm(
+        "Auto-accept Claude Code permission prompts in VM?",
+        default=True,
+        style=WIZARD_STYLE,
+    ).ask()
+
+    if answers["claude_dangerously_skip_permissions"] is None:
+        raise KeyboardInterrupt()
 
     # VM resources
     customize_resources = questionary.confirm(
