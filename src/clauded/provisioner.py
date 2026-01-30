@@ -206,6 +206,8 @@ class Provisioner:
             roles.append("mysql")
         if "sqlite" in self.config.databases:
             roles.append("sqlite")
+        if "mongodb" in self.config.databases:
+            roles.append("mongodb")
 
         # Frameworks
         if "playwright" in self.config.frameworks:

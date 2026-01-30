@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Config file changes are fsynced to disk for durability
   - New `previous_vm_name` field in config for crash recovery (backwards-compatible)
 - MIT License file and metadata in pyproject.toml
-- MongoDB as selectable database option in wizard (initial setup, edit mode, and detection wizard) regardless of detection status. Note: MongoDB detection is complete but provisioning (Ansible role) is pending - see `specs/mongodb-spec.md`
+- MongoDB tools support: installs `mongodb-tools` package (CLI utilities like mongodump, mongorestore) when MongoDB is selected or detected
 - **Detection System Enhancements**
   - Python version detection from setup.py (`python_requires` parameter)
   - Java version detection from build.gradle.kts (Kotlin DSL syntax)

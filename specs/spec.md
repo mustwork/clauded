@@ -102,7 +102,7 @@
 **`wizard.py`**
 - Interactive questionary prompts for Python/Node.js/Java/Kotlin/Rust/Go versions
 - Multi-select for tools (docker, git, aws-cli, gh, gradle)
-- Multi-select for databases (postgresql, redis, mysql, sqlite)
+- Multi-select for databases (postgresql, redis, mysql, sqlite, mongodb)
 - Multi-select for frameworks (claude-code, playwright)
 - Optional VM resource customization
 - Return populated `Config` object
@@ -127,9 +127,9 @@
   - Go: go.mod
   - Supported frameworks: Spring Boot, Quarkus, Micronaut, Ktor, Django, Flask, FastAPI, React, Vue, Angular, Express, Next.js, Nest.js, Actix, Rocket, Tokio, Gin, Echo, Fiber
 - Database detection from multiple sources:
-  - Docker Compose: postgres, redis, mysql images
-  - Environment files: DATABASE_URL, POSTGRES_URL, REDIS_URL, MYSQL_URL patterns
-  - ORM dependencies: psycopg2, asyncpg, redis-py, mysql-connector, etc.
+  - Docker Compose: postgres, redis, mysql, mongodb images
+  - Environment files: DATABASE_URL, POSTGRES_URL, REDIS_URL, MYSQL_URL, MONGODB_URI patterns
+  - ORM dependencies: psycopg2, asyncpg, redis-py, mysql-connector, pymongo, motor, mongoengine, beanie, mongoose, mongodb (Node.js), etc.
   - SQLite files: .db, .sqlite, .sqlite3 file detection
 - MCP configuration detection from `.mcp.json`, `mcp.json`, `mcp.json.example`, and `~/.claude.json`; extracts runtime requirements (python, node) and tools (uv, docker) from MCP server commands
 - Pre-population of wizard defaults based on detection results
@@ -255,6 +255,7 @@ ssh:
   - `redis` if "redis" in config.environment.databases
   - `mysql` if "mysql" in config.environment.databases
   - `sqlite` if "sqlite" in config.environment.databases
+  - `mongodb` if "mongodb" in config.environment.databases
   - `playwright` if "playwright" in config.environment.frameworks
   - `claude_code` if "claude-code" in config.environment.frameworks
 
@@ -282,6 +283,7 @@ ssh:
 | `redis` | Redis installation | redis, OpenRC service, port 6379 |
 | `mysql` | MySQL installation | mariadb (MySQL-compatible), OpenRC service, port 3306 |
 | `sqlite` | SQLite installation | sqlite package via apk, no service management (file-based) |
+| `mongodb` | MongoDB CLI tools | mongodb-tools package via apk (mongodump, mongorestore, etc.), no service management |
 | `aws_cli` | AWS CLI v2 | Download aarch64 zip, unzip, install |
 | `gh` | GitHub CLI | apk package installation |
 | `gradle` | Gradle build tool | Download latest, install to /opt/gradle (auto-bundled with Java/Kotlin) |

@@ -23,7 +23,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
   - Detects frameworks from Gradle, Maven, and package managers
   - Detects databases from docker-compose, environment files, and ORM dependencies
 - **Multiple Runtime Versions**: Choose Python 3.10/3.11/3.12, Node.js 18/20/22, Java 11/17/21, Kotlin 1.9/2.0, Rust stable/nightly, and Go 1.24.12/1.25.6
-- **Database Support**: PostgreSQL, Redis, MySQL, and SQLite with automatic installation
+- **Database Support**: PostgreSQL, Redis, MySQL, SQLite, and MongoDB CLI tools with automatic installation
 - **Developer Tools**: Docker, AWS CLI, GitHub CLI, Git pre-installed
 - **Testing Frameworks**: Playwright with browser binaries ready to use
 - **AI Integration**: Claude Code CLI for AI-assisted development
@@ -64,6 +64,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 | Redis | 6379 | In-memory data store |
 | MySQL | 3306 | Relational database |
 | SQLite | N/A | File-based database, no service management required |
+| MongoDB | N/A | CLI tools only (mongodump, mongorestore, etc.) for working with remote MongoDB instances |
 
 ### Frameworks & Tools
 
@@ -109,7 +110,7 @@ If no `.clauded.yaml` exists, the interactive wizard will guide you through setu
 ? Rust version: stable
 ? Go version: 1.25.6
 ? Select tools (space to select): docker, git
-? Select databases: postgresql, redis, sqlite
+? Select databases: postgresql, redis, mongodb, sqlite
 ? Select frameworks: claude-code, playwright
 ? Customize VM resources? No
 ```
@@ -214,6 +215,7 @@ environment:
     - postgresql
     - redis
     - mysql
+    - mongodb
     - sqlite
   frameworks:
     - claude-code

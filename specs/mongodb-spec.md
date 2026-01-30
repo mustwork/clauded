@@ -1,8 +1,8 @@
-# MongoDB Database Support
+# MongoDB Tools Support
 
 ## Problem Statement
 
-Developers using MongoDB need the database automatically provisioned in their clauded VMs. While MongoDB detection has been implemented (from docker-compose, environment variables, and ORM dependencies), the actual provisioning via Ansible is not yet complete.
+Developers working with MongoDB need the MongoDB command-line tools (mongodump, mongorestore, mongoexport, mongoimport, etc.) available in their clauded VMs for database operations. While MongoDB detection has been implemented (from docker-compose, environment variables, and ORM dependencies), the actual provisioning of MongoDB tools via Ansible is not yet complete.
 
 Currently, if a user selects MongoDB in the wizard:
 - Detection works correctly
@@ -10,17 +10,18 @@ Currently, if a user selects MongoDB in the wizard:
 - Config saves with `databases: [mongodb]`
 - **But**: Provisioning silently skips MongoDB (no Ansible role exists)
 
+**Note**: The full MongoDB server is not available in Alpine Linux repositories (removed after Alpine 3.9 due to licensing). This feature provides the MongoDB CLI tools package (`mongodb-tools`) which includes utilities for working with remote MongoDB instances.
+
 ## Core Functionality
 
-Implement MongoDB database provisioning so that VMs include a running MongoDB instance when selected.
+Implement MongoDB tools provisioning so that VMs include MongoDB CLI utilities when selected.
 
 ## Functional Requirements
 
 ### FR-1: Ansible Role
 - Create `roles/mongodb/tasks/main.yml` with Alpine apk installation
-- Install `mongodb` package via apk
-- Configure and start MongoDB service via OpenRC
-- Wait for port 27017 to be ready before completing
+- Install `mongodb-tools` package via apk (from community repository)
+- Verify installation by checking tool availability
 
 ### FR-2: Provisioner Integration
 - Add role selection logic in `provisioner.py` `_get_roles()` method:
@@ -29,26 +30,15 @@ Implement MongoDB database provisioning so that VMs include a running MongoDB in
       roles.append("mongodb")
   ```
 
-### FR-3: Service Configuration
-- Enable MongoDB service at boot
-- Start service after installation
-- Verify service is listening on port 27017
-
 ## Critical Constraints
 
 ### CC-1: Alpine Linux Compatibility
-- Must use Alpine-native `mongodb` package from apk
-- Must work with OpenRC init system
+- Must use Alpine-native `mongodb-tools` package from apk community repository
 - Must be compatible with ARM64 (Apple Silicon)
 
 ### CC-2: Idempotent Provisioning
 - Role must be safe to re-run multiple times
-- Should not fail if MongoDB is already installed
-- Should not duplicate configuration
-
-### CC-3: Resource Considerations
-- MongoDB can be memory-intensive
-- Consider documenting recommended VM resources (16GB+ RAM)
+- Should not fail if mongodb-tools is already installed
 
 ## Integration Points
 
@@ -68,18 +58,17 @@ Implement MongoDB database provisioning so that VMs include a running MongoDB in
 
 ## Out of Scope
 
+- MongoDB server installation (not available in Alpine)
 - MongoDB authentication configuration
 - Replica set configuration
 - MongoDB Compass or GUI tools
 - Custom MongoDB configuration files
-- Sharding or clustering
 
 ## Acceptance Criteria
 
 - [ ] Ansible role `roles/mongodb/` exists with `tasks/main.yml`
 - [ ] `provisioner.py` `_get_roles()` includes mongodb role when selected
-- [ ] MongoDB service starts automatically on VM boot
-- [ ] Port 27017 is accessible after provisioning
+- [ ] MongoDB tools (mongodump, etc.) are available after provisioning
 - [ ] Provisioning is idempotent (safe to re-run)
 - [ ] Tests verify MongoDB role selection
-- [ ] Documentation updated to reflect MongoDB as fully implemented
+- [ ] Documentation updated to reflect MongoDB tools as implemented

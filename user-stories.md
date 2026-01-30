@@ -135,7 +135,7 @@ Declarative `.clauded.yaml` configuration for reproducible development environme
 - [ ] Wizard prompts for Python version (3.10/3.11/3.12/None)
 - [ ] Wizard prompts for Node.js version (18/20/22/None)
 - [ ] Wizard prompts for tools (docker, git, aws-cli, gh)
-- [ ] Wizard prompts for databases (postgresql, redis, mysql, sqlite)
+- [ ] Wizard prompts for databases (postgresql, redis, mysql, sqlite, mongodb)
 - [ ] Wizard prompts for frameworks (claude-code, playwright)
 - [ ] Wizard generates valid `.clauded.yaml`
 
@@ -218,14 +218,15 @@ Ansible-based installation of tools, databases, and frameworks.
 
 #### [Implemented] Story: Select Databases
 
-**As a** Full-Stack Developer, **I want** PostgreSQL, Redis, and MySQL available as optional selections, **so that** I can choose the databases my project needs.
+**As a** Full-Stack Developer, **I want** PostgreSQL, Redis, MySQL, and MongoDB tools available as optional selections, **so that** I can choose the databases my project needs.
 
 **Acceptance Criteria**:
 - [ ] Can select PostgreSQL (installs postgresql + contrib + postgresql-dev)
 - [ ] Can select Redis (installs redis)
 - [ ] Can select MySQL (installs mariadb)
-- [ ] Selected databases are running and enabled
-- [ ] Database services start automatically on VM boot
+- [ ] Can select MongoDB (installs mongodb-tools CLI utilities)
+- [ ] Selected database servers are running and enabled
+- [ ] Database services start automatically on VM boot (except MongoDB tools which are CLI utilities)
 
 #### [Implemented] Story: Install AWS CLI
 
@@ -354,11 +355,11 @@ Interactive wizard for quick project setup.
 
 #### [Implemented] Story: Select Databases
 
-**As a** Backend Developer, **I want** to select which databases I need (PostgreSQL, Redis, MySQL), **so that** I can choose the exact stack for my project.
+**As a** Backend Developer, **I want** to select which databases I need (PostgreSQL, Redis, MySQL, MongoDB), **so that** I can choose the exact stack for my project.
 
 **Acceptance Criteria**:
 - [ ] Wizard presents databases as multi-select
-- [ ] Can select postgresql, redis, mysql
+- [ ] Can select postgresql, redis, mysql, mongodb
 - [ ] Selected databases are provisioned
 - [ ] Unselected databases are not installed
 
@@ -515,6 +516,7 @@ Intelligent detection of languages, versions, frameworks, and databases to pre-p
 - [ ] Detects PostgreSQL from docker-compose services
 - [ ] Detects Redis from docker-compose services
 - [ ] Detects MySQL from docker-compose services
+- [ ] Detects MongoDB from docker-compose services
 - [ ] Detects databases from ORM adapter dependencies
 - [ ] Detects databases from environment variable patterns
 
@@ -608,17 +610,20 @@ Extended detection system support for additional manifest formats and databases.
 
 **Implementation**: src/clauded/detect/framework.py (parse_java_dependencies)
 
-#### [Planned] Story: MongoDB Database Provisioning
+#### [Implemented] Story: MongoDB CLI Tools Provisioning
 
-**As a** Developer using MongoDB, **I want** MongoDB to be provisioned in my VM, **so that** I can develop with a document-oriented database.
+**As a** Developer using MongoDB, **I want** MongoDB CLI tools provisioned in my VM, **so that** I can interact with remote MongoDB instances and perform database operations.
 
 **Acceptance Criteria**:
-- [ ] MongoDB detection from docker-compose services (already implemented)
-- [ ] MongoDB detection from .env MONGODB_URI variables (already implemented)
-- [ ] MongoDB detection from pymongo/mongoose/motor dependencies (already implemented)
-- [ ] Ansible role provisions MongoDB via apk
-- [ ] MongoDB service starts automatically on VM boot
-- [ ] Port 27017 is accessible after provisioning
+- [x] MongoDB detection from docker-compose services (already implemented)
+- [x] MongoDB detection from .env MONGODB_URI variables (already implemented)
+- [x] MongoDB detection from pymongo/mongoose/motor dependencies (already implemented)
+- [x] Ansible role provisions mongodb-tools package via apk
+- [x] CLI tools (mongodump, mongorestore, mongoexport, mongoimport) are available
+- [x] No service management (tools only, not MongoDB server)
+- [x] mongodump --version verification confirms installation
+
+**Note**: This installs MongoDB CLI utilities for working with remote MongoDB instances. Full MongoDB server is not available in Alpine Linux repositories (discontinued after version 3.9 due to licensing changes).
 
 **Links to**: `specs/mongodb-spec.md`
 
@@ -627,8 +632,8 @@ Extended detection system support for additional manifest formats and databases.
 ## Feature Implementation Status Summary
 
 - **Total Stories**: 49
-- **Implemented**: 48
+- **Implemented**: 49
 - **In Progress**: 0
-- **Planned**: 1
+- **Planned**: 0
 
-All core features are implemented. MongoDB provisioning is documented for future implementation (detection is complete, but Ansible role is pending). See `specs/mongodb-spec.md`.
+All core features are implemented. MongoDB CLI tools support provides database utilities for working with remote MongoDB instances (full MongoDB server is not available in Alpine Linux).

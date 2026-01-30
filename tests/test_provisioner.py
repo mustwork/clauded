@@ -29,7 +29,7 @@ def full_config() -> Config:
         rust="stable",
         go="1.23.5",
         tools=["docker", "aws-cli", "gh"],
-        databases=["postgresql", "redis", "mysql"],
+        databases=["postgresql", "redis", "mysql", "mongodb"],
         frameworks=["playwright", "claude-code"],
     )
 
@@ -282,6 +282,15 @@ class TestProvisionerGetRoles:
 
         assert "mysql" in roles
 
+    def test_includes_mongodb_when_in_databases(self, full_config: Config) -> None:
+        """MongoDB role included when mongodb in databases."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "mongodb" in roles
+
     def test_includes_playwright_when_in_frameworks(self, full_config: Config) -> None:
         """Playwright role included when playwright in frameworks."""
         vm = LimaVM(full_config)
@@ -323,7 +332,7 @@ class TestProvisionerGetRoles:
         assert "claude_code" in roles
 
     def test_full_config_has_all_roles(self, full_config: Config) -> None:
-        """Full config produces all 19 roles."""
+        """Full config produces all 20 roles."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
@@ -347,6 +356,7 @@ class TestProvisionerGetRoles:
             "postgresql",
             "redis",
             "mysql",
+            "mongodb",
             "playwright",
             "claude_code",
         ]
