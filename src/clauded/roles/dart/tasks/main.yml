@@ -1,0 +1,68 @@
+---
+- name: Install curl and unzip for Dart download
+  apk:
+    name:
+      - curl
+      - unzip
+    state: present
+    update_cache: yes
+
+- name: Remove existing Dart installation
+  file:
+    path: /usr/local/dart-sdk
+    state: absent
+
+- name: Set Dart download metadata
+  set_fact:
+    dart_download: "{{ downloads.dart.versions[dart_version] | default(downloads.dart.versions[downloads.dart.default_version]) }}"
+    dart_effective_version: "{{ dart_version if dart_version in downloads.dart.versions else downloads.dart.default_version }}"
+
+- name: Download Dart SDK {{ dart_effective_version }}
+  get_url:
+    url: "{{ dart_download.url }}"
+    dest: /tmp/dart-sdk.zip
+    mode: '0644'
+    checksum: "sha256:{{ dart_download.sha256 }}"
+
+- name: Create Dart SDK directory
+  file:
+    path: /usr/local/dart-sdk
+    state: directory
+    mode: '0755'
+
+- name: Extract Dart SDK to /usr/local/dart-sdk
+  unarchive:
+    src: /tmp/dart-sdk.zip
+    dest: /usr/local
+    remote_src: yes
+    creates: /usr/local/dart-sdk/bin/dart
+
+- name: Set Dart environment variables system-wide
+  copy:
+    dest: /etc/profile.d/dart.sh
+    content: |
+      export DART_SDK=/usr/local/dart-sdk
+      export PATH=$DART_SDK/bin:$HOME/.pub-cache/bin:$PATH
+    mode: '0644'
+
+- name: Create symlinks for Dart binaries
+  file:
+    src: "/usr/local/dart-sdk/bin/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+  loop:
+    - dart
+
+- name: Clean up downloaded archive
+  file:
+    path: /tmp/dart-sdk.zip
+    state: absent
+
+- name: Verify Dart installation
+  command: /usr/local/dart-sdk/bin/dart --version
+  register: dart_version_output
+  changed_when: false
+
+- name: Display Dart version
+  debug:
+    msg: "Dart version: {{ dart_version_output.stdout }}"

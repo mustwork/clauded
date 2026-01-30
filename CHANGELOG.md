@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dart Language Support**: Dart SDK provisioning with versions 3.5, 3.6, and 3.7
+  - Includes dart CLI and pub package manager
+  - Official ARM64 binaries from Google storage with checksum verification
+- **C/C++ Language Support**: C and C++ development toolchain provisioning
+  - GCC toolchain options: gcc14, gcc13
+  - Clang/LLVM toolchain options: clang18, clang17
+  - Includes build tools: make, cmake, gdb, valgrind
+  - Environment variables CC and CXX set based on selected toolchain
 - **Atomic Config Updates with Rollback**: VM configuration changes now use transactional semantics
   - Config updates automatically roll back to previous state if VM creation or provisioning fails
   - Rollback handles all exceptions including KeyboardInterrupt and SystemExit

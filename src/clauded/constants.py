@@ -49,6 +49,16 @@ LANGUAGE_CONFIG: dict[str, LanguageInfo] = {
         "versions": ["1.23.5", "1.22.10"],
         "label": "Go (go mod)",
     },
+    "dart": {
+        "name": "Dart",
+        "versions": ["3.7", "3.6", "3.5"],
+        "label": "Dart (dart, pub)",
+    },
+    "c": {
+        "name": "C/C++",
+        "versions": ["gcc14", "gcc13", "clang18", "clang17"],
+        "label": "C/C++ (gcc, g++, clang, make, cmake)",
+    },
 }
 
 

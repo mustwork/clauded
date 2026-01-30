@@ -188,6 +188,10 @@ class Provisioner:
             roles.append("rust")
         if self.config.go:
             roles.append("go")
+        if self.config.dart:
+            roles.append("dart")
+        if self.config.c:
+            roles.append("c")
 
         # Tools
         if "docker" in self.config.tools:
@@ -247,6 +251,8 @@ class Provisioner:
                     "kotlin_version": self.config.kotlin or "2.0",
                     "rust_version": self.config.rust or "stable",
                     "go_version": self.config.go or "1.23.5",
+                    "dart_version": self.config.dart or "3.7",
+                    "c_version": self.config.c or "gcc14",
                     "claude_dangerously_skip_permissions": (
                         self.config.claude_dangerously_skip_permissions
                     ),

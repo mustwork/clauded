@@ -87,6 +87,23 @@ gradle:
       url: "https://services.gradle.org/distributions/gradle-8.12-bin.zip"
       sha256: "7a00d51fb93147819aab76024feece20b6b84e420694101f276be952e08bef03"
 
+# Dart SDK (official binaries for ARM64)
+dart:
+  default_version: "3.7"
+  versions:
+    "3.7":
+      version: "3.7.0"
+      url: "https://storage.googleapis.com/dart-archive/channels/stable/release/3.7.0/sdk/dartsdk-linux-arm64-release.zip"
+      sha256: "7c849abc0d06a130d26d71490d5f2b4b2fe1ca477b1a9cee6b6d870e6f9d626f"
+    "3.6":
+      version: "3.6.1"
+      url: "https://storage.googleapis.com/dart-archive/channels/stable/release/3.6.1/sdk/dartsdk-linux-arm64-release.zip"
+      sha256: "9192cc5efe2af1ff91aae692950550ae4eb649656e5e003c76b4ed55c328154e"
+    "3.5":
+      version: "3.5.4"
+      url: "https://storage.googleapis.com/dart-archive/channels/stable/release/3.5.4/sdk/dartsdk-linux-arm64-release.zip"
+      sha256: "a91d64dd3173349cee58c82f5ebf18bb9670f65eecc26d5684124c3def3f83ec"
+
 # Node.js runtime (official binaries for ARM64)
 node:
   default_version: "22"

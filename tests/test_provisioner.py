@@ -28,6 +28,8 @@ def full_config() -> Config:
         kotlin="2.0",
         rust="stable",
         go="1.23.5",
+        dart="3.7",
+        c="gcc14",
         tools=["docker", "aws-cli", "gh"],
         databases=["postgresql", "redis", "mysql", "mongodb"],
         frameworks=["playwright", "claude-code"],
@@ -172,6 +174,42 @@ class TestProvisionerGetRoles:
         roles = provisioner._get_roles()
 
         assert "go" not in roles
+
+    def test_includes_dart_when_selected(self, full_config: Config) -> None:
+        """Dart role included when dart version specified."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "dart" in roles
+
+    def test_excludes_dart_when_none(self, minimal_config: Config) -> None:
+        """Dart role excluded when dart is None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "dart" not in roles
+
+    def test_includes_c_when_selected(self, full_config: Config) -> None:
+        """C role included when c version specified."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "c" in roles
+
+    def test_excludes_c_when_none(self, minimal_config: Config) -> None:
+        """C role excluded when c is None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        roles = provisioner._get_roles()
+
+        assert "c" not in roles
 
     def test_includes_docker_when_in_tools(self, full_config: Config) -> None:
         """Docker role included when docker in tools."""
@@ -332,7 +370,7 @@ class TestProvisionerGetRoles:
         assert "claude_code" in roles
 
     def test_full_config_has_all_roles(self, full_config: Config) -> None:
-        """Full config produces all 20 roles."""
+        """Full config produces all 22 roles."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
@@ -350,6 +388,8 @@ class TestProvisionerGetRoles:
             "gradle",  # Auto-bundled with Java/Kotlin
             "rust",
             "go",
+            "dart",
+            "c",
             "docker",
             "aws_cli",
             "gh",
@@ -514,6 +554,42 @@ class TestProvisionerGeneratePlaybook:
         playbook = provisioner._generate_playbook()
 
         assert playbook[0]["vars"]["go_version"] == "1.23.5"
+
+    def test_play_includes_dart_version_var(self, full_config: Config) -> None:
+        """Play includes dart_version variable."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["dart_version"] == "3.7"
+
+    def test_play_defaults_dart_version_when_none(self, minimal_config: Config) -> None:
+        """Dart version defaults to 3.7 when None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["dart_version"] == "3.7"
+
+    def test_play_includes_c_version_var(self, full_config: Config) -> None:
+        """Play includes c_version variable."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["c_version"] == "gcc14"
+
+    def test_play_defaults_c_version_when_none(self, minimal_config: Config) -> None:
+        """C version defaults to gcc14 when None."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        playbook = provisioner._generate_playbook()
+
+        assert playbook[0]["vars"]["c_version"] == "gcc14"
 
     def test_play_includes_roles(self, full_config: Config) -> None:
         """Play includes roles from _get_roles()."""

@@ -16,7 +16,7 @@ class TestLanguageConfig:
 
     def test_contains_expected_languages(self) -> None:
         """LANGUAGE_CONFIG contains all expected languages."""
-        expected = {"python", "node", "java", "kotlin", "rust", "go"}
+        expected = {"python", "node", "java", "kotlin", "rust", "go", "dart", "c"}
         assert set(LANGUAGE_CONFIG.keys()) == expected
 
     def test_each_language_has_required_fields(self) -> None:
@@ -46,6 +46,15 @@ class TestLanguageConfig:
         # Rust
         assert LANGUAGE_CONFIG["rust"]["name"] == "Rust"
         assert "stable" in LANGUAGE_CONFIG["rust"]["versions"]
+
+        # Dart
+        assert LANGUAGE_CONFIG["dart"]["name"] == "Dart"
+        assert "3.7" in LANGUAGE_CONFIG["dart"]["versions"]
+
+        # C/C++
+        assert LANGUAGE_CONFIG["c"]["name"] == "C/C++"
+        assert "gcc14" in LANGUAGE_CONFIG["c"]["versions"]
+        assert "clang18" in LANGUAGE_CONFIG["c"]["versions"]
 
 
 class TestDefaultLanguages:
@@ -124,6 +133,21 @@ class TestGetSupportedVersions:
         versions = get_supported_versions("rust")
         assert "stable" in versions
         assert "nightly" in versions
+
+    def test_returns_dart_versions(self) -> None:
+        """Returns supported Dart versions."""
+        versions = get_supported_versions("dart")
+        assert "3.7" in versions
+        assert "3.6" in versions
+        assert "3.5" in versions
+
+    def test_returns_c_versions(self) -> None:
+        """Returns supported C/C++ versions."""
+        versions = get_supported_versions("c")
+        assert "gcc14" in versions
+        assert "gcc13" in versions
+        assert "clang18" in versions
+        assert "clang17" in versions
 
     def test_raises_for_unknown_language(self) -> None:
         """Raises KeyError for unknown language."""
@@ -207,6 +231,13 @@ class TestValidateVersion:
             ("rust", "nightly"),
             ("go", "1.23.5"),
             ("go", "1.22.10"),
+            ("dart", "3.7"),
+            ("dart", "3.6"),
+            ("dart", "3.5"),
+            ("c", "gcc14"),
+            ("c", "gcc13"),
+            ("c", "clang18"),
+            ("c", "clang17"),
         ],
     )
     def test_all_documented_versions_are_valid(

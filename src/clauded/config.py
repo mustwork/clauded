@@ -194,6 +194,8 @@ class Config:
     kotlin: str | None = None
     rust: str | None = None
     go: str | None = None
+    dart: str | None = None
+    c: str | None = None
     tools: list[str] = field(default_factory=list)
     databases: list[str] = field(default_factory=list)
     frameworks: list[str] = field(default_factory=list)
@@ -224,6 +226,8 @@ class Config:
             kotlin=answers.get("kotlin") if answers.get("kotlin") != "None" else None,
             rust=answers.get("rust") if answers.get("rust") != "None" else None,
             go=answers.get("go") if answers.get("go") != "None" else None,
+            dart=answers.get("dart") if answers.get("dart") != "None" else None,
+            c=answers.get("c") if answers.get("c") != "None" else None,
             tools=answers.get("tools", []),
             databases=answers.get("databases", []),
             frameworks=answers.get("frameworks", []),
@@ -346,6 +350,8 @@ class Config:
         kotlin_ver = _validate_runtime_version("kotlin", env.get("kotlin"))
         rust_ver = _validate_runtime_version("rust", env.get("rust"))
         go_ver = _validate_runtime_version("go", env.get("go"))
+        dart_ver = _validate_runtime_version("dart", env.get("dart"))
+        c_ver = _validate_runtime_version("c", env.get("c"))
 
         # Validate VM names for security
         vm_name = _validate_vm_name(data["vm"]["name"])
@@ -368,6 +374,8 @@ class Config:
             kotlin=kotlin_ver,
             rust=rust_ver,
             go=go_ver,
+            dart=dart_ver,
+            c=c_ver,
             tools=env.get("tools") or [],
             databases=env.get("databases") or [],
             frameworks=env.get("frameworks") or [],
@@ -405,6 +413,8 @@ class Config:
                 "kotlin": self.kotlin,
                 "rust": self.rust,
                 "go": self.go,
+                "dart": self.dart,
+                "c": self.c,
                 "tools": self.tools,
                 "databases": self.databases,
                 "frameworks": self.frameworks,
