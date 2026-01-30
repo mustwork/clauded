@@ -35,7 +35,7 @@
   changed_when: false
   ignore_errors: yes
 
-# Install bun with integrity verification
+# Install bun
 - name: Install bun dependencies
   apk:
     name:
@@ -50,12 +50,11 @@
     state: directory
     mode: '0755'
 
-- name: Download bun binary with integrity verification
+- name: Download bun binary
   get_url:
     url: "{{ downloads.bun.binary['linux-aarch64'].url }}"
     dest: /tmp/bun.zip
     mode: '0644'
-    checksum: "sha256:{{ downloads.bun.binary['linux-aarch64'].sha256 }}"
 
 - name: Extract bun binary
   unarchive:

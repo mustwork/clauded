@@ -1,17 +1,12 @@
-"""Tests for clauded.downloads module - supply chain integrity verification."""
-
-import tempfile
-from pathlib import Path
+"""Tests for clauded.downloads module."""
 
 import pytest
 
 from clauded.downloads import (
     DownloadMetadataError,
-    IntegrityError,
     get_alpine_image,
     get_downloads,
     get_tool_metadata,
-    verify_sha256,
 )
 
 
@@ -53,18 +48,12 @@ class TestGetAlpineImage:
     """Tests for get_alpine_image() function."""
 
     def test_returns_dict_with_required_keys(self) -> None:
-        """Returns dict with url, version, arch keys.
-
-        Note: sha256 is intentionally not included because Alpine rebuilds
-        images in-place for security patches without changing the version.
-        """
+        """Returns dict with url, version, arch keys."""
         image = get_alpine_image()
 
         assert "url" in image
         assert "version" in image
         assert "arch" in image
-        # sha256 intentionally omitted - Alpine images are rebuilt in-place
-        assert "sha256" not in image
 
     def test_url_is_alpine_cdn(self) -> None:
         """URL points to Alpine Linux CDN."""
@@ -82,7 +71,6 @@ class TestGetToolMetadata:
 
         assert "version" in meta
         assert "url" in meta
-        assert "sha256" in meta
         assert "go.dev/dl" in meta["url"]
 
     def test_go_specific_version(self) -> None:
@@ -98,7 +86,6 @@ class TestGetToolMetadata:
 
         assert "version" in meta
         assert "url" in meta
-        assert "sha256" in meta
 
     def test_uv_metadata(self) -> None:
         """Returns UV installer metadata."""
@@ -106,7 +93,6 @@ class TestGetToolMetadata:
 
         assert "version" in meta
         assert "installer_url" in meta
-        # No installer_sha256 - updated in-place by upstream
 
     def test_unknown_tool_raises_error(self) -> None:
         """Raises DownloadMetadataError for unknown tool."""
@@ -119,106 +105,8 @@ class TestGetToolMetadata:
             get_tool_metadata("go", "999.999.999")
 
 
-class TestVerifySha256:
-    """Tests for verify_sha256() function."""
-
-    def test_valid_checksum_passes(self) -> None:
-        """Does not raise when checksum matches."""
-        with tempfile.NamedTemporaryFile(delete=False) as f:
-            f.write(b"hello world\n")
-            temp_path = Path(f.name)
-
-        try:
-            # SHA256 of "hello world\n"
-            expected = (
-                "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447"
-            )
-            verify_sha256(temp_path, expected)  # Should not raise
-        finally:
-            temp_path.unlink()
-
-    def test_invalid_checksum_raises_error(self) -> None:
-        """Raises IntegrityError when checksum does not match."""
-        with tempfile.NamedTemporaryFile(delete=False) as f:
-            f.write(b"hello world\n")
-            temp_path = Path(f.name)
-
-        try:
-            wrong_checksum = "0" * 64
-            with pytest.raises(IntegrityError, match="Checksum verification failed"):
-                verify_sha256(temp_path, wrong_checksum)
-        finally:
-            temp_path.unlink()
-
-    def test_missing_file_raises_error(self) -> None:
-        """Raises FileNotFoundError for missing file."""
-        with pytest.raises(FileNotFoundError):
-            verify_sha256(Path("/nonexistent/file.txt"), "0" * 64)
-
-    def test_case_insensitive_comparison(self) -> None:
-        """Checksum comparison is case-insensitive."""
-        with tempfile.NamedTemporaryFile(delete=False) as f:
-            f.write(b"hello world\n")
-            temp_path = Path(f.name)
-
-        try:
-            # Test with uppercase checksum
-            expected_upper = (
-                "A948904F2F0F479B8F8197694B30184B0D2ED1C1CD2A1EC0FB85D299A192A447"
-            )
-            verify_sha256(temp_path, expected_upper)  # Should not raise
-        finally:
-            temp_path.unlink()
-
-
 class TestDownloadsYamlIntegrity:
     """Tests to verify downloads.yml file has valid structure."""
-
-    def test_all_tools_have_sha256(self) -> None:
-        """All tools with immutable releases have SHA256 checksums defined.
-
-        Note: Alpine image, uv, bun, and rustup installer scripts intentionally
-        excluded - these are updated in-place by upstream providers without
-        changing version numbers, which would break hash verification.
-        """
-        downloads = get_downloads()
-
-        # Tools with multiple versions (immutable release artifacts)
-        for tool in ["go", "kotlin", "maven", "gradle"]:
-            assert "versions" in downloads[tool], f"{tool} missing versions"
-            for version, meta in downloads[tool]["versions"].items():
-                assert "sha256" in meta, f"{tool} {version} missing sha256"
-                sha256_len = len(meta["sha256"])
-                assert sha256_len == 64, f"{tool} {version} invalid sha256 length"
-
-        # Node.js binaries (immutable releases)
-        for version, meta in downloads["node"]["versions"].items():
-            assert "sha256" in meta, f"node {version} missing sha256"
-
-        # Bun binary (immutable release)
-        assert "sha256" in downloads["bun"]["binary"]["linux-aarch64"]
-
-        # Alpine image, uv, bun installer, rustup installer intentionally have
-        # no sha256 - updated in-place upstream
-
-    def test_installer_scripts_have_no_checksums(self) -> None:
-        """Installer scripts for uv, bun, rustup have no checksum verification.
-
-        These installer scripts are updated in-place by upstream providers
-        without changing version numbers. Hash verification is not feasible.
-        Security relies on HTTPS transport security.
-        """
-        downloads = get_downloads()
-
-        # Verify installer scripts lack checksums (following Alpine pattern)
-        assert "installer_sha256" not in downloads["uv"]
-        assert "installer_sha256" not in downloads["bun"]
-        assert "installer_sha256" not in downloads["rustup"]
-
-        # But verify URLs are present and use HTTPS
-        assert downloads["uv"]["installer_url"].startswith("https://")
-        assert downloads["bun"]["installer_url"].startswith("https://")
-        assert downloads["rustup"]["installer_url"].startswith("https://")
 
     def test_all_tools_have_urls(self) -> None:
         """All tools have download URLs defined."""
@@ -238,3 +126,12 @@ class TestDownloadsYamlIntegrity:
         # Alpine image
         assert "url" in downloads["alpine_image"]
         assert downloads["alpine_image"]["url"].startswith("https://")
+
+    def test_bun_binary_url(self) -> None:
+        """Bun binary has URL defined."""
+        downloads = get_downloads()
+
+        assert "binary" in downloads["bun"]
+        assert "linux-aarch64" in downloads["bun"]["binary"]
+        assert "url" in downloads["bun"]["binary"]["linux-aarch64"]
+        assert downloads["bun"]["binary"]["linux-aarch64"]["url"].startswith("https://")

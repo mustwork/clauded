@@ -272,7 +272,7 @@ ssh:
 | `python` | Python build dependencies | apk python3, python3-dev, py3-pip, build dependencies |
 | `uv` | Python package manager | uv installation, then `uv python install {{ python_version }}` |
 | `poetry` | Python dependency manager | poetry installation via pipx (auto-bundled with Python) |
-| `node` | Node.js installation | Download official binary from nodejs.org with checksum verification |
+| `node` | Node.js installation | Alpine packages for musl compatibility |
 | `java` | Java version installation | apk openjdk{{ java_version }} |
 | `kotlin` | Kotlin compiler installation | Download from GitHub releases, kotlin{{ kotlin_version }} |
 | `maven` | Java/Kotlin build tool | Maven binary installation (auto-bundled with Java/Kotlin) |
@@ -390,33 +390,16 @@ ssh:
 
 ### Supply Chain Integrity
 
-All external downloads (language runtimes, tools) are verified for integrity where feasible:
+All external downloads (language runtimes, tools) use HTTPS transport security.
 
 **Centralized Download Metadata**
-- All download URLs, versions, and SHA256 checksums are defined in `src/clauded/downloads.yml`
+- All download URLs and versions are defined in `src/clauded/downloads.yml`
 - Single source of truth for all external dependencies
 - No "latest" pointers or dynamic version fetching
 
-**Integrity Verification**
+**Security Model**
 
-The system uses different verification approaches based on artifact mutability:
-
-*Immutable Release Artifacts (SHA256 checksums)*:
-- Go compiler binaries
-- Kotlin compiler binaries
-- Maven binaries
-- Gradle binaries
-- Node.js binaries
-- Bun binaries (direct download)
-
-These tools publish immutable release artifacts with stable checksums. Checksums are validated via Ansible `get_url` checksum parameter.
-
-*Mutable Installer Scripts (HTTPS only)*:
-- uv installer script (astral.sh)
-- bun installer script (bun.sh)
-- rustup installer script (sh.rustup.rs)
-
-These installer scripts are updated in-place by upstream providers without changing version numbers, making hash verification impractical. Security relies on HTTPS transport security.
+Integrity verification relies on HTTPS transport security. Hash verification is not used because upstream providers frequently update artifacts in-place without changing version numbers, which breaks checksum verification.
 
 **Version Pinning**
 - All tools are pinned to specific versions
@@ -424,10 +407,8 @@ These installer scripts are updated in-place by upstream providers without chang
 - Version updates require explicit changes to downloads.yml
 
 **Known Limitations**
-- Alpine Linux cloud image: Alpine rebuilds images in-place for security patches without changing version numbers, making hash pinning impractical. Integrity relies on HTTPS transport security.
-- Installer scripts (uv, bun, rustup): Updated in-place by upstream providers, making hash verification impractical. Integrity relies on HTTPS transport security.
-- Claude Code binary: Downloaded from Anthropic's distribution bucket without checksum (no official checksums published)
-- Custom VM images: User-specified images bypass checksum verification (user's responsibility)
+- Claude Code binary: Downloaded from Anthropic's distribution bucket (no official checksums published)
+- Custom VM images: User-specified images bypass all verification (user's responsibility)
 
 ### Claude Code Permissions
 

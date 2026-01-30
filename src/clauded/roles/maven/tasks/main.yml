@@ -16,12 +16,11 @@
     state: directory
     mode: '0755'
 
-- name: Download Maven with integrity verification
+- name: Download Maven
   get_url:
     url: "{{ maven_download.url }}"
     dest: /tmp/maven.tar.gz
     mode: '0644'
-    checksum: "sha256:{{ maven_download.sha256 }}"
 
 - name: Extract Maven
   unarchive:

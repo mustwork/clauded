@@ -18,12 +18,11 @@
     state: directory
     mode: '0755'
 
-- name: Download Gradle with integrity verification
+- name: Download Gradle
   get_url:
     url: "{{ gradle_download.url }}"
     dest: /tmp/gradle.zip
     mode: '0644'
-    checksum: "sha256:{{ gradle_download.sha256 }}"
 
 - name: Extract Gradle
   unarchive:

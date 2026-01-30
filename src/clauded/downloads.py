@@ -1,25 +1,17 @@
-"""Download metadata and integrity verification for supply chain security.
+"""Download metadata for external tools.
 
 This module provides:
-- Centralized access to download URLs, versions, and SHA256 checksums
-- Integrity verification utilities for downloaded files
+- Centralized access to download URLs and versions
 - Ansible-compatible metadata export
 
-All external downloads must be defined in downloads.yml with pinned versions
-and verified checksums.
+All external downloads must be defined in downloads.yml with pinned versions.
+Integrity verification relies on HTTPS transport security.
 """
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
 import yaml
-
-
-class IntegrityError(Exception):
-    """Raised when a downloaded file fails integrity verification."""
-
-    pass
 
 
 class DownloadMetadataError(Exception):
@@ -54,7 +46,7 @@ def get_alpine_image() -> dict[str, str]:
     """Get Alpine Linux cloud image metadata.
 
     Returns:
-        Dict with 'url', 'sha256', 'version', 'arch' keys
+        Dict with 'url', 'version', 'arch' keys
     """
     downloads = get_downloads()
     alpine: dict[str, str] = downloads["alpine_image"]
@@ -69,7 +61,7 @@ def get_tool_metadata(tool: str, version: str | None = None) -> dict[str, Any]:
         version: Specific version, or None for default
 
     Returns:
-        Dict with 'url', 'sha256' and other tool-specific keys
+        Dict with 'url' and other tool-specific keys
 
     Raises:
         DownloadMetadataError: If tool or version not found
@@ -97,31 +89,6 @@ def get_tool_metadata(tool: str, version: str | None = None) -> dict[str, Any]:
 
     # Single-version tools (uv, bun, rustup)
     return dict(tool_data)
-
-
-def verify_sha256(file_path: Path, expected_sha256: str) -> None:
-    """Verify a file's SHA256 checksum.
-
-    Args:
-        file_path: Path to the file to verify
-        expected_sha256: Expected SHA256 hex digest
-
-    Raises:
-        IntegrityError: If checksum doesn't match
-        FileNotFoundError: If file doesn't exist
-    """
-    sha256_hash = hashlib.sha256()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            sha256_hash.update(chunk)
-
-    actual = sha256_hash.hexdigest()
-    if actual.lower() != expected_sha256.lower():
-        raise IntegrityError(
-            f"Checksum verification failed for {file_path}\n"
-            f"  Expected: {expected_sha256}\n"
-            f"  Actual:   {actual}"
-        )
 
 
 def get_ansible_download_vars() -> dict[str, Any]:

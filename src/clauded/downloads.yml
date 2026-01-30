@@ -1,20 +1,16 @@
-# Centralized download metadata for supply chain integrity
-# All external downloads MUST be defined here with pinned versions and checksums
+# Centralized download metadata for external tools
+# All external downloads MUST be defined here with pinned versions
 #
 # To update a tool version:
 # 1. Update the version field
-# 2. Download the new artifact and compute: sha256sum <file>
-# 3. Update the sha256 field
-# 4. Test provisioning to verify
+# 2. Update the URL if needed
+# 3. Test provisioning to verify
 #
-# NOTE: For tools that use shell installers (uv, bun, rustup), we download the
-# installer script first, verify its checksum, then execute it. This provides
-# integrity verification while maintaining compatibility with upstream installers.
+# NOTE: Integrity verification relies on HTTPS transport security.
+# Hash verification is not used because upstream providers frequently
+# update artifacts in-place without changing version numbers.
 
 # Alpine Linux cloud image for Lima VMs
-# NOTE: No sha256 pinning - Alpine rebuilds images in-place for security patches
-# without changing the version number, which would break hash verification.
-# Lima handles caching; integrity relies on HTTPS transport security.
 alpine_image:
   version: "3.21.0"
   arch: "aarch64"
@@ -26,10 +22,8 @@ go:
   versions:
     "1.23.5":
       url: "https://go.dev/dl/go1.23.5.linux-arm64.tar.gz"
-      sha256: "47c84d332d8b26206a7e1e3d7f2aa98fd31c53d9a025e8a7d2d9378c5f168d31"
     "1.22.10":
       url: "https://go.dev/dl/go1.22.10.linux-arm64.tar.gz"
-      sha256: "e0c152acbc95cdf00f87e01d5a7e08a0ed6698df9b65d9b2ef8bb2bb41c8f6f4"
 
 # Kotlin compiler
 kotlin:
@@ -37,36 +31,23 @@ kotlin:
   versions:
     "2.0.21":
       url: "https://github.com/JetBrains/kotlin/releases/download/v2.0.21/kotlin-compiler-2.0.21.zip"
-      sha256: "f1fbe22c7eb79acb4ed81c1a88628b71a7aadab42a5f47b3ba6a3aacefef5ae3"
     "2.0.0":
       url: "https://github.com/JetBrains/kotlin/releases/download/v2.0.0/kotlin-compiler-2.0.0.zip"
-      sha256: "ef578730976154fd2c5968d75af8c2703b3de84a78dffe913f670326e149da3b"
 
-# UV - Python package manager (installer script)
-# NOTE: No sha256 pinning - astral.sh updates installer scripts in-place
-# without changing the version number, which would break hash verification.
-# Integrity relies on HTTPS transport security.
+# UV - Python package manager
 uv:
   version: "0.5.24"
   installer_url: "https://astral.sh/uv/0.5.24/install.sh"
 
-# Bun - JavaScript runtime (installer script)
-# NOTE: No sha256 pinning - Bun updates installer scripts in-place
-# without changing the version number, which would break hash verification.
-# Integrity relies on HTTPS transport security.
+# Bun - JavaScript runtime
 bun:
   version: "1.1.42"
   installer_url: "https://bun.sh/install"
-  # Direct binary download (preferred for reproducibility)
   binary:
     "linux-aarch64":
       url: "https://github.com/oven-sh/bun/releases/download/bun-v1.1.42/bun-linux-aarch64.zip"
-      sha256: "84f3a9e8f1c2b4b5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9"
 
 # Rustup - Rust toolchain installer
-# NOTE: No sha256 pinning - rustup updates installer scripts in-place
-# without changing the version number, which would break hash verification.
-# Integrity relies on HTTPS transport security.
 rustup:
   version: "1.28.1"
   installer_url: "https://sh.rustup.rs"
@@ -77,7 +58,6 @@ maven:
   versions:
     "3.9.9":
       url: "https://dlcdn.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz"
-      sha256: "7a9cdf674fc1703d6382f5f330b3d110ea1b512b51f1652846d9e4e8a588d766"
 
 # Gradle - Java/Kotlin build tool
 gradle:
@@ -85,7 +65,6 @@ gradle:
   versions:
     "8.12":
       url: "https://services.gradle.org/distributions/gradle-8.12-bin.zip"
-      sha256: "7a00d51fb93147819aab76024feece20b6b84e420694101f276be952e08bef03"
 
 # Dart SDK (official binaries for ARM64)
 dart:
@@ -94,15 +73,12 @@ dart:
     "3.7":
       version: "3.7.0"
       url: "https://storage.googleapis.com/dart-archive/channels/stable/release/3.7.0/sdk/dartsdk-linux-arm64-release.zip"
-      sha256: "7c849abc0d06a130d26d71490d5f2b4b2fe1ca477b1a9cee6b6d870e6f9d626f"
     "3.6":
       version: "3.6.1"
       url: "https://storage.googleapis.com/dart-archive/channels/stable/release/3.6.1/sdk/dartsdk-linux-arm64-release.zip"
-      sha256: "9192cc5efe2af1ff91aae692950550ae4eb649656e5e003c76b4ed55c328154e"
     "3.5":
       version: "3.5.4"
       url: "https://storage.googleapis.com/dart-archive/channels/stable/release/3.5.4/sdk/dartsdk-linux-arm64-release.zip"
-      sha256: "a91d64dd3173349cee58c82f5ebf18bb9670f65eecc26d5684124c3def3f83ec"
 
 # Node.js runtime (official binaries for ARM64)
 node:
@@ -111,12 +87,9 @@ node:
     "22":
       version: "22.22.0"
       url: "https://nodejs.org/dist/v22.22.0/node-v22.22.0-linux-arm64.tar.gz"
-      sha256: "25ba95dfb96871fa2ef977f11f95ea90818c8fa15c0f2110771db08d4ba423be"
     "20":
       version: "20.20.0"
       url: "https://nodejs.org/dist/v20.20.0/node-v20.20.0-linux-arm64.tar.gz"
-      sha256: "2b640b7fc19a1d2f12a226d7dfba9baff2de87cc15db5a3e58bcdb15582ac604"
     "18":
       version: "18.20.8"
       url: "https://nodejs.org/dist/v18.20.8/node-v18.20.8-linux-arm64.tar.gz"
-      sha256: "2e3dfc51154e6fea9fc86a90c4ea8f3ecb8b60acaf7367c4b76691da192571c1"

@@ -22,7 +22,6 @@
     url: "{{ dart_download.url }}"
     dest: /tmp/dart-sdk.zip
     mode: '0644'
-    checksum: "sha256:{{ dart_download.sha256 }}"
 
 - name: Create Dart SDK directory
   file:

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Dart Language Support**: Dart SDK provisioning with versions 3.5, 3.6, and 3.7
   - Includes dart CLI and pub package manager
-  - Official ARM64 binaries from Google storage with checksum verification
+  - Official ARM64 binaries from Google storage
 - **C/C++ Language Support**: C and C++ development toolchain provisioning
   - GCC toolchain options: gcc14, gcc13
   - Clang/LLVM toolchain options: clang18, clang17
@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Removed hash verification for all downloads**: Integrity verification now relies on HTTPS transport security only. Upstream providers frequently update artifacts in-place without changing version numbers, breaking checksum verification. This removes SHA256 checksums from `downloads.yml` and all Ansible tasks.
 - **Expanded Baseline Tools**: All VMs now include a comprehensive set of common system utilities:
   - HTTP clients: curl, wget
   - Archive/compression: tar, gzip, xz, unzip

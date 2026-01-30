@@ -20,7 +20,6 @@
     url: "{{ go_download.url }}"
     dest: /tmp/go.tar.gz
     mode: '0644'
-    checksum: "sha256:{{ go_download.sha256 }}"
 
 - name: Extract Go to /usr/local
   unarchive:

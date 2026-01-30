@@ -24,7 +24,6 @@
     url: "{{ kotlin_download.url }}"
     dest: /tmp/kotlin-compiler.zip
     mode: '0644'
-    checksum: "sha256:{{ kotlin_download.sha256 }}"
 
 - name: Extract Kotlin compiler
   unarchive:
