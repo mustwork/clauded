@@ -2,21 +2,77 @@
 
 from pathlib import Path
 
-import questionary
-from questionary import Choice, Separator, Style
+import click
+
+try:
+    from simple_term_menu import TerminalMenu  # type: ignore[import-untyped]
+except ModuleNotFoundError as exc:  # pragma: no cover - import-time dependency guard
+    raise RuntimeError(
+        "simple-term-menu is required for the interactive wizard. "
+        "Install it with your package manager or pip."
+    ) from exc
 
 from .config import Config
 from .constants import DEFAULT_LANGUAGES, LANGUAGE_CONFIG
 
-# Custom style: no text inversion, use cyan highlighting and circle indicators
-WIZARD_STYLE = Style(
-    [
-        ("highlighted", "noreverse fg:ansibrightcyan"),  # Cyan text, no inversion
-        ("selected", "noreverse fg:ansibrightcyan"),  # Cyan for checked items
-        ("pointer", "noreverse fg:ansicyan bold"),  # Bold cyan pointer
-        ("answer", "fg:ansigreen"),  # Green submitted answer
-    ]
-)
+
+def _build_menu(
+    entries: list[str], *, title: str | None, **kwargs: object
+) -> TerminalMenu:
+    """Create a TerminalMenu with backward-compatible kwargs."""
+    base_kwargs: dict[str, object] = {"clear_screen": False}
+    base_kwargs.update(kwargs)
+    try:
+        return TerminalMenu(entries, title=title, **base_kwargs)
+    except TypeError:
+        for key in (
+            "preselected_entries",
+            "show_multi_select_hint",
+            "menu_cursor_index",
+            "multi_select",
+        ):
+            base_kwargs.pop(key, None)
+        try:
+            return TerminalMenu(entries, title=title, **base_kwargs)
+        except TypeError:
+            return TerminalMenu(entries)
+
+
+def _menu_select(title: str, items: list[tuple[str, str]], default_index: int) -> str:
+    """Single-select menu returning the chosen value."""
+    entries = [label for label, _value in items]
+    menu = _build_menu(
+        entries,
+        title=title,
+        menu_cursor_index=default_index,
+    )
+    choice = menu.show()
+    if choice is None:
+        raise KeyboardInterrupt()
+    if isinstance(choice, list | tuple):
+        choice = choice[0]
+    return items[int(choice)][1]
+
+
+def _menu_multi_select(title: str, items: list[tuple[str, str, bool]]) -> list[str]:
+    """Multi-select menu returning chosen values."""
+    entries = [label for label, _value, _pre in items]
+    preselected = [i for i, (_label, _value, pre) in enumerate(items) if pre]
+    menu = _build_menu(
+        entries,
+        title=title,
+        multi_select=True,
+        show_multi_select_hint=True,
+        preselected_entries=preselected,
+    )
+    choice = menu.show()
+    if choice is None:
+        raise KeyboardInterrupt()
+    if isinstance(choice, int):
+        indices = [choice]
+    else:
+        indices = list(choice)
+    return [items[i][1] for i in indices]
 
 
 def _get_valid_default(value: str | None, choices: list[str]) -> str:
@@ -37,20 +93,14 @@ def run(project_path: Path) -> Config:
 
     answers: dict[str, str | list[str] | bool] = {}
 
-    # Languages - checkbox to select which to include
-    selected_languages = questionary.checkbox(
+    # Languages - multi-select
+    selected_languages = _menu_multi_select(
         "Select languages:",
-        choices=[
-            Choice(
-                str(LANGUAGE_CONFIG[lang]["label"]),
-                value=lang,
-                checked=lang in DEFAULT_LANGUAGES,
-            )
+        [
+            (str(LANGUAGE_CONFIG[lang]["label"]), lang, lang in DEFAULT_LANGUAGES)
             for lang in LANGUAGE_CONFIG
         ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
+    )
 
     if selected_languages is None:
         raise KeyboardInterrupt()
@@ -61,14 +111,12 @@ def run(project_path: Path) -> Config:
             lang_cfg = LANGUAGE_CONFIG[lang]
             versions = lang_cfg["versions"]
 
-            version = questionary.select(
+            default_index = 0
+            version = _menu_select(
                 f"{lang_cfg['name']} version?",
-                choices=versions,
-                default=versions[0],
-                use_indicator=True,
-                style=WIZARD_STYLE,
-                instruction="(enter to confirm)",
-            ).ask()
+                [(v, v) for v in versions],
+                default_index,
+            )
 
             if version is None:
                 raise KeyboardInterrupt()
@@ -79,25 +127,31 @@ def run(project_path: Path) -> Config:
     # Tools, databases, and frameworks combined (multi-select with separators)
     # Note: git and npm are always installed via common and node roles
     # Note: uv/poetry auto-installed with Python, maven/gradle with Java/Kotlin
-    selections = questionary.checkbox(
-        "Select tools, databases, and frameworks:",
-        choices=[
-            Separator("── Tools ──"),
-            Choice("docker", checked=True),
-            Choice("aws-cli", checked=False),
-            Choice("gh", checked=False),
-            Separator("── Databases ──"),
-            Choice("postgresql", checked=False),
-            Choice("redis", checked=False),
-            Choice("mysql", checked=False),
-            Choice("sqlite", checked=False),
-            Choice("mongodb", checked=False),
-            Separator("── Frameworks ──"),
-            Choice("playwright", checked=False),
+    tool_selections = _menu_multi_select(
+        "Select tools:",
+        [
+            ("docker", "docker", True),
+            ("aws-cli", "aws-cli", False),
+            ("gh", "gh", False),
         ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
+    )
+    database_selections = _menu_multi_select(
+        "Select databases:",
+        [
+            ("postgresql", "postgresql", False),
+            ("redis", "redis", False),
+            ("mysql", "mysql", False),
+            ("sqlite", "sqlite", False),
+            ("mongodb", "mongodb", False),
+        ],
+    )
+    framework_selections = _menu_multi_select(
+        "Select frameworks:",
+        [
+            ("playwright", "playwright", False),
+        ],
+    )
+    selections = tool_selections + database_selections + framework_selections
 
     if selections is None:
         raise KeyboardInterrupt()
@@ -113,35 +167,32 @@ def run(project_path: Path) -> Config:
     ]
 
     # Claude Code permissions - default is to skip (auto-accept all)
-    answers["claude_dangerously_skip_permissions"] = questionary.confirm(
+    answers["claude_dangerously_skip_permissions"] = click.confirm(
         "Auto-accept Claude Code permission prompts in VM?",
         default=True,
-        style=WIZARD_STYLE,
-    ).ask()
+    )
 
     if answers["claude_dangerously_skip_permissions"] is None:
         raise KeyboardInterrupt()
 
     # VM resources
-    customize_resources = questionary.confirm(
-        "Customize VM resources?", default=False
-    ).ask()
+    customize_resources = click.confirm("Customize VM resources?", default=False)
 
     if customize_resources is None:
         raise KeyboardInterrupt()
 
     if customize_resources:
-        cpus = questionary.text("CPUs:", default="4").ask()
+        cpus = click.prompt("CPUs", default="4")
         if cpus is None:
             raise KeyboardInterrupt()
         answers["cpus"] = cpus
 
-        memory = questionary.text("Memory:", default="8GiB").ask()
+        memory = click.prompt("Memory", default="8GiB")
         if memory is None:
             raise KeyboardInterrupt()
         answers["memory"] = memory
 
-        disk = questionary.text("Disk:", default="20GiB").ask()
+        disk = click.prompt("Disk", default="20GiB")
         if disk is None:
             raise KeyboardInterrupt()
         answers["disk"] = disk
@@ -165,20 +216,18 @@ def run_edit(config: Config, project_path: Path) -> Config:
 
     answers: dict[str, str | list[str] | bool] = {}
 
-    # Languages - checkbox to select which to include (pre-check currently configured)
-    selected_languages = questionary.checkbox(
+    # Languages - multi-select
+    selected_languages = _menu_multi_select(
         "Select languages:",
-        choices=[
-            Choice(
+        [
+            (
                 str(LANGUAGE_CONFIG[lang]["label"]),
-                value=lang,
-                checked=getattr(config, lang) is not None,
+                lang,
+                getattr(config, lang) is not None,
             )
             for lang in LANGUAGE_CONFIG
         ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
+    )
 
     if selected_languages is None:
         raise KeyboardInterrupt()
@@ -195,14 +244,14 @@ def run_edit(config: Config, project_path: Path) -> Config:
                 current_version if current_version in versions else versions[0]
             )
 
-            version = questionary.select(
+            default_index = (
+                versions.index(default_version) if default_version in versions else 0
+            )
+            version = _menu_select(
                 f"{lang_cfg['name']} version?",
-                choices=versions,
-                default=default_version,
-                use_indicator=True,
-                style=WIZARD_STYLE,
-                instruction="(enter to confirm)",
-            ).ask()
+                [(v, v) for v in versions],
+                default_index,
+            )
 
             if version is None:
                 raise KeyboardInterrupt()
@@ -213,25 +262,31 @@ def run_edit(config: Config, project_path: Path) -> Config:
     # Tools, databases, and frameworks combined - pre-check current selections
     # Note: git and npm are always installed via common and node roles
     # Note: uv/poetry auto-installed with Python, maven/gradle with Java/Kotlin
-    selections = questionary.checkbox(
-        "Select tools, databases, and frameworks:",
-        choices=[
-            Separator("── Tools ──"),
-            Choice("docker", checked="docker" in config.tools),
-            Choice("aws-cli", checked="aws-cli" in config.tools),
-            Choice("gh", checked="gh" in config.tools),
-            Separator("── Databases ──"),
-            Choice("postgresql", checked="postgresql" in config.databases),
-            Choice("redis", checked="redis" in config.databases),
-            Choice("mysql", checked="mysql" in config.databases),
-            Choice("sqlite", checked="sqlite" in config.databases),
-            Choice("mongodb", checked="mongodb" in config.databases),
-            Separator("── Frameworks ──"),
-            Choice("playwright", checked="playwright" in config.frameworks),
+    tool_selections = _menu_multi_select(
+        "Select tools:",
+        [
+            ("docker", "docker", "docker" in config.tools),
+            ("aws-cli", "aws-cli", "aws-cli" in config.tools),
+            ("gh", "gh", "gh" in config.tools),
         ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
+    )
+    database_selections = _menu_multi_select(
+        "Select databases:",
+        [
+            ("postgresql", "postgresql", "postgresql" in config.databases),
+            ("redis", "redis", "redis" in config.databases),
+            ("mysql", "mysql", "mysql" in config.databases),
+            ("sqlite", "sqlite", "sqlite" in config.databases),
+            ("mongodb", "mongodb", "mongodb" in config.databases),
+        ],
+    )
+    framework_selections = _menu_multi_select(
+        "Select frameworks:",
+        [
+            ("playwright", "playwright", "playwright" in config.frameworks),
+        ],
+    )
+    selections = tool_selections + database_selections + framework_selections
 
     if selections is None:
         raise KeyboardInterrupt()
@@ -247,11 +302,10 @@ def run_edit(config: Config, project_path: Path) -> Config:
     ]
 
     # Claude Code permissions - pre-select current value
-    answers["claude_dangerously_skip_permissions"] = questionary.confirm(
+    answers["claude_dangerously_skip_permissions"] = click.confirm(
         "Auto-accept Claude Code permission prompts in VM?",
         default=config.claude_dangerously_skip_permissions,
-        style=WIZARD_STYLE,
-    ).ask()
+    )
 
     if answers["claude_dangerously_skip_permissions"] is None:
         raise KeyboardInterrupt()

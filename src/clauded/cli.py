@@ -8,7 +8,6 @@ from importlib.metadata import version
 from pathlib import Path
 
 import click
-import questionary
 
 from . import wizard
 from .config import Config
@@ -32,7 +31,7 @@ def _sigint_handler(signum: int, frame: object) -> None:
 def _require_interactive_terminal() -> None:
     """Check that stdin is an interactive terminal.
 
-    The wizard requires an interactive terminal for questionary prompts.
+    The wizard requires an interactive terminal for menu prompts.
     This prevents hangs when running in CI/CD, piped input, or other
     non-interactive contexts.
 
@@ -52,7 +51,7 @@ def _reset_terminal() -> None:
     """Reset terminal to a sane state after subprocess calls.
 
     This ensures the terminal is in the correct mode for interactive
-    questionary prompts after running limactl commands that may output
+    prompts after running limactl commands that may output
     escape sequences or modify terminal settings.
     """
     if sys.stdin.isatty():
@@ -81,15 +80,8 @@ def _prompt_vm_deletion(vm_name: str) -> bool:
     Returns:
         True if user confirmed deletion, False otherwise
 
-    Raises:
-        KeyboardInterrupt: If user interrupts the prompt
     """
-    should_delete = questionary.confirm(
-        f"Delete previous VM '{vm_name}'?", default=False
-    ).ask()
-
-    if should_delete is None:
-        raise KeyboardInterrupt()
+    should_delete = click.confirm(f"Delete previous VM '{vm_name}'?", default=False)
 
     if should_delete:
         destroy_vm_by_name(vm_name)
@@ -277,7 +269,7 @@ def main(
             vm.start(debug=debug)
 
         # Always reset terminal state before running wizard - limactl operations
-        # may output escape sequences that interfere with questionary's prompts
+        # may output escape sequences that interfere with menu prompts
         _reset_terminal()
 
         # Require interactive terminal for wizard prompts

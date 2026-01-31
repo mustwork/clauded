@@ -138,30 +138,36 @@ def _generate_vm_name(project_path: str) -> str:
 **Responsibility**: Guide users through environment configuration
 
 **Dependencies**:
-- questionary (terminal UI)
+- simple-term-menu (terminal UI)
+- click (confirmation and text prompts)
 - config module (Config class)
 
 **Prompt Flow**:
-1. Python version: Select from 3.12, 3.11, 3.10, None
-2. Node.js version: Select from 22, 20, 18, None
-3. Tools: Multi-select from docker, git, aws-cli, gh
-4. Databases: Multi-select from postgresql, redis, mysql
+1. Languages: Multi-select from supported runtimes
+2. Versions: For each selected language, choose a version
+3. Tools: Multi-select from docker, aws-cli, gh
+4. Databases: Multi-select from postgresql, redis, mysql, sqlite, mongodb
 5. Frameworks: Multi-select from claude-code, playwright
 6. Resources: Optional customization of CPU/memory/disk
 
 **UI Pattern**:
 ```python
 def run() -> Config:
-    python_version = questionary.select(
-        "Select Python version:",
-        choices=["3.12", "3.11", "3.10", "None"]
-    ).ask()
+    languages = _menu_multi_select(
+        "Select languages:",
+        [("Python", "python", True), ("Node.js", "node", True)],
+    )
 
-    tools = questionary.checkbox(
+    python_version = _menu_select(
+        "Python version?",
+        [("3.12", "3.12"), ("3.11", "3.11"), ("3.10", "3.10")],
+        default_index=0,
+    )
+
+    tools = _menu_multi_select(
         "Select tools:",
-        choices=["docker", "git", "aws-cli", "gh"],
-        default=["docker", "git"]
-    ).ask()
+        [("docker", "docker", True), ("aws-cli", "aws-cli", False), ("gh", "gh", False)],
+    )
 
     # ... more prompts
 
@@ -579,7 +585,7 @@ tests/
 **External Dependencies Mocked**:
 - `subprocess.run` (limactl, ansible-playbook commands)
 - File I/O (`open`, `Path.write_text`)
-- `questionary` prompts (return predefined answers)
+- menu prompts (return predefined answers)
 
 **Rationale**: Tests run without requiring Lima installation or actual VMs.
 
@@ -645,7 +651,7 @@ After installation, `clauded` command is available system-wide.
 **Bundled in Wheel**:
 - All Python modules
 - All Ansible roles
-- Python package dependencies (click, questionary, pyyaml, ansible)
+- Python package dependencies (click, simple-term-menu, pyyaml, ansible)
 
 ## Performance Considerations
 

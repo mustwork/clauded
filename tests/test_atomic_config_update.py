@@ -234,8 +234,8 @@ class TestCrashRecoveryIntegration:
             mock_result.stdout = f"{config.vm_name}\nold-crashed-vm\n"
             mock_run.return_value = mock_result
 
-            # Mock questionary to decline deletion
-            with patch("clauded.cli.questionary.confirm") as mock_confirm:
+            # Mock confirm to decline deletion
+            with patch("clauded.cli.click.confirm") as mock_confirm:
                 mock_confirm.return_value.ask.return_value = False
 
                 _handle_crash_recovery(config, config_path)
@@ -273,8 +273,8 @@ class TestCrashRecoveryIntegration:
             mock_result.stdout = f"{config.vm_name}\nold-vm-to-delete\n"
             mock_run.return_value = mock_result
 
-            # Mock questionary to confirm deletion
-            with patch("clauded.cli.questionary.confirm") as mock_confirm:
+            # Mock confirm to confirm deletion
+            with patch("clauded.cli.click.confirm") as mock_confirm:
                 with patch("clauded.cli.destroy_vm_by_name") as mock_destroy:
                     mock_confirm.return_value.ask.return_value = True
 
@@ -308,7 +308,7 @@ class TestCrashRecoveryIntegration:
             mock_run.return_value = mock_result
 
             # Simulate user interruption
-            with patch("clauded.cli.questionary.confirm") as mock_confirm:
+            with patch("clauded.cli.click.confirm") as mock_confirm:
                 mock_confirm.return_value.ask.return_value = None  # Interrupt
 
                 # Should not raise, should clear state
@@ -332,7 +332,7 @@ class TestCrashRecoveryIntegration:
         config.save(config_path)
 
         # Should not prompt or save
-        with patch("clauded.cli.questionary.confirm") as mock_confirm:
+        with patch("clauded.cli.click.confirm") as mock_confirm:
             _handle_crash_recovery(config, config_path)
 
             # No prompt
@@ -432,7 +432,7 @@ class TestEndToEndScenarios:
             mock_run.return_value = mock_result
 
             # Crash recovery should trigger
-            with patch("clauded.cli.questionary.confirm") as mock_confirm:
+            with patch("clauded.cli.click.confirm") as mock_confirm:
                 with patch("clauded.cli.destroy_vm_by_name") as mock_destroy:
                     # User confirms deletion
                     mock_confirm.return_value.ask.return_value = True
@@ -637,7 +637,7 @@ environment:
             mock_result.stdout = "old-vm\nnew-vm\n"
             mock_run.return_value = mock_result
 
-            with patch("clauded.cli.questionary.confirm") as mock_confirm:
+            with patch("clauded.cli.click.confirm") as mock_confirm:
                 with patch("clauded.cli.destroy_vm_by_name") as mock_destroy:
                     mock_confirm.return_value.ask.return_value = True
 

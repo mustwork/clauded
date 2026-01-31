@@ -279,7 +279,7 @@ make check
 - `config.py`: Configuration management for `.clauded.yaml` files
 - `lima.py`: Lima VM lifecycle operations (create, start, stop, destroy)
 - `provisioner.py`: Ansible playbook generation and execution
-- `wizard.py`: Interactive questionary-based setup wizard
+- `wizard.py`: Interactive menu-based setup wizard (simple-term-menu)
 
 See [docs/architecture.md](docs/architecture.md) for detailed architecture documentation.
 

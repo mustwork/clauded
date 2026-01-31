@@ -37,7 +37,7 @@
                  │
                  ├─→ Config Module
                  │   ├─ Load/save .clauded.yaml (YAML)
-                 │   ├─ Interactive wizard (questionary)
+                 │   ├─ Interactive wizard (simple-term-menu)
                  │   └─ VM name generation (MD5 hash)
                  │
                  ├─→ LimaVM Module
@@ -58,7 +58,7 @@
 
 - **Language**: Python 3.12+
 - **CLI Framework**: Click 8.1+
-- **Interactive UI**: Questionary 2.0+
+- **Interactive UI**: simple-term-menu
 - **Configuration**: PyYAML 6.0+
 - **VM Management**: Lima (limactl commands via subprocess)
 - **Provisioning**: Ansible 13.2+ (ansible-playbook via subprocess)
@@ -100,7 +100,7 @@
 - `confidence_marker()` helper for consistent confidence level display across CLI output
 
 **`wizard.py`**
-- Interactive questionary prompts for Python/Node.js/Java/Kotlin/Rust/Go versions
+- Interactive menu prompts for Python/Node.js/Java/Kotlin/Rust/Go versions
 - Multi-select for tools (docker, git, aws-cli, gh, gradle)
 - Multi-select for databases (postgresql, redis, mysql, sqlite, mongodb)
 - Multi-select for frameworks (claude-code, playwright)
@@ -108,7 +108,7 @@
 - Return populated `Config` object
 - Non-interactive terminal detection: Exit with error if stdin is not a TTY
 - Keyboard interrupt handling: Clean exit with "Setup cancelled." message
-- Questionary None handling: Treat None returns as user cancellation
+- Menu cancellation handling: Treat cancelled menus as user cancellation
 
 **`detect/` module**
 - Automatic language detection using GitHub Linguist data

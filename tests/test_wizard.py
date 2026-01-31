@@ -1,10 +1,9 @@
 """Tests for clauded.wizard module."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from questionary import Choice
 
 from clauded import wizard
 from clauded.config import Config
@@ -63,38 +62,24 @@ class TestWizardRunEdit:
         self, sample_config: Config, tmp_path: Path
     ) -> None:
         """run_edit should work with config values that match available choices."""
-        with patch("clauded.wizard.questionary") as mock_questionary:
-            # Track checkbox calls
-            checkbox_calls = []
+        with (
+            patch("clauded.wizard._menu_multi_select") as mock_multi_select,
+            patch("clauded.wizard._menu_select") as mock_select,
+            patch("clauded.wizard.click.confirm") as mock_confirm,
+        ):
 
-            def track_checkbox(*args, **kwargs):
-                checkbox_calls.append(kwargs)
-                mock = MagicMock()
-                # Return language values for languages that are checked
-                choices = kwargs.get("choices", [])
-                if choices and isinstance(choices[0], Choice):
-                    # Language selection: return checked languages
-                    mock.ask.return_value = [c.value for c in choices if c.checked]
-                else:
-                    mock.ask.return_value = []
-                return mock
+            def multi_select_side_effect(title, items):
+                if title == "Select languages:":
+                    return [value for _label, value, pre in items if pre]
+                return []
 
-            mock_questionary.checkbox.side_effect = track_checkbox
+            mock_multi_select.side_effect = multi_select_side_effect
 
-            # Track select calls
-            select_calls = []
+            def select_side_effect(_title, items, default_index):
+                return items[default_index][1]
 
-            def track_select(*args, **kwargs):
-                select_calls.append(kwargs)
-                mock = MagicMock()
-                mock.ask.return_value = kwargs.get("default")
-                return mock
-
-            mock_questionary.select.side_effect = track_select
-
-            mock_confirm = MagicMock()
-            mock_confirm.ask.return_value = True
-            mock_questionary.confirm.return_value = mock_confirm
+            mock_select.side_effect = select_side_effect
+            mock_confirm.return_value = True
 
             result = wizard.run_edit(sample_config, tmp_path)
 
@@ -110,133 +95,110 @@ class TestWizardRunEdit:
         list (now "3.12", "3.11", "3.10"), the wizard should fall back to the
         first (latest) version as the default selection.
         """
-        with patch("clauded.wizard.questionary") as mock_questionary:
-            # Track checkbox calls
-            checkbox_calls = []
+        with (
+            patch("clauded.wizard._menu_multi_select") as mock_multi_select,
+            patch("clauded.wizard._menu_select") as mock_select,
+            patch("clauded.wizard.click.confirm") as mock_confirm,
+        ):
 
-            def track_checkbox(*args, **kwargs):
-                checkbox_calls.append(kwargs)
-                mock = MagicMock()
-                choices = kwargs.get("choices", [])
-                if choices and isinstance(choices[0], Choice):
-                    mock.ask.return_value = [c.value for c in choices if c.checked]
-                else:
-                    mock.ask.return_value = []
-                return mock
+            def multi_select_side_effect(title, items):
+                if title == "Select languages:":
+                    return [value for _label, value, pre in items if pre]
+                return []
 
-            mock_questionary.checkbox.side_effect = track_checkbox
+            mock_multi_select.side_effect = multi_select_side_effect
 
-            # Track select calls
             select_calls = []
 
-            def track_select(*args, **kwargs):
-                select_calls.append(kwargs)
-                mock = MagicMock()
-                mock.ask.return_value = kwargs.get("default")
-                return mock
+            def select_side_effect(title, items, default_index):
+                select_calls.append((title, items, default_index))
+                return items[default_index][1]
 
-            mock_questionary.select.side_effect = track_select
-
-            mock_confirm = MagicMock()
-            mock_confirm.ask.return_value = True
-            mock_questionary.confirm.return_value = mock_confirm
+            mock_select.side_effect = select_side_effect
+            mock_confirm.return_value = True
 
             result = wizard.run_edit(outdated_config, tmp_path)
 
             assert result is not None
             assert isinstance(result, Config)
+            python_call = next(
+                (
+                    call
+                    for call in select_calls
+                    if [item[0] for item in call[1]] == ["3.12", "3.11", "3.10"]
+                ),
+                None,
+            )
+            assert python_call is not None
+            assert python_call[2] == 0
 
     def test_run_edit_preselects_configured_languages(
         self, sample_config: Config, tmp_path: Path
     ) -> None:
         """run_edit should pre-check languages that are configured in the config."""
-        with patch("clauded.wizard.questionary") as mock_questionary:
-            checkbox_calls = []
+        with (
+            patch("clauded.wizard._menu_multi_select") as mock_multi_select,
+            patch("clauded.wizard._menu_select") as mock_select,
+            patch("clauded.wizard.click.confirm") as mock_confirm,
+        ):
+            language_items: list[tuple[str, str, bool]] = []
 
-            def track_checkbox(*args, **kwargs):
-                checkbox_calls.append(kwargs)
-                mock = MagicMock()
-                choices = kwargs.get("choices", [])
-                if choices and isinstance(choices[0], Choice):
-                    mock.ask.return_value = [c.value for c in choices if c.checked]
-                else:
-                    mock.ask.return_value = []
-                return mock
+            def multi_select_side_effect(title, items):
+                if title == "Select languages:":
+                    language_items.extend(items)
+                    return [value for _label, value, pre in items if pre]
+                return []
 
-            mock_questionary.checkbox.side_effect = track_checkbox
-
-            mock_select = MagicMock()
-            mock_select.ask.return_value = "3.12"
-            mock_questionary.select.return_value = mock_select
-
-            mock_confirm = MagicMock()
-            mock_confirm.ask.return_value = True
-            mock_questionary.confirm.return_value = mock_confirm
+            mock_multi_select.side_effect = multi_select_side_effect
+            mock_select.side_effect = lambda _title, items, default_index: items[
+                default_index
+            ][1]
+            mock_confirm.return_value = True
 
             wizard.run_edit(sample_config, tmp_path)
 
-            # First checkbox should be language selection
-            language_checkbox = checkbox_calls[0]
-            choices = language_checkbox["choices"]
-
-            # Find which languages are checked
-            checked_languages = {c.value for c in choices if c.checked}
-
-            # sample_config has python, node, rust, go configured (not None)
+            checked_languages = {value for _label, value, pre in language_items if pre}
             assert "python" in checked_languages
             assert "node" in checked_languages
             assert "rust" in checked_languages
             assert "go" in checked_languages
-            # java and kotlin are None, so not checked
             assert "java" not in checked_languages
             assert "kotlin" not in checked_languages
 
 
 class TestWizardRunEditValidDefaults:
-    """Tests verifying that run_edit always passes valid defaults to questionary."""
+    """Tests verifying that run_edit always passes valid defaults to menus."""
 
     def test_run_edit_passes_valid_defaults_for_version_selects(
         self, sample_config: Config, tmp_path: Path
     ) -> None:
         """run_edit should pass valid default values for all version select prompts."""
-        with patch("clauded.wizard.questionary") as mock_questionary:
-            # For checkbox, return selected languages
-            def mock_checkbox_func(*args, **kwargs):
-                mock = MagicMock()
-                choices = kwargs.get("choices", [])
-                if choices and isinstance(choices[0], Choice):
-                    mock.ask.return_value = [c.value for c in choices if c.checked]
-                else:
-                    mock.ask.return_value = []
-                return mock
+        with (
+            patch("clauded.wizard._menu_multi_select") as mock_multi_select,
+            patch("clauded.wizard._menu_select") as mock_select,
+            patch("clauded.wizard.click.confirm") as mock_confirm,
+        ):
 
-            mock_questionary.checkbox.side_effect = mock_checkbox_func
+            def multi_select_side_effect(title, items):
+                if title == "Select languages:":
+                    return [value for _label, value, pre in items if pre]
+                return []
 
-            # Track select calls to verify defaults
+            mock_multi_select.side_effect = multi_select_side_effect
+
             select_calls = []
 
-            def track_select(*args, **kwargs):
-                select_calls.append(kwargs)
-                mock = MagicMock()
-                choices = kwargs.get("choices", [])
-                mock.ask.return_value = choices[0] if choices else None
-                return mock
+            def track_select(_title, items, default_index):
+                select_calls.append((items, default_index))
+                return items[default_index][1]
 
-            mock_questionary.select.side_effect = track_select
-
-            mock_confirm = MagicMock()
-            mock_confirm.ask.return_value = True
-            mock_questionary.confirm.return_value = mock_confirm
+            mock_select.side_effect = track_select
+            mock_confirm.return_value = True
 
             result = wizard.run_edit(sample_config, tmp_path)
 
-            # Verify that all select calls had valid defaults
-            for call in select_calls:
-                default = call.get("default")
-                choices = call.get("choices", [])
-                assert (
-                    default in choices
-                ), f"Invalid default '{default}' not in choices {choices}"
+            for items, default_index in select_calls:
+                assert 0 <= default_index < len(items)
 
             assert result is not None
             assert isinstance(result, Config)
@@ -245,52 +207,48 @@ class TestWizardRunEditValidDefaults:
         self, sample_config: Config, tmp_path: Path
     ) -> None:
         """run_edit should use current config version as default in version selects."""
-        with patch("clauded.wizard.questionary") as mock_questionary:
-            # For checkbox, return selected languages
-            def mock_checkbox_func(*args, **kwargs):
-                mock = MagicMock()
-                choices = kwargs.get("choices", [])
-                if choices and isinstance(choices[0], Choice):
-                    mock.ask.return_value = [c.value for c in choices if c.checked]
-                else:
-                    mock.ask.return_value = []
-                return mock
+        with (
+            patch("clauded.wizard._menu_multi_select") as mock_multi_select,
+            patch("clauded.wizard._menu_select") as mock_select,
+            patch("clauded.wizard.click.confirm") as mock_confirm,
+        ):
 
-            mock_questionary.checkbox.side_effect = mock_checkbox_func
+            def multi_select_side_effect(title, items):
+                if title == "Select languages:":
+                    return [value for _label, value, pre in items if pre]
+                return []
 
-            # Track select calls
+            mock_multi_select.side_effect = multi_select_side_effect
+
             select_calls = []
 
-            def track_select(*args, **kwargs):
-                select_calls.append(kwargs)
-                mock = MagicMock()
-                mock.ask.return_value = kwargs.get("default")
-                return mock
+            def track_select(_title, items, default_index):
+                select_calls.append((items, default_index))
+                return items[default_index][1]
 
-            mock_questionary.select.side_effect = track_select
-
-            mock_confirm = MagicMock()
-            mock_confirm.ask.return_value = True
-            mock_questionary.confirm.return_value = mock_confirm
+            mock_select.side_effect = track_select
+            mock_confirm.return_value = True
 
             wizard.run_edit(sample_config, tmp_path)
 
-            # Find the Python version select (should have 3.12, 3.11, 3.10 as choices)
             python_call = next(
                 (
-                    c
-                    for c in select_calls
-                    if c.get("choices") == ["3.12", "3.11", "3.10"]
+                    call
+                    for call in select_calls
+                    if [item[0] for item in call[0]] == ["3.12", "3.11", "3.10"]
                 ),
                 None,
             )
             assert python_call is not None
-            assert python_call["default"] == "3.11"  # sample_config.python
+            assert python_call[1] == 1
 
-            # Find the Go version select
             go_call = next(
-                (c for c in select_calls if c.get("choices") == ["1.23.5", "1.22.10"]),
+                (
+                    call
+                    for call in select_calls
+                    if [item[0] for item in call[0]] == ["1.23.5", "1.22.10"]
+                ),
                 None,
             )
             assert go_call is not None
-            assert go_call["default"] == "1.23.5"  # sample_config.go
+            assert go_call[1] == 0

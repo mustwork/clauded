@@ -6,24 +6,14 @@ and uses them to pre-populate defaults and pre-check multi-select items.
 
 from pathlib import Path
 
-import questionary
-from questionary import Choice, Separator, Style
+import click
 
 from ..config import Config
 from ..constants import LANGUAGE_CONFIG
 from ..spinner import spinner
+from ..wizard import _menu_multi_select, _menu_select
 from . import detect
 from .result import DetectionResult
-
-# Custom style: no text inversion, use cyan highlighting and circle indicators
-WIZARD_STYLE = Style(
-    [
-        ("highlighted", "noreverse fg:ansibrightcyan"),  # Cyan text, no inversion
-        ("selected", "noreverse fg:ansibrightcyan"),  # Cyan for checked items
-        ("pointer", "noreverse fg:ansicyan bold"),  # Bold cyan pointer
-        ("answer", "fg:ansigreen"),  # Green submitted answer
-    ]
-)
 
 
 def run_with_detection(
@@ -49,7 +39,7 @@ def run_with_detection(
         - Never raises exceptions except KeyboardInterrupt on user cancellation
 
       Properties:
-        - Detection defaults used for questionary default/checked parameters
+        - Detection defaults used for menu default/preselected parameters
         - High/medium confidence → pre-selected
         - Low confidence → available but not pre-selected
 
@@ -99,20 +89,14 @@ def run_with_detection(
 
     answers: dict[str, str | list[str] | bool] = {}
 
-    # Languages - single checkbox for all
-    selected_languages = questionary.checkbox(
+    # Languages - multi-select
+    selected_languages = _menu_multi_select(
         "Select languages:",
-        choices=[
-            Choice(
-                str(LANGUAGE_CONFIG[lang]["label"]),
-                value=lang,
-                checked=defaults.get(lang) != "None",
-            )
+        [
+            (str(LANGUAGE_CONFIG[lang]["label"]), lang, defaults.get(lang) != "None")
             for lang in LANGUAGE_CONFIG
         ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
+    )
 
     if selected_languages is None:
         raise KeyboardInterrupt()
@@ -129,14 +113,14 @@ def run_with_detection(
             if default_version == "None":
                 default_version = versions[0]
 
-            version = questionary.select(
+            default_index = (
+                versions.index(default_version) if default_version in versions else 0
+            )
+            version = _menu_select(
                 f"{lang_cfg['name']} version?",
-                choices=versions,
-                default=default_version if default_version in versions else versions[0],
-                use_indicator=True,
-                style=WIZARD_STYLE,
-                instruction="(enter to confirm)",
-            ).ask()
+                [(v, v) for v in versions],
+                default_index,
+            )
 
             if version is None:
                 raise KeyboardInterrupt()
@@ -151,25 +135,31 @@ def run_with_detection(
     detected_databases = (
         set(databases_default) if isinstance(databases_default, list) else set()
     )
-    selections = questionary.checkbox(
-        "Select tools, databases, and frameworks:",
-        choices=[
-            Separator("── Tools ──"),
-            Choice("docker", checked="docker" in detected_tools),
-            Choice("aws-cli", checked="aws-cli" in detected_tools),
-            Choice("gh", checked="gh" in detected_tools),
-            Separator("── Databases ──"),
-            Choice("postgresql", checked="postgresql" in detected_databases),
-            Choice("redis", checked="redis" in detected_databases),
-            Choice("mysql", checked="mysql" in detected_databases),
-            Choice("sqlite", checked="sqlite" in detected_databases),
-            Choice("mongodb", checked="mongodb" in detected_databases),
-            Separator("── Testing ──"),
-            Choice("playwright", checked="playwright" in detected_tools),
+    tool_selections = _menu_multi_select(
+        "Select tools:",
+        [
+            ("docker", "docker", "docker" in detected_tools),
+            ("aws-cli", "aws-cli", "aws-cli" in detected_tools),
+            ("gh", "gh", "gh" in detected_tools),
         ],
-        style=WIZARD_STYLE,
-        instruction="(space to select, enter to confirm)",
-    ).ask()
+    )
+    database_selections = _menu_multi_select(
+        "Select databases:",
+        [
+            ("postgresql", "postgresql", "postgresql" in detected_databases),
+            ("redis", "redis", "redis" in detected_databases),
+            ("mysql", "mysql", "mysql" in detected_databases),
+            ("sqlite", "sqlite", "sqlite" in detected_databases),
+            ("mongodb", "mongodb", "mongodb" in detected_databases),
+        ],
+    )
+    framework_selections = _menu_multi_select(
+        "Select frameworks:",
+        [
+            ("playwright", "playwright", "playwright" in detected_tools),
+        ],
+    )
+    selections = tool_selections + database_selections + framework_selections
 
     if selections is None:
         raise KeyboardInterrupt()
@@ -185,39 +175,32 @@ def run_with_detection(
     ]
 
     # Claude Code permissions - default is to skip (auto-accept all)
-    answers["claude_dangerously_skip_permissions"] = questionary.confirm(
+    answers["claude_dangerously_skip_permissions"] = click.confirm(
         "Auto-accept Claude Code permission prompts in VM?",
         default=True,
-        style=WIZARD_STYLE,
-    ).ask()
+    )
 
     if answers["claude_dangerously_skip_permissions"] is None:
         raise KeyboardInterrupt()
 
     # VM resources
-    customize_resources = questionary.confirm(
-        "Customize VM resources?", default=False
-    ).ask()
+    customize_resources = click.confirm("Customize VM resources?", default=False)
 
     if customize_resources is None:
         raise KeyboardInterrupt()
 
     if customize_resources:
-        cpus = questionary.text("CPUs:", default=str(defaults.get("cpus", "4"))).ask()
+        cpus = click.prompt("CPUs", default=str(defaults.get("cpus", "4")))
         if cpus is None:
             raise KeyboardInterrupt()
         answers["cpus"] = cpus
 
-        memory = questionary.text(
-            "Memory:", default=str(defaults.get("memory", "8GiB"))
-        ).ask()
+        memory = click.prompt("Memory", default=str(defaults.get("memory", "8GiB")))
         if memory is None:
             raise KeyboardInterrupt()
         answers["memory"] = memory
 
-        disk = questionary.text(
-            "Disk:", default=str(defaults.get("disk", "20GiB"))
-        ).ask()
+        disk = click.prompt("Disk", default=str(defaults.get("disk", "20GiB")))
         if disk is None:
             raise KeyboardInterrupt()
         answers["disk"] = disk
