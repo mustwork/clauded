@@ -570,6 +570,95 @@ class TestCliEditWorkflow:
                             assert "Updated .clauded.yaml" in result.output
 
 
+class TestVmCleanupOnExit:
+    """Regression tests for VM cleanup on shell exit.
+
+    Bug report: bug-reports/vm-cleanup-on-exit-report.md
+    Fixed: 2026-02-02
+    Root cause: vm.shell() returns on exit, but VM stays running
+    Protection: Ensures VM is stopped when user exits shell normally
+    """
+
+    def test_vm_stopped_after_shell_exit_normal_mode(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """VM is stopped after shell exits in normal mode."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                runner.invoke(main, [])
+
+                # Verify shell was entered
+                mock_vm.shell.assert_called_once()
+                # Verify VM was stopped after shell exit
+                mock_vm.stop.assert_called_once()
+
+    def test_vm_stopped_after_shell_exit_edit_mode(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """VM is stopped after shell exits in edit mode."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                with patch(
+                    "clauded.cli._require_interactive_terminal", return_value=None
+                ):
+                    with patch("clauded.cli.wizard") as mock_wizard:
+                        mock_config = MagicMock()
+                        mock_config.mount_guest = "/workspace"
+                        mock_config.vm_name = "clauded-testcli1"
+                        mock_context = mock_config.atomic_update.return_value
+                        mock_context.__enter__.return_value = None
+                        mock_wizard.run_edit.return_value = mock_config
+
+                        with patch("clauded.cli.Provisioner") as MockProv:
+                            mock_prov = MagicMock()
+                            MockProv.return_value = mock_prov
+
+                            runner.invoke(main, ["--edit"])
+
+                            # Verify shell was entered
+                            mock_vm.shell.assert_called_once()
+                            # Verify VM was stopped after shell exit
+                            mock_vm.stop.assert_called_once()
+
+    def test_vm_not_stopped_if_already_stopped(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """VM stop is not called if VM is already stopped (defensive)."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                # Simulate VM stopping during shell session
+                mock_vm.is_running.side_effect = [True, False]
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                runner.invoke(main, [])
+
+                # Verify shell was entered
+                mock_vm.shell.assert_called_once()
+                # Verify stop was NOT called (VM already stopped)
+                mock_vm.stop.assert_not_called()
+
+
 class TestCliDetectWorkflow:
     """Tests for --detect workflow."""
 

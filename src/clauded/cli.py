@@ -302,7 +302,20 @@ def main(
         click.echo(
             f"\nStarting Claude Code in VM '{vm.name}' at {new_config.mount_guest}..."
         )
-        vm.shell()
+        # BUG FIX: Ensure VM cleanup on shell exit
+        # Root cause: vm.shell() returns on exit, but VM stays running
+        # Bug report: bug-reports/vm-cleanup-on-exit-report.md
+        # Date: 2026-02-02
+        try:
+            vm.shell()
+        finally:
+            if vm.is_running():
+                # Ignore Ctrl+C during shutdown to ensure cleanup completes
+                original_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+                try:
+                    vm.stop()
+                finally:
+                    signal.signal(signal.SIGINT, original_handler)
         return
 
     # No config? Run wizard (with or without detection)
@@ -361,7 +374,20 @@ def main(
 
     # Enter Claude Code
     click.echo(f"\nStarting Claude Code in VM '{vm.name}' at {config.mount_guest}...")
-    vm.shell()
+    # BUG FIX: Ensure VM cleanup on shell exit
+    # Root cause: vm.shell() returns on exit, but VM stays running
+    # Bug report: bug-reports/vm-cleanup-on-exit-report.md
+    # Date: 2026-02-02
+    try:
+        vm.shell()
+    finally:
+        if vm.is_running():
+            # Ignore Ctrl+C during shutdown to ensure cleanup completes
+            original_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+            try:
+                vm.stop()
+            finally:
+                signal.signal(signal.SIGINT, original_handler)
 
 
 if __name__ == "__main__":
