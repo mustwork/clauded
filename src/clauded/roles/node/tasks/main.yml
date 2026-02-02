@@ -12,13 +12,24 @@
     - /opt/node
   ignore_errors: yes
 
-- name: Install Node.js from Alpine packages
+- name: Ensure community repository is enabled
+  lineinfile:
+    path: /etc/apk/repositories
+    line: "https://dl-cdn.alpinelinux.org/alpine/v3.21/community"
+    state: present
+
+- name: Update apk cache after adding repository
+  apk:
+    update_cache: yes
+
+- name: Install Node.js from Alpine community repository
+  # Alpine 3.21's main 'nodejs' package has SQLite session extension compatibility issues
+  # nodejs-current from community repository works correctly
   apk:
     name:
-      - nodejs
+      - nodejs-current
       - npm
     state: present
-    update_cache: yes
 
 - name: Verify Node.js installation
   command: node --version
