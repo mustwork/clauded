@@ -12,9 +12,15 @@
     name: docker
     state: present
 
+- name: Get remote username for docker group
+  become: no
+  command: whoami
+  register: docker_remote_user
+  changed_when: false
+
 - name: Add user to docker group
   user:
-    name: "{{ ansible_user }}"
+    name: "{{ docker_remote_user.stdout }}"
     groups: docker
     append: yes
 

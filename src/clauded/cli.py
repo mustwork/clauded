@@ -168,6 +168,7 @@ def _handle_crash_recovery(config: Config, config_path: Path) -> None:
     "--destroy", is_flag=True, help="Destroy the VM and optionally remove config"
 )
 @click.option("--reprovision", is_flag=True, help="Re-run provisioning on the VM")
+@click.option("--reboot", is_flag=True, help="Reboot VM after provisioning")
 @click.option("--stop", is_flag=True, help="Stop the VM without entering shell")
 @click.option("--edit", is_flag=True, help="Edit VM configuration and reprovision")
 @click.option(
@@ -189,6 +190,7 @@ def _handle_crash_recovery(config: Config, config_path: Path) -> None:
 def main(
     destroy: bool,
     reprovision: bool,
+    reboot: bool,
     stop: bool,
     edit: bool,
     detect_only: bool = False,
@@ -350,6 +352,12 @@ def main(
         if reprovision:
             provisioner = Provisioner(config, vm, debug=debug)
             provisioner.run()
+
+    # Reboot VM if requested (to apply group membership changes, etc.)
+    if reboot:
+        click.echo(f"\nRebooting VM '{vm.name}'...")
+        vm.stop()
+        vm.start(debug=debug)
 
     # Enter Claude Code
     click.echo(f"\nStarting Claude Code in VM '{vm.name}' at {config.mount_guest}...")
