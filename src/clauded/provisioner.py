@@ -260,6 +260,8 @@ class Provisioner:
                     "clauded_commit": __commit__,
                     "clauded_provision_timestamp": provision_timestamp,
                     "clauded_project_name": self.config.project_name,
+                    "clauded_mount_guest": self.config.mount_guest,
+                    "clauded_mount_host": self.config.mount_host,
                     "gitconfig_content": gitconfig_content,
                     # Centralized download metadata for integrity verification
                     "downloads": downloads,

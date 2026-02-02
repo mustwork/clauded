@@ -32,6 +32,39 @@
     path: /etc/profile.d/10-file-limits.sh
     state: absent
 
+- name: Set file descriptor limits for login shells
+  copy:
+    dest: /etc/profile.d/ulimit.sh
+    content: |
+      #!/bin/sh
+      if command -v prlimit >/dev/null 2>&1; then
+        sudo -n prlimit --nofile=8192:8192 --pid $$ >/dev/null 2>&1 || true
+      fi
+      ulimit -n 8192
+    mode: '0644'
+
+- name: Allow ulimit script to raise hard nofile limit without password
+  copy:
+    dest: /etc/sudoers.d/clauded-prlimit
+    content: |
+      {{ ansible_user }} ALL=(root) NOPASSWD: /usr/bin/prlimit
+    mode: '0440'
+
+- name: Ensure mount guest path exists for limactl shell workdir
+  file:
+    path: "{{ clauded_mount_guest }}"
+    state: directory
+    mode: '0755'
+  when: clauded_mount_guest is defined and clauded_mount_guest | length > 0
+
+- name: Attempt to set ownership on mount guest path (may be unsupported)
+  file:
+    path: "{{ clauded_mount_guest }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  when: clauded_mount_guest is defined and clauded_mount_guest | length > 0
+  failed_when: false
+
 - name: Install common packages
   apk:
     name:
@@ -50,6 +83,7 @@
       - openssh
       # Privilege escalation
       - sudo
+      - util-linux
       # JSON processor
       - jq
       # Version control

@@ -56,7 +56,9 @@ sync:
 dev:
 	uv sync --extra dev
 
-hooks: dev
+hooks:
+	uv sync --extra dev
+	@mkdir -p .git/hooks
 	@ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit
 	@chmod +x .githooks/pre-commit
 	@echo "Installed pre-commit hook from .githooks/"
