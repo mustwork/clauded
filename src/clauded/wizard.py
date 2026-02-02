@@ -30,6 +30,8 @@ def _build_menu(
             "show_multi_select_hint",
             "menu_cursor_index",
             "multi_select",
+            "multi_select_select_on_accept",
+            "multi_select_empty_ok",
         ):
             base_kwargs.pop(key, None)
         try:
@@ -64,10 +66,17 @@ def _menu_multi_select(title: str, items: list[tuple[str, str, bool]]) -> list[s
         multi_select=True,
         show_multi_select_hint=True,
         preselected_entries=preselected,
+        multi_select_select_on_accept=False,
+        multi_select_empty_ok=True,
     )
     choice = menu.show()
-    if choice is None:
+    # Distinguish cancel (Escape) from accept with empty selection (Enter)
+    # simple-term-menu returns None for both, but sets chosen_accept_key only on accept
+    if choice is None and menu.chosen_accept_key is None:
         raise KeyboardInterrupt()
+    if choice is None:
+        # Empty selection accepted with Enter
+        return []
     if isinstance(choice, int):
         indices = [choice]
     else:
