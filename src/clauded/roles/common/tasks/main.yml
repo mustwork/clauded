@@ -3,6 +3,21 @@
   apk:
     update_cache: yes
 
+- name: Increase system-wide file descriptor limit
+  sysctl:
+    name: fs.file-max
+    value: '100000'
+    state: present
+    sysctl_set: yes
+
+- name: Increase per-process file descriptor limits for development workloads
+  copy:
+    dest: /etc/profile.d/10-file-limits.sh
+    content: |
+      # Increase file descriptor limits for development tools (uv, ansible, etc.)
+      ulimit -n 8192
+    mode: '0644'
+
 - name: Install common packages
   apk:
     name:
