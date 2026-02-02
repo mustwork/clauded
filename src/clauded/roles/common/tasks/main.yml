@@ -10,13 +10,27 @@
     state: present
     sysctl_set: yes
 
-- name: Increase per-process file descriptor limits for development workloads
+- name: Configure file descriptor limits for PAM sessions
   copy:
-    dest: /etc/profile.d/10-file-limits.sh
+    dest: /etc/security/limits.d/99-clauded.conf
     content: |
       # Increase file descriptor limits for development tools (uv, ansible, etc.)
-      ulimit -n 8192
+      *               soft    nofile          8192
+      *               hard    nofile          8192
     mode: '0644'
+
+- name: Configure sshd service with higher file descriptor limits
+  lineinfile:
+    path: /etc/conf.d/sshd
+    regexp: '^rc_ulimit='
+    line: 'rc_ulimit="-n 8192"'
+    create: yes
+    mode: '0644'
+
+- name: Remove legacy profile.d ulimit script
+  file:
+    path: /etc/profile.d/10-file-limits.sh
+    state: absent
 
 - name: Install common packages
   apk:
@@ -182,16 +196,7 @@
       }
     mode: '0644'
 
-- name: Create clauded welcome message script
-  copy:
-    dest: /etc/profile.d/00-clauded-welcome.sh
-    content: |
-      # clauded VM welcome message
-      if [ -t 1 ] && [ -z "$CLAUDED_WELCOME_SHOWN" ]; then
-        export CLAUDED_WELCOME_SHOWN=1
-        echo ""
-        echo "  {{ clauded_project_name }} | clauded v{{ clauded_version }} ({{ clauded_commit }})"
-        echo "  Provisioned: {{ clauded_provision_timestamp }}"
-        echo ""
-      fi
-    mode: '0644'
+- name: Remove legacy welcome message script (welcome now printed by host)
+  file:
+    path: /etc/profile.d/00-clauded-welcome.sh
+    state: absent

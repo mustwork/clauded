@@ -78,6 +78,8 @@ def run_with_detection(
             "kotlin": "None",
             "rust": "None",
             "go": "None",
+            "dart": "None",
+            "c": "None",
             "tools": [],
             "databases": [],
             "frameworks": ["claude-code"],
@@ -90,10 +92,16 @@ def run_with_detection(
     answers: dict[str, str | list[str] | bool] = {}
 
     # Languages - multi-select
+    # Note: defaults.get(lang) may return None (key missing) or "None" (not detected)
+    # Both should result in unchecked; only explicit version strings mean pre-select
     selected_languages = _menu_multi_select(
         "Select languages:",
         [
-            (str(LANGUAGE_CONFIG[lang]["label"]), lang, defaults.get(lang) != "None")
+            (
+                str(LANGUAGE_CONFIG[lang]["label"]),
+                lang,
+                defaults.get(lang) not in (None, "None"),
+            )
             for lang in LANGUAGE_CONFIG
         ],
     )

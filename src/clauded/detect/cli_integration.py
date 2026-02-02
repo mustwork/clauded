@@ -255,6 +255,7 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
         }
 
         # Define wizard choices for each runtime (first choice is latest)
+        # All languages from LANGUAGE_CONFIG must be included here
         runtime_choices = {
             "python": ["3.12", "3.11", "3.10", "None"],
             "node": ["22", "20", "18", "None"],
@@ -262,6 +263,8 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
             "kotlin": ["2.0", "1.9", "None"],
             "rust": ["stable", "nightly", "None"],
             "go": ["1.23.5", "1.22.10", "None"],
+            "dart": ["3.7", "3.6", "3.5", "None"],
+            "c": ["gcc14", "gcc13", "clang18", "clang17", "None"],
         }
 
         # Build set of detected languages (high/medium confidence)
@@ -334,6 +337,8 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
             "kotlin": "None",
             "rust": "None",
             "go": "None",
+            "dart": "None",
+            "c": "None",
             "tools": [],
             "databases": [],
             "frameworks": ["claude-code"],
