@@ -50,12 +50,12 @@
       {{ ansible_user }} ALL=(root) NOPASSWD: /usr/bin/prlimit
     mode: '0440'
 
-- name: Ensure mount guest path exists for limactl shell workdir
+- name: Ensure mount guest path exists for limactl shell workdir (may be a mount)
   file:
     path: "{{ clauded_mount_guest }}"
     state: directory
-    mode: '0755'
   when: clauded_mount_guest is defined and clauded_mount_guest | length > 0
+  failed_when: false
 
 - name: Attempt to set ownership on mount guest path (may be unsupported)
   file:
