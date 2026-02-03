@@ -290,4 +290,11 @@ class LimaVM:
             },
             "mountType": "virtiofs",
             "mounts": mounts,
+            # Disable automatic port forwarding - VM services stay isolated
+            "portForwards": [
+                {
+                    "guestPortRange": [1, 65535],
+                    "ignore": True,
+                }
+            ],
         }
