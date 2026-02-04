@@ -206,6 +206,9 @@ class Config:
     # SSH settings
     ssh_host_key_checking: bool = True
 
+    # VM behavior
+    keep_vm_running: bool = False
+
     @classmethod
     def from_wizard(cls, answers: dict[str, Any], project_path: Path) -> "Config":
         """Create a Config from wizard answers."""
@@ -235,6 +238,7 @@ class Config:
                 "claude_dangerously_skip_permissions", True
             ),
             ssh_host_key_checking=answers.get("ssh_host_key_checking", True),
+            keep_vm_running=answers.get("keep_vm_running", False),
         )
 
     @contextmanager
@@ -383,6 +387,7 @@ class Config:
                 "dangerously_skip_permissions", True
             ),
             ssh_host_key_checking=data.get("ssh", {}).get("host_key_checking", True),
+            keep_vm_running=data.get("vm", {}).get("keep_running", False),
             previous_vm_name=previous_vm,
         )
 
@@ -398,6 +403,8 @@ class Config:
             vm_data["image"] = self.vm_image
         if self.previous_vm_name is not None:
             vm_data["previous_name"] = self.previous_vm_name
+        if self.keep_vm_running:
+            vm_data["keep_running"] = self.keep_vm_running
 
         data = {
             "version": self.version,

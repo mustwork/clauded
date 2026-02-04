@@ -195,6 +195,7 @@ vm:
   cpus: 4
   memory: 8GiB
   disk: 20GiB
+  keep_running: false  # Keep VM running after shell exit (see below)
 mount:
   host: /Users/you/projects/myproject
   guest: /Users/you/projects/myproject
@@ -223,6 +224,17 @@ environment:
 ```
 
 See [docs/configuration.md](docs/configuration.md) for full configuration reference.
+
+### Keep VM Running
+
+By default, VMs automatically shut down when you exit the shell. This frees system resources but means the VM must boot again on next connection.
+
+Set `vm.keep_running: true` to keep VMs running after exit:
+
+- **Pros**: Faster reconnection (no boot delay), preserves running processes
+- **Cons**: Consumes CPU/memory while idle, must manually stop with `clauded --stop`
+
+This setting can be changed while a VM is running - the new value takes effect on the next shell exit.
 
 ## Development
 

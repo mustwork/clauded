@@ -309,7 +309,9 @@ def main(
         try:
             vm.shell()
         finally:
-            if vm.is_running():
+            # Reload config to respect changes made while VM was running
+            current_config = Config.load(config_path)
+            if vm.is_running() and not current_config.keep_vm_running:
                 # Ignore Ctrl+C during shutdown to ensure cleanup completes
                 original_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
                 try:
@@ -381,7 +383,9 @@ def main(
     try:
         vm.shell()
     finally:
-        if vm.is_running():
+        # Reload config to respect changes made while VM was running
+        current_config = Config.load(config_path)
+        if vm.is_running() and not current_config.keep_vm_running:
             # Ignore Ctrl+C during shutdown to ensure cleanup completes
             original_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
             try:

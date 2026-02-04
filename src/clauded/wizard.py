@@ -184,6 +184,15 @@ def run(project_path: Path) -> Config:
     if answers["claude_dangerously_skip_permissions"] is None:
         raise KeyboardInterrupt()
 
+    # Keep VM running - default is to shut down on exit
+    answers["keep_vm_running"] = click.confirm(
+        "Keep VM running after shell exit?",
+        default=False,
+    )
+
+    if answers["keep_vm_running"] is None:
+        raise KeyboardInterrupt()
+
     # VM resources
     customize_resources = click.confirm("Customize VM resources?", default=False)
 
@@ -317,6 +326,15 @@ def run_edit(config: Config, project_path: Path) -> Config:
     )
 
     if answers["claude_dangerously_skip_permissions"] is None:
+        raise KeyboardInterrupt()
+
+    # Keep VM running - pre-select current value
+    answers["keep_vm_running"] = click.confirm(
+        "Keep VM running after shell exit?",
+        default=config.keep_vm_running,
+    )
+
+    if answers["keep_vm_running"] is None:
         raise KeyboardInterrupt()
 
     # Preserve VM resources from original config (cannot be changed without recreation)

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Keep VM Running Setting**: New `vm.keep_running` option to control VM shutdown behavior
+  - Default: `false` (VMs stop on shell exit, freeing resources)
+  - Set to `true` to keep VMs running for faster reconnection
+  - Configurable via `.clauded.yaml` or interactive wizard
+  - Changes take effect on next shell exit (works with running VMs)
 - **Dart Language Support**: Dart SDK provisioning with versions 3.5, 3.6, and 3.7
   - Includes dart CLI and pub package manager
   - Official ARM64 binaries from Google storage

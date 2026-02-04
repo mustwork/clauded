@@ -191,6 +191,15 @@ def run_with_detection(
     if answers["claude_dangerously_skip_permissions"] is None:
         raise KeyboardInterrupt()
 
+    # Keep VM running - default is to shut down on exit
+    answers["keep_vm_running"] = click.confirm(
+        "Keep VM running after shell exit?",
+        default=False,
+    )
+
+    if answers["keep_vm_running"] is None:
+        raise KeyboardInterrupt()
+
     # VM resources
     customize_resources = click.confirm("Customize VM resources?", default=False)
 
