@@ -189,6 +189,8 @@ environment:
   kotlin: "<version>|null"
   rust: "<version>|null"
   go: "<version>|null"
+  dart: "<version>|null"
+  c: "<version>|null"
   tools:
     - docker
     - git
@@ -231,6 +233,8 @@ ssh:
   - Kotlin: 1.9, 2.0
   - Rust: stable, nightly
   - Go: 1.22.10, 1.23.5
+  - Dart: 3.5, 3.6, 3.7
+  - C/C++: gcc13, gcc14, clang17, clang18
   - Invalid versions: exit with error listing supported versions
 - Mount path validation on load:
   - If mount_guest differs from mount_host: log warning, auto-correct mount_guest to match mount_host
@@ -248,6 +252,8 @@ ssh:
   - `kotlin` if config.environment.kotlin is set
   - `rust` if config.environment.rust is set
   - `go` if config.environment.go is set
+  - `dart` if config.environment.dart is set
+  - `c` if config.environment.c is set
   - `docker` if "docker" in config.environment.tools
   - `aws_cli` if "aws-cli" in config.environment.tools
   - `gh` if "gh" in config.environment.tools
@@ -278,6 +284,8 @@ ssh:
 | `maven` | Java/Kotlin build tool | Maven binary installation (auto-bundled with Java/Kotlin) |
 | `rust` | Rust toolchain installation | rustup, rustc/cargo {{ rust_version }} |
 | `go` | Go version installation | Download from go.dev, go{{ go_version }} |
+| `dart` | Dart SDK installation | Download from Google storage, dart/pub {{ dart_version }} |
+| `c` | C/C++ toolchain installation | gcc/g++/clang/make/cmake/gdb/valgrind, CC/CXX env vars |
 | `docker` | Docker setup | apk docker, OpenRC service, user group |
 | `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, postgresql-dev, OpenRC service |
 | `redis` | Redis installation | redis, OpenRC service, port 6379 |
@@ -302,6 +310,8 @@ ssh:
     kotlin_version: "{{ config.environment.kotlin }}"
     rust_version: "{{ config.environment.rust }}"
     go_version: "{{ config.environment.go }}"
+    dart_version: "{{ config.environment.dart }}"
+    c_version: "{{ config.environment.c }}"
   roles:
     - common
     - python  # conditional
@@ -310,6 +320,8 @@ ssh:
     - kotlin  # conditional
     - rust    # conditional
     - go      # conditional
+    - dart    # conditional
+    - c       # conditional
     # ... other roles based on config
 ```
 

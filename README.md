@@ -22,7 +22,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
   - Detects Java versions from build.gradle, build.gradle.kts, and pom.xml
   - Detects frameworks from Gradle, Maven, and package managers
   - Detects databases from docker-compose, environment files, and ORM dependencies
-- **Multiple Runtime Versions**: Choose Python 3.10/3.11/3.12, Node.js 18/20/22, Java 11/17/21, Kotlin 1.9/2.0, Rust stable/nightly, and Go 1.24.12/1.25.6
+- **Multiple Runtime Versions**: Choose Python 3.10/3.11/3.12, Node.js 18/20/22, Java 11/17/21, Kotlin 1.9/2.0, Rust stable/nightly, Go 1.22.10/1.23.5, Dart 3.5/3.6/3.7, and C/C++ toolchains (gcc13/gcc14, clang17/clang18)
 - **Database Support**: PostgreSQL, Redis, MySQL, SQLite, and MongoDB CLI tools with automatic installation
 - **Developer Tools**: Docker, AWS CLI, GitHub CLI, Git pre-installed
 - **Testing Frameworks**: Playwright with browser binaries ready to use
@@ -44,7 +44,9 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 | Java | 11, 17, 21 | maven, gradle |
 | Kotlin | 1.9, 2.0 | maven, gradle |
 | Rust | stable, nightly | cargo |
-| Go | 1.24.12, 1.25.6 | go modules (built-in) |
+| Go | 1.22.10, 1.23.5 | go modules (built-in) |
+| Dart | 3.5, 3.6, 3.7 | dart, pub |
+| C/C++ | gcc13, gcc14, clang17, clang18 | gcc, g++, clang, make, cmake |
 
 ### Developer Tools
 
@@ -108,7 +110,7 @@ If no `.clauded.yaml` exists, the interactive wizard will guide you through setu
 ? Java version: 21
 ? Kotlin version: 2.0
 ? Rust version: stable
-? Go version: 1.25.6
+? Go version: 1.23.5
 ? Select tools (space to select): docker, git
 ? Select databases: postgresql, redis, mongodb, sqlite
 ? Select frameworks: claude-code, playwright
@@ -205,7 +207,7 @@ environment:
   java: "21"
   kotlin: "2.0"
   rust: "stable"
-  go: "1.25.6"
+  go: "1.23.5"
   tools:
     - docker
     - git

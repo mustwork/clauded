@@ -298,13 +298,33 @@ Ansible-based installation of tools, databases, and frameworks.
 
 #### [Implemented] Story: Install Go Version
 
-**As a** Go Developer, **I want** my chosen Go version (1.24.12, 1.25.6) to be installed, **so that** I have the correct runtime for my project.
+**As a** Go Developer, **I want** my chosen Go version (1.22.10, 1.23.5) to be installed, **so that** I have the correct runtime for my project.
 
 **Acceptance Criteria**:
 - [ ] Selected Go version is downloaded from go.dev
 - [ ] `go version` shows selected version
 - [ ] Go is accessible system-wide
 - [ ] Go modules work correctly
+
+#### [Implemented] Story: Install Dart SDK
+
+**As a** Dart Developer, **I want** my chosen Dart SDK version (3.5, 3.6, 3.7) to be installed, **so that** I can develop Flutter apps in isolated environments.
+
+**Acceptance Criteria**:
+- [ ] Selected Dart version is downloaded from Google storage
+- [ ] `dart --version` shows selected version
+- [ ] dart CLI is accessible system-wide
+- [ ] pub package manager is available
+
+#### [Implemented] Story: Install C/C++ Toolchain
+
+**As a** C/C++ Developer, **I want** my chosen C/C++ toolchain (gcc13, gcc14, clang17, clang18) to be installed, **so that** I can compile native code efficiently.
+
+**Acceptance Criteria**:
+- [ ] Selected GCC or Clang version is installed
+- [ ] Build tools (make, cmake, gdb, valgrind) are included
+- [ ] CC and CXX environment variables are set appropriately
+- [ ] Can compile and debug C/C++ programs
 
 #### [Implemented] Story: Reliable Installer Script Downloads
 

@@ -245,6 +245,167 @@ environment:
 
 ---
 
+### environment.java
+
+**Type**: String or null
+**Required**: No
+**Default**: `null`
+**Allowed Values**: `"11"`, `"17"`, `"21"`, `null`
+
+Java version to install in the VM. If set to `null`, Java will not be installed.
+
+```yaml
+environment:
+  java: "21"
+```
+
+**Installation Details**:
+- Installed via Alpine apk (OpenJDK packages)
+- Maven and Gradle auto-bundled when Java is selected
+- System-wide installation
+
+**Version Selection**:
+- `"21"`: Latest LTS (recommended)
+- `"17"`: Previous LTS
+- `"11"`: Older LTS
+- `null`: Skip Java installation
+
+---
+
+### environment.kotlin
+
+**Type**: String or null
+**Required**: No
+**Default**: `null`
+**Allowed Values**: `"1.9"`, `"2.0"`, `null`
+
+Kotlin compiler version to install in the VM. If set to `null`, Kotlin will not be installed.
+
+```yaml
+environment:
+  kotlin: "2.0"
+```
+
+**Installation Details**:
+- Downloaded from JetBrains GitHub releases
+- Maven and Gradle auto-bundled when Kotlin is selected
+- Works with all Java versions
+
+**Version Selection**:
+- `"2.0"`: Latest stable (recommended)
+- `"1.9"`: Previous stable
+- `null`: Skip Kotlin installation
+
+---
+
+### environment.rust
+
+**Type**: String or null
+**Required**: No
+**Default**: `null`
+**Allowed Values**: `"stable"`, `"nightly"`, `null`
+
+Rust toolchain version to install in the VM. If set to `null`, Rust will not be installed.
+
+```yaml
+environment:
+  rust: "stable"
+```
+
+**Installation Details**:
+- Installed via rustup
+- Includes cargo package manager
+- System-wide installation
+
+**Version Selection**:
+- `"stable"`: Latest stable release (recommended)
+- `"nightly"`: Nightly builds with experimental features
+- `null`: Skip Rust installation
+
+---
+
+### environment.go
+
+**Type**: String or null
+**Required**: No
+**Default**: `null`
+**Allowed Values**: `"1.22.10"`, `"1.23.5"`, `null`
+
+Go version to install in the VM. If set to `null`, Go will not be installed.
+
+```yaml
+environment:
+  go: "1.23.5"
+```
+
+**Installation Details**:
+- Downloaded from official go.dev binaries
+- Includes built-in go modules support
+- System-wide installation
+
+**Version Selection**:
+- `"1.23.5"`: Latest stable (recommended)
+- `"1.22.10"`: Previous stable
+- `null`: Skip Go installation
+
+---
+
+### environment.dart
+
+**Type**: String or null
+**Required**: No
+**Default**: `null`
+**Allowed Values**: `"3.5"`, `"3.6"`, `"3.7"`, `null`
+
+Dart SDK version to install in the VM. If set to `null`, Dart will not be installed.
+
+```yaml
+environment:
+  dart: "3.7"
+```
+
+**Installation Details**:
+- Downloaded from official Google storage (ARM64 binaries)
+- Includes dart CLI and pub package manager
+- System-wide installation
+
+**Version Selection**:
+- `"3.7"`: Latest stable (recommended)
+- `"3.6"`: Previous stable
+- `"3.5"`: Older stable
+- `null`: Skip Dart installation
+
+---
+
+### environment.c
+
+**Type**: String or null
+**Required**: No
+**Default**: `null`
+**Allowed Values**: `"gcc13"`, `"gcc14"`, `"clang17"`, `"clang18"`, `null`
+
+C/C++ toolchain to install in the VM. If set to `null`, C/C++ development tools will not be installed.
+
+```yaml
+environment:
+  c: "gcc14"
+```
+
+**Installation Details**:
+- GCC or Clang compiler installed via Alpine apk
+- Includes build tools: make, cmake, gdb, valgrind
+- CC and CXX environment variables set appropriately
+- System-wide installation
+
+**Version Selection**:
+- `"gcc14"`: Latest GCC (recommended)
+- `"gcc13"`: Previous GCC
+- `"clang18"`: Latest Clang/LLVM
+- `"clang17"`: Previous Clang/LLVM
+- `null`: Skip C/C++ installation
+
+---
+
 ### environment.tools
 
 **Type**: List of strings
