@@ -265,6 +265,13 @@ class Provisioner:
                     "gitconfig_content": gitconfig_content,
                     # Centralized download metadata for integrity verification
                     "downloads": downloads,
+                    # Playwright browsers (default all if playwright enabled)
+                    "playwright_browsers": self.config.playwright_browsers
+                    or (
+                        ["chromium", "firefox", "webkit"]
+                        if "playwright" in self.config.frameworks
+                        else []
+                    ),
                 },
                 "roles": self._get_roles(),
             }

@@ -291,6 +291,7 @@ class TestCliWithConfig:
                 mock_vm = MagicMock()
                 mock_vm.exists.return_value = False
                 mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
                 MockVM.return_value = mock_vm
 
                 with patch("clauded.cli.Provisioner") as MockProvisioner:
@@ -315,6 +316,7 @@ class TestCliWithConfig:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = False
                 mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
                 MockVM.return_value = mock_vm
 
                 runner.invoke(main, [])
@@ -335,6 +337,7 @@ class TestCliWithConfig:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
                 MockVM.return_value = mock_vm
 
                 runner.invoke(main, [])
@@ -355,6 +358,7 @@ class TestCliWithConfig:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
                 MockVM.return_value = mock_vm
 
                 with patch("clauded.cli.Provisioner") as MockProvisioner:
@@ -378,6 +382,7 @@ class TestCliWithConfig:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = False
                 mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
                 MockVM.return_value = mock_vm
 
                 with patch("clauded.cli.Provisioner") as MockProvisioner:
@@ -580,6 +585,7 @@ class TestCliEditWorkflow:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
                 MockVM.return_value = mock_vm
 
                 with patch(

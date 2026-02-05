@@ -361,7 +361,17 @@ def main(
         )
         try:
             # Reconnect to pick up group membership changes from provisioning
-            vm.shell(reconnect=True)
+            # BUT: skip reconnect if other sessions are active to avoid disrupting them
+            # (--reconnect kills the SSH ControlMaster which other sessions share)
+            other_sessions = vm.count_active_sessions()
+            if other_sessions > 0:
+                click.echo(
+                    f"Note: {other_sessions} other session(s) active. "
+                    "Skipping SSH reconnect to avoid disruption. "
+                    "New group memberships (e.g., docker) may require 'newgrp docker' "
+                    "or a new terminal."
+                )
+            vm.shell(reconnect=(other_sessions == 0))
         finally:
             _stop_vm_if_last_session(vm, config_path)
         return
@@ -455,16 +465,37 @@ def main(
 
     # Reboot VM if requested (to apply group membership changes, etc.)
     if reboot:
-        click.echo(f"\nRebooting VM '{vm.name}'...")
-        vm.stop()
-        vm.start(debug=debug)
+        # Check for other active sessions before rebooting
+        other_sessions = vm.count_active_sessions()
+        if other_sessions > 0:
+            click.echo(
+                f"Cannot reboot: {other_sessions} other session(s) active. "
+                "Use --force-stop first or close other sessions."
+            )
+        else:
+            click.echo(f"\nRebooting VM '{vm.name}'...")
+            vm.stop()
+            vm.start(debug=debug)
 
     # Enter Claude Code
     click.echo(f"\nStarting Claude Code in VM '{vm.name}' at {config.mount_guest}...")
     try:
         # Reconnect if provisioning ran (picks up group membership changes)
         # Reboot already creates a fresh session, so no reconnect needed
-        vm.shell(reconnect=provisioned and not reboot)
+        # BUT: skip reconnect if other sessions are active to avoid disrupting them
+        # (--reconnect kills the SSH ControlMaster which other sessions share)
+        needs_reconnect = provisioned and not reboot
+        if needs_reconnect:
+            other_sessions = vm.count_active_sessions()
+            if other_sessions > 0:
+                click.echo(
+                    f"Note: {other_sessions} other session(s) active. "
+                    "Skipping SSH reconnect to avoid disruption. "
+                    "New group memberships (e.g., docker) may require 'newgrp docker' "
+                    "or a new terminal."
+                )
+                needs_reconnect = False
+        vm.shell(reconnect=needs_reconnect)
     finally:
         _stop_vm_if_last_session(vm, config_path)
 

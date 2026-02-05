@@ -326,6 +326,7 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
         defaults["cpus"] = "4"
         defaults["memory"] = "8GiB"
         defaults["disk"] = "20GiB"
+        defaults["playwright_browsers"] = ["chromium", "firefox", "webkit"]
 
         return defaults
     except (KeyboardInterrupt, SystemExit):
@@ -348,5 +349,6 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
             "cpus": "4",
             "memory": "8GiB",
             "disk": "20GiB",
+            "playwright_browsers": ["chromium", "firefox", "webkit"],
         }
         return result_dict

@@ -5,6 +5,7 @@
       - docker
       - docker-cli
       - docker-compose
+      - docker-cli-compose
     state: present
 
 - name: Ensure docker group exists

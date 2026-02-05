@@ -56,6 +56,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Docker provisioning**: Added `docker-cli-compose` plugin for modern `docker compose` command support
+- **Playwright browser selection**: New wizard screen allows selecting which browsers to install (Chromium, Firefox, WebKit) when Playwright is chosen
+  - All browsers pre-selected by default
+  - Selection persisted in `.clauded.yaml` under `environment.playwright_browsers`
+  - Reduces provisioning time and disk usage when only specific browsers are needed
+- **Playwright provisioning**: Complete rewrite for reliable installation on Alpine
+  - Uses `npm install -g` command instead of Ansible npm module (fixes silent failures)
+  - Installs both `playwright` and `@playwright/test` packages globally
+  - Conditionally installs only selected browsers via `npx playwright install`
+  - Added comprehensive system dependencies (mesa, X11 libs, dbus, etc.)
+  - Added WebKit-specific dependencies (gstreamer, libsoup3, etc.)
+  - Creates `/opt/playwright-browsers/` directory with proper permissions
+  - Adds Chrome compatibility symlink at `/opt/google/chrome/chrome` (when Chromium selected)
+  - Installs `xvfb` for headless display support
+  - Defaults to all browsers for existing configs without explicit browser selection
+
 - **Removed hash verification for all downloads**: Integrity verification now relies on HTTPS transport security only. Upstream providers frequently update artifacts in-place without changing version numbers, breaking checksum verification. This removes SHA256 checksums from `downloads.yml` and all Ansible tasks.
 - **Expanded Baseline Tools**: All VMs now include a comprehensive set of common system utilities:
   - HTTP clients: curl, wget
@@ -76,6 +92,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Edit/reprovision no longer disrupts other sessions**: `--edit`, `--reprovision`, and `--reboot` now check for other active sessions before performing operations that could disrupt them
+  - SSH reconnect (needed for group membership changes) is skipped when other sessions exist
+  - `--reboot` refuses to reboot when other sessions are active
+  - Users are notified with workaround instructions (e.g., `newgrp docker`)
 - **Docker group membership not effective after provisioning**: Fresh VMs with docker enabled now work immediately without requiring a reboot
   - Lima reuses SSH master control sockets, preventing group membership changes from taking effect
   - Shell now uses `--reconnect` flag after provisioning to force a fresh SSH session

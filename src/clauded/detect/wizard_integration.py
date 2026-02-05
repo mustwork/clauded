@@ -86,6 +86,7 @@ def run_with_detection(
             "cpus": "4",
             "memory": "8GiB",
             "disk": "20GiB",
+            "playwright_browsers": ["chromium", "firefox", "webkit"],
         }
         defaults = defaults_dict
 
@@ -181,6 +182,27 @@ def run_with_detection(
     answers["frameworks"] = ["claude-code"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
+
+    # Playwright browser selection (if playwright was selected)
+    if "playwright" in framework_selections:
+        # Use defaults if provided, otherwise select all
+        default_browsers = ["chromium", "firefox", "webkit"]
+        current_browsers = defaults.get("playwright_browsers")
+        if not isinstance(current_browsers, list) or not current_browsers:
+            current_browsers = default_browsers
+        browser_selections = _menu_multi_select(
+            "Select Playwright browsers to install:",
+            [
+                ("Chromium", "chromium", "chromium" in current_browsers),
+                ("Firefox", "firefox", "firefox" in current_browsers),
+                ("WebKit", "webkit", "webkit" in current_browsers),
+            ],
+        )
+        if browser_selections is None:
+            raise KeyboardInterrupt()
+        answers["playwright_browsers"] = browser_selections
+    else:
+        answers["playwright_browsers"] = []
 
     # Claude Code permissions - default is to skip (auto-accept all)
     answers["claude_dangerously_skip_permissions"] = click.confirm(
@@ -688,6 +710,25 @@ def run_edit_with_detection(
     answers["frameworks"] = ["claude-code"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
+
+    # Playwright browser selection (if playwright was selected)
+    if "playwright" in framework_selections:
+        # Pre-select browsers from current config, or all if none configured
+        default_browsers = ["chromium", "firefox", "webkit"]
+        current_browsers = config.playwright_browsers or default_browsers
+        browser_selections = _menu_multi_select(
+            "Select Playwright browsers to install:",
+            [
+                ("Chromium", "chromium", "chromium" in current_browsers),
+                ("Firefox", "firefox", "firefox" in current_browsers),
+                ("WebKit", "webkit", "webkit" in current_browsers),
+            ],
+        )
+        if browser_selections is None:
+            raise KeyboardInterrupt()
+        answers["playwright_browsers"] = browser_selections
+    else:
+        answers["playwright_browsers"] = []
 
     # Claude Code permissions - pre-select current value
     answers["claude_dangerously_skip_permissions"] = click.confirm(

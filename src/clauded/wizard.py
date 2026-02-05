@@ -175,6 +175,22 @@ def run(project_path: Path) -> Config:
         s for s in selections if s not in tool_options and s not in database_options
     ]
 
+    # Playwright browser selection (if playwright was selected)
+    if "playwright" in framework_selections:
+        browser_selections = _menu_multi_select(
+            "Select Playwright browsers to install:",
+            [
+                ("Chromium", "chromium", True),
+                ("Firefox", "firefox", True),
+                ("WebKit", "webkit", True),
+            ],
+        )
+        if browser_selections is None:
+            raise KeyboardInterrupt()
+        answers["playwright_browsers"] = browser_selections
+    else:
+        answers["playwright_browsers"] = []
+
     # Claude Code permissions - default is to skip (auto-accept all)
     answers["claude_dangerously_skip_permissions"] = click.confirm(
         "Auto-accept Claude Code permission prompts in VM?",
@@ -318,6 +334,25 @@ def run_edit(config: Config, project_path: Path) -> Config:
     answers["frameworks"] = ["claude-code"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
+
+    # Playwright browser selection (if playwright was selected)
+    if "playwright" in framework_selections:
+        # Pre-select browsers from current config, or all if none configured
+        default_browsers = ["chromium", "firefox", "webkit"]
+        current_browsers = config.playwright_browsers or default_browsers
+        browser_selections = _menu_multi_select(
+            "Select Playwright browsers to install:",
+            [
+                ("Chromium", "chromium", "chromium" in current_browsers),
+                ("Firefox", "firefox", "firefox" in current_browsers),
+                ("WebKit", "webkit", "webkit" in current_browsers),
+            ],
+        )
+        if browser_selections is None:
+            raise KeyboardInterrupt()
+        answers["playwright_browsers"] = browser_selections
+    else:
+        answers["playwright_browsers"] = []
 
     # Claude Code permissions - pre-select current value
     answers["claude_dangerously_skip_permissions"] = click.confirm(

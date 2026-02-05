@@ -199,6 +199,7 @@ class Config:
     tools: list[str] = field(default_factory=list)
     databases: list[str] = field(default_factory=list)
     frameworks: list[str] = field(default_factory=list)
+    playwright_browsers: list[str] = field(default_factory=list)
 
     # Claude Code settings
     claude_dangerously_skip_permissions: bool = True
@@ -234,6 +235,7 @@ class Config:
             tools=answers.get("tools", []),
             databases=answers.get("databases", []),
             frameworks=answers.get("frameworks", []),
+            playwright_browsers=answers.get("playwright_browsers", []),
             claude_dangerously_skip_permissions=answers.get(
                 "claude_dangerously_skip_permissions", True
             ),
@@ -383,6 +385,7 @@ class Config:
             tools=env.get("tools") or [],
             databases=env.get("databases") or [],
             frameworks=env.get("frameworks") or [],
+            playwright_browsers=env.get("playwright_browsers") or [],
             claude_dangerously_skip_permissions=data.get("claude", {}).get(
                 "dangerously_skip_permissions", True
             ),
@@ -425,6 +428,7 @@ class Config:
                 "tools": self.tools,
                 "databases": self.databases,
                 "frameworks": self.frameworks,
+                "playwright_browsers": self.playwright_browsers,
             },
             "claude": {
                 "dangerously_skip_permissions": (
