@@ -199,8 +199,15 @@ class LimaVM:
         """Delete the VM."""
         destroy_vm_by_name(self.name)
 
-    def shell(self) -> None:
-        """Open the Claude Code shell in the VM."""
+    def shell(self, *, reconnect: bool = False) -> None:
+        """Open the Claude Code shell in the VM.
+
+        Args:
+            reconnect: If True, force a fresh SSH session. Required after
+                provisioning to pick up group membership changes (e.g., docker).
+                Lima reuses SSH master control sockets by default, which means
+                group changes from Ansible don't take effect without reconnecting.
+        """
         # Display welcome message with VM metadata
         self._print_welcome()
 
@@ -217,11 +224,18 @@ class LimaVM:
             "shell",
             "--workdir",
             self.config.mount_guest,
-            self.name,
-            "bash",
-            "-lic",
-            full_cmd,
         ]
+        # Force fresh SSH session to pick up group membership changes
+        if reconnect:
+            cmd.append("--reconnect")
+        cmd.extend(
+            [
+                self.name,
+                "bash",
+                "-lic",
+                full_cmd,
+            ]
+        )
         subprocess.run(cmd)
 
     def _print_welcome(self) -> None:

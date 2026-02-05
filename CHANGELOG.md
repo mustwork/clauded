@@ -76,6 +76,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Docker group membership not effective after provisioning**: Fresh VMs with docker enabled now work immediately without requiring a reboot
+  - Lima reuses SSH master control sockets, preventing group membership changes from taking effect
+  - Shell now uses `--reconnect` flag after provisioning to force a fresh SSH session
+  - Docker commands work on first login without needing `newgrp docker` or VM restart
 - **VM Cleanup on Exit**: VM now automatically stops when the shell exits (normal or edit mode)
   - Previously, VMs remained running after `exit` or Ctrl+D, consuming system resources
   - Fixed by wrapping vm.shell() in try/finally blocks to ensure cleanup

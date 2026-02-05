@@ -360,7 +360,8 @@ def main(
             f"\nStarting Claude Code in VM '{vm.name}' at {new_config.mount_guest}..."
         )
         try:
-            vm.shell()
+            # Reconnect to pick up group membership changes from provisioning
+            vm.shell(reconnect=True)
         finally:
             _stop_vm_if_last_session(vm, config_path)
         return
@@ -387,6 +388,7 @@ def main(
         _handle_crash_recovery(config, config_path)
 
     vm = LimaVM(config)
+    provisioned = False  # Track if provisioning ran (need SSH reconnect for groups)
 
     # VM doesn't exist? Create and provision
     if not vm.exists():
@@ -395,6 +397,7 @@ def main(
             vm.create(debug=debug)
             provisioner = Provisioner(config, vm, debug=debug)
             provisioner.run()
+            provisioned = True
 
             # Prompt to delete old VM if name changed (unlikely in this flow)
             if old_vm_name and old_vm_name != config.vm_name:
@@ -448,6 +451,7 @@ def main(
 
             provisioner = Provisioner(config, vm, debug=debug)
             provisioner.run()
+            provisioned = True
 
     # Reboot VM if requested (to apply group membership changes, etc.)
     if reboot:
@@ -458,7 +462,9 @@ def main(
     # Enter Claude Code
     click.echo(f"\nStarting Claude Code in VM '{vm.name}' at {config.mount_guest}...")
     try:
-        vm.shell()
+        # Reconnect if provisioning ran (picks up group membership changes)
+        # Reboot already creates a fresh session, so no reconnect needed
+        vm.shell(reconnect=provisioned and not reboot)
     finally:
         _stop_vm_if_last_session(vm, config_path)
 
