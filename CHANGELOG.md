@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multi-Instance Session Detection**: VM shutdown now detects other active sessions
+  - VMs only stop when the last session exits, preventing disruption to concurrent users
+  - Counts pts devices in `/dev/pts` to detect active SSH sessions
+  - `--stop` respects other active sessions (shows message if sessions exist)
+  - `--force-stop` flag to stop VM regardless of other active sessions
+- **MCP-aware Detection and Reprovisioning**: Detection now picks up runtime requirements from MCP server configurations
+  - MCP servers using `uvx` automatically trigger Python runtime requirement
+  - `--edit` now runs detection and merges results with existing config (additive)
+  - `--reprovision --detect` re-runs detection and updates config without full wizard
+  - Detection results are additive: new requirements are added, user choices preserved
 - **Keep VM Running Setting**: New `vm.keep_running` option to control VM shutdown behavior
   - Default: `false` (VMs stop on shell exit, freeing resources)
   - Set to `true` to keep VMs running for faster reconnection

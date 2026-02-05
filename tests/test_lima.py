@@ -380,6 +380,78 @@ class TestLimaVMCommands:
         )
 
 
+class TestLimaVMCountActiveSessions:
+    """Tests for LimaVM.count_active_sessions()."""
+
+    def test_counts_interactive_sessions_from_pts(self, sample_config: Config) -> None:
+        """count_active_sessions counts pts devices for interactive sessions."""
+        vm = LimaVM(sample_config)
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        # 3 pts devices (0, 1, 2) means 3 interactive sessions
+        mock_result.stdout = "0  1  2  ptmx"
+
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            count = vm.count_active_sessions()
+
+        assert count == 3
+        mock_run.assert_called_once_with(
+            ["limactl", "shell", "clauded-test1234", "--", "ls", "/dev/pts"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+
+    def test_single_session_returns_one(self, sample_config: Config) -> None:
+        """count_active_sessions returns 1 when one interactive session exists."""
+        vm = LimaVM(sample_config)
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "0  ptmx"
+
+        with patch("subprocess.run", return_value=mock_result):
+            count = vm.count_active_sessions()
+
+        assert count == 1
+
+    def test_returns_zero_when_no_pts_devices(self, sample_config: Config) -> None:
+        """count_active_sessions returns 0 when no pts devices exist."""
+        vm = LimaVM(sample_config)
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "ptmx"  # Only the master device
+
+        with patch("subprocess.run", return_value=mock_result):
+            count = vm.count_active_sessions()
+
+        assert count == 0
+
+    def test_returns_zero_on_command_failure(self, sample_config: Config) -> None:
+        """count_active_sessions returns 0 on command failure (fail-safe)."""
+        vm = LimaVM(sample_config)
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stdout = ""
+
+        with patch("subprocess.run", return_value=mock_result):
+            count = vm.count_active_sessions()
+
+        assert count == 0
+
+    def test_returns_zero_on_timeout(self, sample_config: Config) -> None:
+        """count_active_sessions returns 0 on timeout (fail-safe)."""
+        vm = LimaVM(sample_config)
+
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 5)):
+            count = vm.count_active_sessions()
+
+        assert count == 0
+
+
 class TestLimaVMErrorHandling:
     """Tests for LimaVM subprocess error handling."""
 

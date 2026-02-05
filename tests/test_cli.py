@@ -176,7 +176,7 @@ class TestCliStop:
     def test_stop_calls_vm_stop_when_running(
         self, runner: CliRunner, sample_config_yaml: str
     ) -> None:
-        """--stop calls vm.stop() when VM is running."""
+        """--stop calls vm.stop() when VM is running and no other sessions."""
         with runner.isolated_filesystem():
             Path(".clauded.yaml").write_text(sample_config_yaml)
 
@@ -184,9 +184,50 @@ class TestCliStop:
                 mock_vm = MagicMock()
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 0
                 MockVM.return_value = mock_vm
 
                 result = runner.invoke(main, ["--stop"])
+
+                assert result.exit_code == 0
+                mock_vm.stop.assert_called_once()
+
+    def test_stop_skips_when_other_sessions_active(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--stop skips stopping when other sessions are active."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 2
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--stop"])
+
+                assert result.exit_code == 0
+                assert "2 active session(s)" in result.output
+                mock_vm.stop.assert_not_called()
+
+    def test_force_stop_ignores_active_sessions(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--force-stop stops VM even when other sessions are active."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 2
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--force-stop"])
 
                 assert result.exit_code == 0
                 mock_vm.stop.assert_called_once()
@@ -420,8 +461,8 @@ class TestCliNonInteractiveDetection:
                 with patch(
                     "clauded.cli._require_interactive_terminal", return_value=None
                 ):
-                    with patch("clauded.cli.wizard") as mock_wizard:
-                        mock_wizard.run_edit.side_effect = KeyboardInterrupt()
+                    with patch("clauded.cli.run_edit_with_detection") as mock_edit:
+                        mock_edit.side_effect = KeyboardInterrupt()
 
                         result = runner.invoke(main, ["--edit"])
 
@@ -513,9 +554,9 @@ class TestCliEditWorkflow:
                 with patch(
                     "clauded.cli._require_interactive_terminal", return_value=None
                 ):
-                    with patch("clauded.cli.wizard") as mock_wizard:
+                    with patch("clauded.cli.run_edit_with_detection") as mock_edit:
                         mock_config = MagicMock()
-                        mock_wizard.run_edit.return_value = mock_config
+                        mock_edit.return_value = mock_config
 
                         with patch("clauded.cli.Provisioner") as MockProv:
                             mock_prov = MagicMock()
@@ -544,14 +585,14 @@ class TestCliEditWorkflow:
                 with patch(
                     "clauded.cli._require_interactive_terminal", return_value=None
                 ):
-                    with patch("clauded.cli.wizard") as mock_wizard:
+                    with patch("clauded.cli.run_edit_with_detection") as mock_edit:
                         mock_config = MagicMock()
                         mock_config.mount_guest = "/workspace"
                         mock_config.vm_name = "clauded-testcli1"
                         # Mock atomic_update to yield None (no old VM name)
                         mock_context = mock_config.atomic_update.return_value
                         mock_context.__enter__.return_value = None
-                        mock_wizard.run_edit.return_value = mock_config
+                        mock_edit.return_value = mock_config
 
                         with patch("clauded.cli.Provisioner") as MockProv:
                             mock_prov = MagicMock()
@@ -559,8 +600,8 @@ class TestCliEditWorkflow:
 
                             result = runner.invoke(main, ["--edit"])
 
-                            # Wizard should be called with run_edit
-                            mock_wizard.run_edit.assert_called_once()
+                            # run_edit_with_detection should be called
+                            mock_edit.assert_called_once()
                             # atomic_update should be used (saves config internally)
                             mock_config.atomic_update.assert_called_once()
                             # Provisioner should run
@@ -582,7 +623,7 @@ class TestVmCleanupOnExit:
     def test_vm_stopped_after_shell_exit_normal_mode(
         self, runner: CliRunner, sample_config_yaml: str
     ) -> None:
-        """VM is stopped after shell exits in normal mode."""
+        """VM is stopped after shell exits in normal mode when last session."""
         with runner.isolated_filesystem():
             Path(".clauded.yaml").write_text(sample_config_yaml)
 
@@ -590,6 +631,7 @@ class TestVmCleanupOnExit:
                 mock_vm = MagicMock()
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 0
                 mock_vm.name = "clauded-testcli1"
                 MockVM.return_value = mock_vm
 
@@ -603,7 +645,7 @@ class TestVmCleanupOnExit:
     def test_vm_stopped_after_shell_exit_edit_mode(
         self, runner: CliRunner, sample_config_yaml: str
     ) -> None:
-        """VM is stopped after shell exits in edit mode."""
+        """VM is stopped after shell exits in edit mode when last session."""
         with runner.isolated_filesystem():
             Path(".clauded.yaml").write_text(sample_config_yaml)
 
@@ -611,19 +653,20 @@ class TestVmCleanupOnExit:
                 mock_vm = MagicMock()
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 0
                 mock_vm.name = "clauded-testcli1"
                 MockVM.return_value = mock_vm
 
                 with patch(
                     "clauded.cli._require_interactive_terminal", return_value=None
                 ):
-                    with patch("clauded.cli.wizard") as mock_wizard:
+                    with patch("clauded.cli.run_edit_with_detection") as mock_edit:
                         mock_config = MagicMock()
                         mock_config.mount_guest = "/workspace"
                         mock_config.vm_name = "clauded-testcli1"
                         mock_context = mock_config.atomic_update.return_value
                         mock_context.__enter__.return_value = None
-                        mock_wizard.run_edit.return_value = mock_config
+                        mock_edit.return_value = mock_config
 
                         with patch("clauded.cli.Provisioner") as MockProv:
                             mock_prov = MagicMock()
@@ -658,6 +701,30 @@ class TestVmCleanupOnExit:
                 # Verify stop was NOT called (VM already stopped)
                 mock_vm.stop.assert_not_called()
 
+    def test_vm_not_stopped_if_other_sessions_active(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """VM is not stopped after shell exit when other sessions are active."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 1  # One other session
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, [])
+
+                # Verify shell was entered
+                mock_vm.shell.assert_called_once()
+                # Verify stop was NOT called (other sessions still active)
+                mock_vm.stop.assert_not_called()
+                # Verify message about other sessions
+                assert "other active session(s)" in result.output
+
 
 class TestCliDetectWorkflow:
     """Tests for --detect workflow."""
@@ -688,12 +755,13 @@ class TestCliDetectWorkflow:
         """--detect exits immediately without running wizard."""
         with runner.isolated_filesystem():
             with patch("clauded.cli.wizard") as mock_wizard:
-                with patch("clauded.cli.LimaVM"):
-                    runner.invoke(main, ["--detect"])
+                with patch("clauded.cli.run_edit_with_detection") as mock_edit:
+                    with patch("clauded.cli.LimaVM"):
+                        runner.invoke(main, ["--detect"])
 
-                    # Wizard should not be called
-                    mock_wizard.run.assert_not_called()
-                    mock_wizard.run_edit.assert_not_called()
+                        # Wizard should not be called
+                        mock_wizard.run.assert_not_called()
+                        mock_edit.assert_not_called()
 
     def test_detect_does_not_require_config(self, runner: CliRunner) -> None:
         """--detect works without .clauded.yaml."""
@@ -719,3 +787,96 @@ class TestCliDetectWorkflow:
 
             data = json.loads(result.output)
             assert isinstance(data, dict)
+
+
+class TestReprovisionWithDetect:
+    """Tests for --reprovision --detect workflow."""
+
+    def test_reprovision_detect_runs_detection_and_merges(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--reprovision --detect runs detection and merges with config."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                with patch("clauded.cli.apply_detection_to_config") as mock_apply:
+                    # Simulate detection finding new requirements
+                    mock_config = MagicMock()
+                    mock_config.tools = ["docker", "uv"]  # uv is new
+                    mock_config.databases = []
+                    mock_config.python = "3.12"
+                    mock_config.node = "20"
+                    mock_config.java = None
+                    mock_config.kotlin = None
+                    mock_config.rust = None
+                    mock_config.go = None
+                    mock_config.dart = None
+                    mock_config.c = None
+                    mock_apply.return_value = (mock_config, True)
+
+                    with patch("clauded.cli.Provisioner") as MockProv:
+                        mock_prov = MagicMock()
+                        MockProv.return_value = mock_prov
+
+                        result = runner.invoke(main, ["--reprovision", "--detect"])
+
+                        # Detection should be applied
+                        mock_apply.assert_called_once()
+                        # Config should be saved
+                        mock_config.save.assert_called_once()
+                        # Provisioner should run
+                        mock_prov.run.assert_called_once()
+                        # Output should mention updates
+                        assert "Updated .clauded.yaml" in result.output
+
+    def test_reprovision_detect_no_changes(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--reprovision --detect with no new requirements still provisions."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                with patch("clauded.cli.apply_detection_to_config") as mock_apply:
+                    # Simulate no changes
+                    mock_config = MagicMock()
+                    mock_apply.return_value = (mock_config, False)
+
+                    with patch("clauded.cli.Provisioner") as MockProv:
+                        mock_prov = MagicMock()
+                        MockProv.return_value = mock_prov
+
+                        result = runner.invoke(main, ["--reprovision", "--detect"])
+
+                        # Detection should be applied
+                        mock_apply.assert_called_once()
+                        # Config should NOT be saved (no changes)
+                        mock_config.save.assert_not_called()
+                        # Provisioner should still run
+                        mock_prov.run.assert_called_once()
+                        # Output should indicate no changes
+                        assert "No new requirements" in result.output
+
+    def test_detect_alone_still_outputs_json(self, runner: CliRunner) -> None:
+        """--detect alone (without --reprovision) still outputs JSON and exits."""
+        with runner.isolated_filesystem():
+            result = runner.invoke(main, ["--detect"])
+
+            assert result.exit_code == 0
+            import json
+
+            data = json.loads(result.output)
+            assert "languages" in data

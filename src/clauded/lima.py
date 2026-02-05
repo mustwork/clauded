@@ -162,6 +162,39 @@ class LimaVM:
             )
             raise SystemExit(1) from None
 
+    def count_active_sessions(self) -> int:
+        """Count active SSH sessions in the VM.
+
+        Counts pseudo-terminal (pts) devices which correspond to SSH sessions.
+        The 'who' command doesn't work reliably on Alpine Linux because SSH
+        sessions don't always create utmp entries.
+
+        Note: Non-interactive limactl shell commands (with capture_output) don't
+        allocate a pts, so this count reflects only interactive sessions.
+
+        Returns:
+            Number of active interactive sessions, or 0 if unable to determine.
+        """
+        try:
+            # Count pts devices - each interactive SSH session allocates one
+            # Using ls /dev/pts and counting numeric entries (0, 1, 2, ...)
+            # ptmx is the master device and should be excluded
+            result = subprocess.run(
+                ["limactl", "shell", self.name, "--", "ls", "/dev/pts"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                return 0
+            # Count numeric entries (0, 1, 2, ...) - these are active pts devices
+            entries = result.stdout.strip().split()
+            pts_count = sum(1 for e in entries if e.isdigit())
+            return pts_count
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+            # On any error, assume no other sessions (fail-safe to allow stopping)
+            return 0
+
     def destroy(self) -> None:
         """Delete the VM."""
         destroy_vm_by_name(self.name)

@@ -671,17 +671,18 @@ environment:
 
             # Mock all external dependencies
             with patch("clauded.cli.LimaVM") as MockVM:
-                with patch("clauded.cli.wizard") as mock_wizard:
+                with patch("clauded.cli.run_edit_with_detection") as mock_edit:
                     with patch("clauded.cli.Provisioner") as MockProv:
                         with patch("clauded.cli._require_interactive_terminal"):
                             # Setup mocks
                             mock_vm = MagicMock()
                             mock_vm.exists.return_value = True
                             mock_vm.is_running.return_value = True
+                            mock_vm.count_active_sessions.return_value = 0
                             mock_vm.name = config.vm_name
                             MockVM.return_value = mock_vm
 
-                            # Mock wizard to return new config
+                            # Mock run_edit_with_detection to return new config
                             new_config = Config.from_wizard(
                                 {
                                     "cpus": "4",
@@ -698,7 +699,7 @@ environment:
                             mock_ctx = MagicMock()
                             mock_ctx.__enter__.return_value = None
                             new_config_mock.atomic_update.return_value = mock_ctx
-                            mock_wizard.run_edit.return_value = new_config_mock
+                            mock_edit.return_value = new_config_mock
 
                             mock_prov = MagicMock()
                             MockProv.return_value = mock_prov
@@ -708,7 +709,7 @@ environment:
 
                             # Verify workflow
                             assert result.exit_code == 0
-                            mock_wizard.run_edit.assert_called_once()
+                            mock_edit.assert_called_once()
                             new_config_mock.atomic_update.assert_called_once()
                             mock_prov.run.assert_called_once()
                             mock_vm.shell.assert_called_once()

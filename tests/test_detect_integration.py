@@ -396,6 +396,223 @@ class TestCreateWizardDefaults:
         assert "docker" in defaults["tools"]
         assert "aws-cli" not in defaults["tools"]
 
+    def test_defaults_mcp_runtimes_preselect_language(self):
+        """MCP-required runtimes pre-select languages even without code files."""
+        # Simulate uvx MCP server requiring Python, but no Python code in project
+        result = DetectionResult(
+            languages=[],  # No Python code detected
+            mcp_runtimes={"python"},  # But uvx requires Python
+        )
+        defaults = create_wizard_defaults(result)
+        # Python should be pre-selected due to MCP requirement
+        assert defaults["python"] != "None"
+        assert defaults["python"] in ("3.12", "3.11", "3.10")
+
+    def test_defaults_mcp_runtimes_merged_with_language_detection(self):
+        """Example: MCP runtimes merged with language detection."""
+        result = DetectionResult(
+            languages=[
+                DetectedLanguage(
+                    name="JavaScript",
+                    confidence="high",
+                    byte_count=5000,
+                    file_count=10,
+                    source_files=["index.js"],
+                )
+            ],
+            mcp_runtimes={"python"},  # uvx requires Python
+        )
+        defaults = create_wizard_defaults(result)
+        # Both Node (from JS detection) and Python (from MCP) should be selected
+        assert defaults["node"] != "None"
+        assert defaults["python"] != "None"
+
+
+# ============================================================================
+# Tests for merge_detection_with_config
+# ============================================================================
+
+
+class TestMergeDetectionWithConfig:
+    """Tests for merge_detection_with_config function."""
+
+    def test_merge_preserves_user_runtime_choices(self):
+        """User's existing runtime versions are preserved."""
+        from clauded.config import Config
+        from clauded.detect.wizard_integration import merge_detection_with_config
+
+        config = Config(python="3.11", node="20")
+        detection_defaults = {
+            "python": "3.12",  # Detection found newer
+            "node": "22",  # Detection found newer
+            "java": "None",
+            "kotlin": "None",
+            "rust": "None",
+            "go": "None",
+            "dart": "None",
+            "c": "None",
+            "tools": [],
+            "databases": [],
+            "frameworks": ["claude-code"],
+        }
+
+        merged = merge_detection_with_config(detection_defaults, config)
+
+        # User's choices preserved
+        assert merged["python"] == "3.11"
+        assert merged["node"] == "20"
+
+    def test_merge_adds_detected_runtime_when_user_has_none(self):
+        """Detection adds new runtimes user doesn't have."""
+        from clauded.config import Config
+        from clauded.detect.wizard_integration import merge_detection_with_config
+
+        config = Config(python=None, node="20")  # User doesn't have Python
+        detection_defaults = {
+            "python": "3.12",  # Detection requires Python (e.g., MCP uvx)
+            "node": "22",
+            "java": "None",
+            "kotlin": "None",
+            "rust": "None",
+            "go": "None",
+            "dart": "None",
+            "c": "None",
+            "tools": ["uv"],
+            "databases": [],
+            "frameworks": ["claude-code"],
+        }
+
+        merged = merge_detection_with_config(detection_defaults, config)
+
+        # Python added from detection
+        assert merged["python"] == "3.12"
+        # Node preserved from user
+        assert merged["node"] == "20"
+
+    def test_merge_unions_tools(self):
+        """Tools are unioned between config and detection."""
+        from clauded.config import Config
+        from clauded.detect.wizard_integration import merge_detection_with_config
+
+        config = Config(tools=["docker"])
+        detection_defaults = {
+            "python": "None",
+            "node": "None",
+            "java": "None",
+            "kotlin": "None",
+            "rust": "None",
+            "go": "None",
+            "dart": "None",
+            "c": "None",
+            "tools": ["uv", "gh"],  # Detection found these
+            "databases": [],
+            "frameworks": ["claude-code"],
+        }
+
+        merged = merge_detection_with_config(detection_defaults, config)
+
+        # All tools present
+        assert "docker" in merged["tools"]
+        assert "uv" in merged["tools"]
+        assert "gh" in merged["tools"]
+
+    def test_merge_unions_databases(self):
+        """Databases are unioned between config and detection."""
+        from clauded.config import Config
+        from clauded.detect.wizard_integration import merge_detection_with_config
+
+        config = Config(databases=["postgresql"])
+        detection_defaults = {
+            "python": "None",
+            "node": "None",
+            "java": "None",
+            "kotlin": "None",
+            "rust": "None",
+            "go": "None",
+            "dart": "None",
+            "c": "None",
+            "tools": [],
+            "databases": ["redis", "sqlite"],  # Detection found these
+            "frameworks": ["claude-code"],
+        }
+
+        merged = merge_detection_with_config(detection_defaults, config)
+
+        # All databases present
+        assert "postgresql" in merged["databases"]
+        assert "redis" in merged["databases"]
+        assert "sqlite" in merged["databases"]
+
+
+class TestApplyDetectionToConfig:
+    """Tests for apply_detection_to_config function."""
+
+    def test_apply_detection_adds_mcp_required_runtime(self, tmp_path):
+        """apply_detection_to_config adds Python when MCP requires uvx."""
+        from clauded.config import Config
+        from clauded.detect.wizard_integration import apply_detection_to_config
+
+        # Create MCP config file requiring uvx
+        mcp_config = tmp_path / ".mcp.json"
+        mcp_config.write_text('{"mcpServers": {"test": {"command": "uvx"}}}')
+
+        config = Config(
+            vm_name="test-vm",
+            mount_host=str(tmp_path),
+            mount_guest=str(tmp_path),
+            python=None,  # No Python configured
+        )
+
+        updated_config, changes_made = apply_detection_to_config(
+            config, tmp_path, debug=False
+        )
+
+        # Python should be added due to MCP uvx requirement
+        assert changes_made is True
+        assert updated_config.python is not None
+        assert updated_config.python in ("3.12", "3.11", "3.10")
+
+    def test_apply_detection_preserves_existing_runtime(self, tmp_path):
+        """apply_detection_to_config preserves user's existing runtime version."""
+        from clauded.config import Config
+        from clauded.detect.wizard_integration import apply_detection_to_config
+
+        # Create MCP config file requiring uvx
+        mcp_config = tmp_path / ".mcp.json"
+        mcp_config.write_text('{"mcpServers": {"test": {"command": "uvx"}}}')
+
+        config = Config(
+            vm_name="test-vm",
+            mount_host=str(tmp_path),
+            mount_guest=str(tmp_path),
+            python="3.10",  # User has Python 3.10
+        )
+
+        updated_config, changes_made = apply_detection_to_config(
+            config, tmp_path, debug=False
+        )
+
+        # Python version should be preserved
+        assert updated_config.python == "3.10"
+
+    def test_apply_detection_no_changes_returns_false(self, tmp_path):
+        """apply_detection_to_config returns False when no changes needed."""
+        from clauded.config import Config
+        from clauded.detect.wizard_integration import apply_detection_to_config
+
+        # No MCP config, no project files
+        config = Config(
+            vm_name="test-vm",
+            mount_host=str(tmp_path),
+            mount_guest=str(tmp_path),
+        )
+
+        updated_config, changes_made = apply_detection_to_config(
+            config, tmp_path, debug=False
+        )
+
+        assert changes_made is False
+
 
 # ============================================================================
 # Property-Based Tests for normalize_version_for_choice

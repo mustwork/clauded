@@ -13,7 +13,11 @@ from . import wizard
 from .config import Config
 from .detect import detect
 from .detect.cli_integration import display_detection_json
-from .detect.wizard_integration import run_with_detection
+from .detect.wizard_integration import (
+    apply_detection_to_config,
+    run_edit_with_detection,
+    run_with_detection,
+)
 from .lima import LimaVM, destroy_vm_by_name
 from .provisioner import Provisioner
 
@@ -69,6 +73,41 @@ def _reset_terminal() -> None:
             termios.tcflush(fd, termios.TCIFLUSH)
         except (ImportError, OSError):
             pass
+
+
+def _stop_vm_if_last_session(vm: LimaVM, config_path: Path) -> None:
+    """Stop the VM only if this was the last active session.
+
+    Checks for other active SSH sessions in the VM. If other sessions
+    exist, skips stopping to avoid disrupting other users.
+
+    Args:
+        vm: The LimaVM instance to potentially stop
+        config_path: Path to .clauded.yaml for reloading config
+    """
+    if not vm.is_running():
+        return
+
+    # Reload config to respect changes made while VM was running
+    current_config = Config.load(config_path)
+    if current_config.keep_vm_running:
+        return
+
+    # Check if other sessions are still active
+    active_sessions = vm.count_active_sessions()
+    if active_sessions > 0:
+        click.echo(
+            f"\nVM '{vm.name}' has {active_sessions} other active session(s), "
+            "leaving it running."
+        )
+        return
+
+    # Ignore Ctrl+C during shutdown to ensure cleanup completes
+    original_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    try:
+        vm.stop()
+    finally:
+        signal.signal(signal.SIGINT, original_handler)
 
 
 def _prompt_vm_deletion(vm_name: str) -> bool:
@@ -170,6 +209,11 @@ def _handle_crash_recovery(config: Config, config_path: Path) -> None:
 @click.option("--reprovision", is_flag=True, help="Re-run provisioning on the VM")
 @click.option("--reboot", is_flag=True, help="Reboot VM after provisioning")
 @click.option("--stop", is_flag=True, help="Stop the VM without entering shell")
+@click.option(
+    "--force-stop",
+    is_flag=True,
+    help="Force stop the VM even if other sessions are active",
+)
 @click.option("--edit", is_flag=True, help="Edit VM configuration and reprovision")
 @click.option(
     "--detect",
@@ -192,6 +236,7 @@ def main(
     reprovision: bool,
     reboot: bool,
     stop: bool,
+    force_stop: bool,
     edit: bool,
     detect_only: bool = False,
     no_detect: bool = False,
@@ -214,8 +259,9 @@ def main(
     config_path = Path.cwd() / ".clauded.yaml"
     project_path = Path.cwd().resolve()
 
-    # Handle --detect (detection-only mode)
-    if detect_only:
+    # Handle --detect alone (detection-only mode, outputs JSON)
+    # Note: --detect with --reprovision is handled separately below
+    if detect_only and not reprovision:
         detection_result = detect(project_path, debug=debug)
         display_detection_json(detection_result)
         return
@@ -238,8 +284,8 @@ def main(
 
         return
 
-    # Handle --stop
-    if stop:
+    # Handle --stop and --force-stop
+    if stop or force_stop:
         if not config_path.exists():
             click.echo("No .clauded.yaml found in current directory.")
             raise SystemExit(1)
@@ -247,10 +293,21 @@ def main(
         config = Config.load(config_path)
         vm = LimaVM(config)
 
-        if vm.exists() and vm.is_running():
-            vm.stop()
-        else:
+        if not vm.exists() or not vm.is_running():
             click.echo(f"VM '{vm.name}' is not running.")
+            return
+
+        # Check for other active sessions unless --force-stop
+        if not force_stop:
+            active_sessions = vm.count_active_sessions()
+            if active_sessions > 0:
+                click.echo(
+                    f"VM '{vm.name}' has {active_sessions} active session(s). "
+                    "Use --force-stop to stop anyway."
+                )
+                return
+
+        vm.stop()
         return
 
     # Handle --edit
@@ -278,7 +335,7 @@ def main(
         _require_interactive_terminal()
 
         try:
-            new_config = wizard.run_edit(config, project_path)
+            new_config = run_edit_with_detection(config, project_path, debug=debug)
 
             # Use atomic_update for transactional config save + provisioning
             with new_config.atomic_update(
@@ -302,22 +359,10 @@ def main(
         click.echo(
             f"\nStarting Claude Code in VM '{vm.name}' at {new_config.mount_guest}..."
         )
-        # BUG FIX: Ensure VM cleanup on shell exit
-        # Root cause: vm.shell() returns on exit, but VM stays running
-        # Bug report: bug-reports/vm-cleanup-on-exit-report.md
-        # Date: 2026-02-02
         try:
             vm.shell()
         finally:
-            # Reload config to respect changes made while VM was running
-            current_config = Config.load(config_path)
-            if vm.is_running() and not current_config.keep_vm_running:
-                # Ignore Ctrl+C during shutdown to ensure cleanup completes
-                original_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-                try:
-                    vm.stop()
-                finally:
-                    signal.signal(signal.SIGINT, original_handler)
+            _stop_vm_if_last_session(vm, config_path)
         return
 
     # No config? Run wizard (with or without detection)
@@ -365,6 +410,42 @@ def main(
 
         # Re-run provisioning if requested (independent of start)
         if reprovision:
+            # If --detect flag also provided, run detection and merge with config
+            if detect_only:
+                updated_config, changes_made = apply_detection_to_config(
+                    config, project_path, debug=debug
+                )
+                if changes_made:
+                    click.echo("\nDetection found new requirements:")
+                    # Show what changed
+                    for runtime in (
+                        "python",
+                        "node",
+                        "java",
+                        "kotlin",
+                        "rust",
+                        "go",
+                        "dart",
+                        "c",
+                    ):
+                        old_val = getattr(config, runtime, None)
+                        new_val = getattr(updated_config, runtime, None)
+                        if old_val != new_val and new_val is not None:
+                            click.echo(f"  + {runtime}: {new_val}")
+                    for tool in updated_config.tools:
+                        if tool not in (config.tools or []):
+                            click.echo(f"  + tool: {tool}")
+                    for db in updated_config.databases:
+                        if db not in (config.databases or []):
+                            click.echo(f"  + database: {db}")
+
+                    # Save updated config
+                    updated_config.save(config_path)
+                    click.echo("\nUpdated .clauded.yaml")
+                    config = updated_config
+                else:
+                    click.echo("\nNo new requirements detected.")
+
             provisioner = Provisioner(config, vm, debug=debug)
             provisioner.run()
 
@@ -376,22 +457,10 @@ def main(
 
     # Enter Claude Code
     click.echo(f"\nStarting Claude Code in VM '{vm.name}' at {config.mount_guest}...")
-    # BUG FIX: Ensure VM cleanup on shell exit
-    # Root cause: vm.shell() returns on exit, but VM stays running
-    # Bug report: bug-reports/vm-cleanup-on-exit-report.md
-    # Date: 2026-02-02
     try:
         vm.shell()
     finally:
-        # Reload config to respect changes made while VM was running
-        current_config = Config.load(config_path)
-        if vm.is_running() and not current_config.keep_vm_running:
-            # Ignore Ctrl+C during shutdown to ensure cleanup completes
-            original_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-            try:
-                vm.stop()
-            finally:
-                signal.signal(signal.SIGINT, original_handler)
+        _stop_vm_if_last_session(vm, config_path)
 
 
 if __name__ == "__main__":

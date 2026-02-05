@@ -155,8 +155,11 @@
 
 **VM Stopping**
 - Input: VM name
-- Process: Execute `limactl stop <vm-name>`
-- Output: Stopped VM (persistent disk preserved)
+- Process:
+  1. Check for other active sessions (count pts devices in /dev/pts)
+  2. If other sessions exist and not forced: Display message and skip stop
+  3. If no other sessions or forced: Execute `limactl stop <vm-name>`
+- Output: Stopped VM (persistent disk preserved) or skip message
 
 **VM Destruction**
 - Input: VM name
@@ -167,6 +170,7 @@
 - Input: VM name
 - Process: Execute `limactl shell <vm-name> --workdir <project-path>`
 - Output: Interactive shell session at project directory
+- On exit: Check `keep_vm_running` config and active sessions; stop VM only if last session and `keep_vm_running` is false
 
 ### 2. Configuration Management
 
@@ -179,6 +183,7 @@ vm:
   memory: <size>GiB
   disk: <size>GiB
   image: <url>  # optional, defaults to Alpine 3.21 cloud image
+  keep_running: false  # optional, keep VM running after shell exit
 mount:
   host: <absolute-path>
   guest: <absolute-path>  # same as host
@@ -356,8 +361,17 @@ ssh:
 
 **--stop Workflow**
 1. Check if VM is running
-   - If running: Execute `limactl stop <vm-name>`
-2. Exit (do not enter shell)
+   - If not running: Display message and exit
+2. Check for other active sessions (count pts devices)
+   - If other sessions exist: Display message with session count and exit
+3. Execute `limactl stop <vm-name>`
+4. Exit (do not enter shell)
+
+**--force-stop Workflow**
+1. Check if VM is running
+   - If not running: Display message and exit
+2. Execute `limactl stop <vm-name>` (skip session check)
+3. Exit (do not enter shell)
 
 **--reprovision Workflow**
 1. Ensure VM is running
@@ -511,7 +525,8 @@ The project uses GitHub Actions for automated quality enforcement:
 **Options**:
 - `--version`: Display version and exit
 - `--destroy`: Destroy VM and optionally remove config
-- `--stop`: Stop VM without entering shell
+- `--stop`: Stop VM without entering shell (respects other active sessions)
+- `--force-stop`: Stop VM regardless of other active sessions
 - `--reprovision`: Re-run Ansible provisioning
 - `--edit`: Edit configuration and reprovision
 - `--detect`: Run detection only and output results

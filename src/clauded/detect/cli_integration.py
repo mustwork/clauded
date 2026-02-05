@@ -275,6 +275,9 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
                 if runtime:
                     detected_runtimes.add(runtime)
 
+        # Include runtimes required by MCP configuration (e.g., Python for uvx)
+        detected_runtimes.update(result.mcp_runtimes)
+
         # Extract and normalize versions, using latest when language detected
         defaults: dict[str, str | list[str]] = {}
         for runtime, choices in runtime_choices.items():

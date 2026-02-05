@@ -28,6 +28,7 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 - **Testing Frameworks**: Playwright with browser binaries ready to use
 - **AI Integration**: Claude Code CLI for AI-assisted development
 - **VM Lifecycle Management**: Create, start, stop, destroy, and reprovision VMs
+- **Multi-Instance Support**: Multiple terminals can connect to the same VM; VM only stops when the last session exits
 - **Atomic Config Updates**: Automatic rollback on failure ensures config never references broken VMs
 - **Crash Recovery**: Detects and recovers from interrupted operations on startup
 - **Customizable Resources**: Configure CPU, memory, and disk allocation per project
@@ -133,6 +134,12 @@ This starts the VM (if stopped) and enters the shell immediately.
 
 ```bash
 clauded --stop
+```
+
+If other sessions are connected, you'll see a message and the VM won't stop. Use `--force-stop` to stop regardless:
+
+```bash
+clauded --force-stop
 ```
 
 ### 4. Reprovision (Update Environment)
