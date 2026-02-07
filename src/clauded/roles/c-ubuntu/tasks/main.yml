@@ -1,0 +1,153 @@
+---
+# Install C/C++ development tools on Ubuntu
+
+- name: Install base C/C++ development tools
+  apt:
+    name:
+      - build-essential
+      - make
+      - cmake
+      - gdb
+      - valgrind
+      - linux-headers-generic
+    state: present
+    update_cache: yes
+
+- name: Install GCC 14 toolchain
+  apt:
+    name:
+      - gcc-14
+      - g++-14
+    state: present
+  when: c_version == "gcc14"
+  ignore_errors: yes
+
+- name: Install GCC 13 toolchain
+  apt:
+    name:
+      - gcc-13
+      - g++-13
+    state: present
+  when: c_version == "gcc13"
+  ignore_errors: yes
+
+- name: Install default GCC if specific version not available
+  apt:
+    name:
+      - gcc
+      - g++
+    state: present
+  when: c_version in ["gcc14", "gcc13"]
+
+- name: Install Clang 18 toolchain
+  apt:
+    name:
+      - clang-18
+      - llvm-18
+      - lld-18
+    state: present
+  when: c_version == "clang18"
+  ignore_errors: yes
+
+- name: Install Clang 17 toolchain
+  apt:
+    name:
+      - clang-17
+      - llvm-17
+      - lld-17
+    state: present
+  when: c_version == "clang17"
+  ignore_errors: yes
+
+- name: Install default Clang if specific version not available
+  apt:
+    name:
+      - clang
+      - llvm
+      - lld
+    state: present
+  when: c_version in ["clang18", "clang17"]
+
+- name: Create gcc symlinks for gcc14
+  file:
+    src: "/usr/bin/{{ item.src }}"
+    dest: "/usr/bin/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "gcc-14", dest: "gcc" }
+    - { src: "g++-14", dest: "g++" }
+  when: c_version == "gcc14"
+  ignore_errors: yes
+
+- name: Create gcc symlinks for gcc13
+  file:
+    src: "/usr/bin/{{ item.src }}"
+    dest: "/usr/bin/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "gcc-13", dest: "gcc" }
+    - { src: "g++-13", dest: "g++" }
+  when: c_version == "gcc13"
+  ignore_errors: yes
+
+- name: Create clang symlinks for clang18
+  file:
+    src: "/usr/bin/{{ item.src }}"
+    dest: "/usr/bin/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "clang-18", dest: "clang" }
+    - { src: "clang++-18", dest: "clang++" }
+  when: c_version == "clang18"
+  ignore_errors: yes
+
+- name: Create clang symlinks for clang17
+  file:
+    src: "/usr/bin/{{ item.src }}"
+    dest: "/usr/bin/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "clang-17", dest: "clang" }
+    - { src: "clang++-17", dest: "clang++" }
+  when: c_version == "clang17"
+  ignore_errors: yes
+
+- name: Set C/C++ environment variables system-wide
+  copy:
+    dest: /etc/profile.d/c-cpp.sh
+    content: |
+      # C/C++ development environment
+      export CC={{ 'clang' if c_version.startswith('clang') else 'gcc' }}
+      export CXX={{ 'clang++' if c_version.startswith('clang') else 'g++' }}
+    mode: '0644'
+
+- name: Verify C compiler installation
+  command: "{{ 'clang' if c_version.startswith('clang') else 'gcc' }} --version"
+  register: c_version_output
+  changed_when: false
+
+- name: Display C compiler version
+  debug:
+    msg: "C compiler: {{ c_version_output.stdout_lines[0] }}"
+
+- name: Verify C++ compiler installation
+  command: "{{ 'clang++' if c_version.startswith('clang') else 'g++' }} --version"
+  register: cpp_version_output
+  changed_when: false
+
+- name: Display C++ compiler version
+  debug:
+    msg: "C++ compiler: {{ cpp_version_output.stdout_lines[0] }}"
+
+- name: Verify cmake installation
+  command: cmake --version
+  register: cmake_version_output
+  changed_when: false
+
+- name: Display cmake version
+  debug:
+    msg: "CMake: {{ cmake_version_output.stdout_lines[0] }}"

@@ -22,9 +22,17 @@ from .lima import LimaVM
 # This set grows as Stories 04-06 migrate remaining roles.
 _ROLES_WITH_VARIANTS = frozenset(
     {
+        # Core roles (Story 03)
         "common",
         "python",
         "node",
+        # Language roles (Story 04)
+        "java",
+        "kotlin",
+        "rust",
+        "go",
+        "dart",
+        "c",
     }
 )
 

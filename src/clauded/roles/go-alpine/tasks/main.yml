@@ -1,0 +1,61 @@
+---
+- name: Install curl for Go download
+  apk:
+    name: curl
+    state: present
+    update_cache: yes
+
+- name: Remove existing Go installation
+  file:
+    path: /usr/local/go
+    state: absent
+
+- name: Set Go download metadata
+  set_fact:
+    go_download: "{{ downloads.go.versions[go_version] | default(downloads.go.versions[downloads.go.default_version]) }}"
+    go_effective_version: "{{ go_version if go_version in downloads.go.versions else downloads.go.default_version }}"
+
+- name: Download Go {{ go_effective_version }}
+  get_url:
+    url: "{{ go_download.url }}"
+    dest: /tmp/go.tar.gz
+    mode: '0644'
+
+- name: Extract Go to /usr/local
+  unarchive:
+    src: /tmp/go.tar.gz
+    dest: /usr/local
+    remote_src: yes
+    creates: /usr/local/go/bin/go
+
+- name: Set Go environment variables system-wide
+  copy:
+    dest: /etc/profile.d/go.sh
+    content: |
+      export GOROOT=/usr/local/go
+      export GOPATH=$HOME/go
+      export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
+    mode: '0644'
+
+- name: Create symlinks for Go binaries
+  file:
+    src: "/usr/local/go/bin/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+  loop:
+    - go
+    - gofmt
+
+- name: Clean up downloaded archive
+  file:
+    path: /tmp/go.tar.gz
+    state: absent
+
+- name: Verify Go installation
+  command: /usr/local/go/bin/go version
+  register: go_version_output
+  changed_when: false
+
+- name: Display Go version
+  debug:
+    msg: "Go version: {{ go_version_output.stdout }}"

@@ -1,0 +1,27 @@
+---
+- name: Install OpenJDK {{ java_version }}
+  apk:
+    name: "openjdk{{ java_version }}"
+    state: present
+    update_cache: yes
+
+- name: Determine JDK path
+  set_fact:
+    java_home: "/usr/lib/jvm/java-{{ java_version }}-openjdk"
+
+- name: Set JAVA_HOME environment variable
+  copy:
+    dest: /etc/profile.d/java.sh
+    content: |
+      export JAVA_HOME={{ java_home }}
+      export PATH=$JAVA_HOME/bin:$PATH
+    mode: '0644'
+
+- name: Verify Java installation
+  command: java -version
+  register: java_version_output
+  changed_when: false
+
+- name: Display Java version
+  debug:
+    msg: "Java version: {{ java_version_output.stderr }}"

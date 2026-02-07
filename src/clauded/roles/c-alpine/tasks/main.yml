@@ -1,0 +1,109 @@
+---
+- name: Install base C/C++ development tools
+  apk:
+    name:
+      - build-base
+      - make
+      - cmake
+      - gdb
+      - valgrind
+      - musl-dev
+      - linux-headers
+    state: present
+    update_cache: yes
+
+- name: Install GCC 14 toolchain
+  apk:
+    name:
+      - gcc
+      - g++
+    state: present
+  when: c_version == "gcc14"
+
+- name: Install GCC 13 toolchain
+  apk:
+    name:
+      - gcc
+      - g++
+    state: present
+  when: c_version == "gcc13"
+
+- name: Install Clang 18 toolchain
+  apk:
+    name:
+      - clang18
+      - clang18-dev
+      - llvm18
+      - lld
+    state: present
+  when: c_version == "clang18"
+
+- name: Install Clang 17 toolchain
+  apk:
+    name:
+      - clang17
+      - clang17-dev
+      - llvm17
+      - lld
+    state: present
+  when: c_version == "clang17"
+
+- name: Create clang symlinks for clang18
+  file:
+    src: "/usr/bin/{{ item.src }}"
+    dest: "/usr/bin/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "clang-18", dest: "clang" }
+    - { src: "clang++-18", dest: "clang++" }
+  when: c_version == "clang18"
+  ignore_errors: yes
+
+- name: Create clang symlinks for clang17
+  file:
+    src: "/usr/bin/{{ item.src }}"
+    dest: "/usr/bin/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "clang-17", dest: "clang" }
+    - { src: "clang++-17", dest: "clang++" }
+  when: c_version == "clang17"
+  ignore_errors: yes
+
+- name: Set C/C++ environment variables system-wide
+  copy:
+    dest: /etc/profile.d/c-cpp.sh
+    content: |
+      # C/C++ development environment
+      export CC={{ 'clang' if c_version.startswith('clang') else 'gcc' }}
+      export CXX={{ 'clang++' if c_version.startswith('clang') else 'g++' }}
+    mode: '0644'
+
+- name: Verify C compiler installation
+  command: "{{ 'clang' if c_version.startswith('clang') else 'gcc' }} --version"
+  register: c_version_output
+  changed_when: false
+
+- name: Display C compiler version
+  debug:
+    msg: "C compiler: {{ c_version_output.stdout_lines[0] }}"
+
+- name: Verify C++ compiler installation
+  command: "{{ 'clang++' if c_version.startswith('clang') else 'g++' }} --version"
+  register: cpp_version_output
+  changed_when: false
+
+- name: Display C++ compiler version
+  debug:
+    msg: "C++ compiler: {{ cpp_version_output.stdout_lines[0] }}"
+
+- name: Verify cmake installation
+  command: cmake --version
+  register: cmake_version_output
+  changed_when: false
+
+- name: Display cmake version
+  debug:
+    msg: "CMake: {{ cmake_version_output.stdout_lines[0] }}"

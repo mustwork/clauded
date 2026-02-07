@@ -1,0 +1,82 @@
+{
+  "story_id": "04",
+  "status": "done",
+  "created_at": "2026-02-07T12:40:00Z",
+  "updated_at": "2026-02-07T13:15:00Z",
+  "completed_at": "2026-02-07T13:15:00Z",
+
+  "implementation": {
+    "status": "complete",
+    "started_at": "2026-02-07T12:40:00Z",
+    "completed_at": "2026-02-07T13:00:00Z",
+    "architect_session_id": null,
+    "files_created": [
+      "src/clauded/roles/java-alpine/tasks/main.yml",
+      "src/clauded/roles/java-ubuntu/tasks/main.yml",
+      "src/clauded/roles/kotlin-alpine/tasks/main.yml",
+      "src/clauded/roles/kotlin-ubuntu/tasks/main.yml",
+      "src/clauded/roles/rust-alpine/tasks/main.yml",
+      "src/clauded/roles/rust-alpine/defaults/main.yml",
+      "src/clauded/roles/rust-ubuntu/tasks/main.yml",
+      "src/clauded/roles/rust-ubuntu/defaults/main.yml",
+      "src/clauded/roles/go-alpine/tasks/main.yml",
+      "src/clauded/roles/go-ubuntu/tasks/main.yml",
+      "src/clauded/roles/dart-alpine/tasks/main.yml",
+      "src/clauded/roles/dart-ubuntu/tasks/main.yml",
+      "src/clauded/roles/c-alpine/tasks/main.yml",
+      "src/clauded/roles/c-ubuntu/tasks/main.yml"
+    ],
+    "files_modified": [
+      "src/clauded/provisioner.py"
+    ],
+    "mocks_introduced": []
+  },
+
+  "verification_rounds": [
+    {
+      "round": 1,
+      "timestamp": "2026-02-07T13:10:00Z",
+      "results": [
+        {"question_id": "VQ-04-001", "result": "pass", "evidence": {"finding": "Zero Alpine commands in Ubuntu roles, all use apt"}},
+        {"question_id": "VQ-04-002", "result": "pass", "evidence": {"finding": "Zero distro conditionals, variants are independent"}},
+        {"question_id": "VQ-04-003", "result": "pass", "evidence": {"finding": "All roles install correct toolchains: OpenJDK, Kotlin, rustup, Go, Dart SDK, gcc/clang"}},
+        {"question_id": "VQ-04-004", "result": "pass", "evidence": {"finding": "All 6 language roles in _ROLES_WITH_VARIANTS, suffix applied correctly"}},
+        {"question_id": "VQ-04-005", "result": "pass", "evidence": {"finding": "All 869 tests pass, no regressions"}},
+        {"question_id": "VQ-04-DEAD", "result": "pass", "evidence": {"finding": "No dead code, all variables and tasks used"}},
+        {"question_id": "VQ-04-DUP", "result": "pass", "evidence": {"finding": "Intentional duplication per spec (clarity > DRY)"}},
+        {"question_id": "VQ-04-INT", "result": "pass", "evidence": {"finding": "All 6 Ubuntu roles have correct structure with tasks/main.yml"}}
+      ],
+      "summary": {"total": 8, "passed": 8, "failed": 0, "partial": 0},
+      "verification_passed": true,
+      "test_gate": {
+        "ran_at": "2026-02-07T13:12:00Z",
+        "command": "uv run pytest",
+        "passed": true,
+        "total_tests": 869,
+        "passed_tests": 869,
+        "failed_tests": 0,
+        "failures": [],
+        "evidence": "869 passed in 12.40s"
+      },
+      "all_passed": true
+    }
+  ],
+
+  "remediation_attempts": [],
+  "escalation": null,
+  "final_outcome": "accepted",
+
+  "implementation_summary": {
+    "changes": [
+      "Created java-alpine and java-ubuntu roles (OpenJDK via apk/apt)",
+      "Created kotlin-alpine and kotlin-ubuntu roles (Kotlin compiler download)",
+      "Created rust-alpine and rust-ubuntu roles (rustup installer)",
+      "Created go-alpine and go-ubuntu roles (Go tarball download)",
+      "Created dart-alpine and dart-ubuntu roles (Dart SDK download)",
+      "Created c-alpine and c-ubuntu roles (gcc/clang toolchains)",
+      "Added java, kotlin, rust, go, dart, c to _ROLES_WITH_VARIANTS"
+    ],
+    "tests_passing": 869,
+    "linting_clean": true
+  }
+}

@@ -1,0 +1,61 @@
+---
+- name: Install required packages for Kotlin installation
+  apk:
+    name:
+      - curl
+      - unzip
+    state: present
+    update_cache: yes
+
+- name: Create Kotlin installation directory
+  file:
+    path: /opt/kotlin
+    state: directory
+    mode: '0755'
+
+- name: Set Kotlin download metadata
+  set_fact:
+    # Normalize version: "2.0" -> "2.0.21" if not fully specified
+    kotlin_full_version: "{{ kotlin_version if '.' in kotlin_version and kotlin_version.count('.') > 1 else downloads.kotlin.default_version }}"
+    kotlin_download: "{{ downloads.kotlin.versions[kotlin_version] | default(downloads.kotlin.versions[downloads.kotlin.default_version]) }}"
+
+- name: Download Kotlin compiler {{ kotlin_full_version }}
+  get_url:
+    url: "{{ kotlin_download.url }}"
+    dest: /tmp/kotlin-compiler.zip
+    mode: '0644'
+
+- name: Extract Kotlin compiler
+  unarchive:
+    src: /tmp/kotlin-compiler.zip
+    dest: /opt/kotlin
+    remote_src: yes
+    creates: /opt/kotlin/kotlinc
+
+- name: Create symlinks for Kotlin binaries
+  file:
+    src: "/opt/kotlin/kotlinc/bin/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+  loop:
+    - kotlin
+    - kotlinc
+    - kotlin-dce-js
+    - kotlinc-js
+    - kotlinc-jvm
+
+- name: Clean up downloaded archive
+  file:
+    path: /tmp/kotlin-compiler.zip
+    state: absent
+
+- name: Verify Kotlin installation
+  command: kotlin -version
+  environment:
+    JAVA_HOME: "{{ java_home }}"
+  register: kotlin_version_output
+  changed_when: false
+
+- name: Display Kotlin version
+  debug:
+    msg: "Kotlin version: {{ kotlin_version_output.stdout }}"

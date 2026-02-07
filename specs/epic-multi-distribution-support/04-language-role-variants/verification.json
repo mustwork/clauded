@@ -1,0 +1,83 @@
+{
+  "created_at": "2026-02-07T12:40:00Z",
+  "story_id": "04-language-role-variants",
+  "story_title": "Language Role Variants",
+
+  "questions": [
+    {
+      "id": "VQ-04-001",
+      "category": "SPEC",
+      "question": "Do all Ubuntu language roles use Ubuntu-specific package management?",
+      "actionable_check": "Search all *-ubuntu language role tasks for apk:, rc-service, or Alpine commands",
+      "evidence_required": ["grep results from java-ubuntu, kotlin-ubuntu, rust-ubuntu, go-ubuntu, dart-ubuntu, c-ubuntu"],
+      "pass_criteria": "Zero Alpine-specific commands in any Ubuntu language role",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-04-002",
+      "category": "ARCHITECTURE",
+      "question": "Are all language role variants completely independent with no distro conditionals?",
+      "actionable_check": "Search for 'when:.*ansible_os_family' or 'when:.*ansible_distribution' in language role tasks",
+      "evidence_required": ["grep results showing no distro conditionals"],
+      "pass_criteria": "Zero distro conditionals found in any language role variant",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-04-003",
+      "category": "SPEC",
+      "question": "Does each Ubuntu language role install the correct tooling?",
+      "actionable_check": "Verify java-ubuntu installs OpenJDK, kotlin-ubuntu installs Kotlin, rust-ubuntu uses rustup, go-ubuntu installs Go, dart-ubuntu installs Dart SDK, c-ubuntu installs gcc/build-essential",
+      "evidence_required": ["package names in each role task file"],
+      "pass_criteria": "Each role installs appropriate language toolchain for Ubuntu",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-04-004",
+      "category": "TEST",
+      "question": "Does provisioner correctly select language role variants?",
+      "actionable_check": "Verify _ROLES_WITH_VARIANTS includes all language roles or they don't need variants",
+      "evidence_required": ["provisioner.py code showing role variant handling for languages"],
+      "pass_criteria": "All language roles either in _ROLES_WITH_VARIANTS or correctly handled as single-distro roles",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-04-005",
+      "category": "SPEC",
+      "question": "Do Alpine language roles still work correctly?",
+      "actionable_check": "Run full test suite, verify all tests pass",
+      "evidence_required": ["pytest output"],
+      "pass_criteria": "All tests pass, no regressions from adding Ubuntu variants",
+      "added_in_round": 1
+    }
+  ],
+
+  "mandatory_questions": [
+    {
+      "id": "VQ-04-DEAD",
+      "category": "QUALITY",
+      "question": "Is there any dead code introduced by this story?",
+      "actionable_check": "Search for unused functions, classes, imports in new role files",
+      "evidence_required": ["file paths", "unused symbol names"],
+      "pass_criteria": "No unused code in story scope",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-04-DUP",
+      "category": "QUALITY",
+      "question": "Are there any unintended duplicate implementations?",
+      "actionable_check": "Compare Alpine and Ubuntu variants for each language role",
+      "evidence_required": ["comparison summary"],
+      "pass_criteria": "Intentional separation per spec (clarity > DRY) - no issues",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-04-INT",
+      "category": "TEST",
+      "question": "Are role directories properly structured?",
+      "actionable_check": "Verify each Ubuntu language role has tasks/main.yml",
+      "evidence_required": ["directory listing"],
+      "pass_criteria": "All 6 Ubuntu language roles have correct structure",
+      "added_in_round": 1
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+---
+# Install Rust on Ubuntu using rustup
+
+- name: Install required packages for Rust installation
+  apt:
+    name:
+      - curl
+      - build-essential
+      - pkg-config
+      - libssl-dev
+    state: present
+    update_cache: yes
+
+- name: Check if rustup is installed
+  stat:
+    path: /usr/local/cargo/bin/rustup
+  register: rustup_installed
+
+- name: Download rustup installer via HTTPS
+  get_url:
+    url: "{{ downloads.rustup.installer_url }}"
+    dest: /tmp/rustup-init.sh
+    mode: '0755'
+  when: not rustup_installed.stat.exists
+
+- name: Install Rust via rustup
+  shell: |
+    RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo /tmp/rustup-init.sh -y --default-toolchain {{ rust_version }} --profile default
+  args:
+    creates: /usr/local/cargo/bin/rustup
+  environment:
+    RUSTUP_HOME: /usr/local/rustup
+    CARGO_HOME: /usr/local/cargo
+
+- name: Set Rust environment variables system-wide
+  copy:
+    dest: /etc/profile.d/rust.sh
+    content: |
+      export RUSTUP_HOME=/usr/local/rustup
+      export CARGO_HOME=/usr/local/cargo
+      export PATH=/usr/local/cargo/bin:$PATH
+    mode: '0644'
+
+- name: Create symlinks for Rust binaries
+  file:
+    src: "/usr/local/cargo/bin/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    state: link
+    force: yes
+  loop:
+    - rustc
+    - cargo
+    - rustup
+    - rustfmt
+    - rust-analyzer
+  ignore_errors: yes
+
+- name: Clean up installer
+  file:
+    path: /tmp/rustup-init.sh
+    state: absent
+
+- name: Ensure default toolchain is set
+  command: /usr/local/cargo/bin/rustup default {{ rust_version }}
+  environment:
+    RUSTUP_HOME: /usr/local/rustup
+    CARGO_HOME: /usr/local/cargo
+  register: rustup_default_result
+  changed_when: "'unchanged' not in rustup_default_result.stderr"
+
+- name: Verify Rust installation
+  command: /usr/local/cargo/bin/rustc --version
+  environment:
+    RUSTUP_HOME: /usr/local/rustup
+    CARGO_HOME: /usr/local/cargo
+  register: rust_version_output
+  changed_when: false
+
+- name: Display Rust version
+  debug:
+    msg: "Rust version: {{ rust_version_output.stdout }}"

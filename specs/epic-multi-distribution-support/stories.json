@@ -188,7 +188,7 @@
       "complexity": "medium",
       "mock_dependencies": [],
       "introduces_mocks": [],
-      "status": "pending",
+      "status": "done",
       "notes": "Parallel to Story 03 pattern but focused on languages. Can be implemented independently once Story 03 establishes the variant pattern. Each language may have different installation methods on Ubuntu (apt vs PPA vs version manager), requiring research for best practices."
     },
     {
