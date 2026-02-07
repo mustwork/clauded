@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI Distribution Selection**: `--distro` flag for distro selection at VM creation
+  - `--distro alpine` or `--distro ubuntu` to specify distribution
+  - Validates against supported distros (alpine, ubuntu)
+  - Shows clear error for unsupported distros with list of supported options
+  - Conflicts with existing config show helpful error messages
+  - Works with both `--detect` and `--no-detect` flags
+- **Wizard Distribution Selection**: Interactive distro selection in setup wizard
+  - Distro selection shown as FIRST wizard question
+  - Defaults to Alpine Linux
+  - Respects `--distro` flag pre-selection (skips question if flag provided)
+  - Shows "Alpine Linux" and "Ubuntu" as display names
+  - Generated config includes selected distro in `vm.distro` field
+- **Distribution Change Detection**: Automatic detection and handling of distro changes
+  - Reads actual distro from VM via SSH after boot (/etc/clauded.json)
+  - Detects mismatches between config and running VM
+  - Shows clear warning about VM recreation and data loss
+  - User confirmation required (y/N) before VM destruction
+  - Automatically recreates VM with new distro on confirmation
+  - Exits safely without changes on cancellation
+  - Only checks when VM is running and provisioned
 - **Distribution Provider Infrastructure**: Foundational support for multi-distribution VMs
   - Added `vm.distro` field to config schema (supports 'alpine', 'ubuntu')
   - Created DistroProvider protocol with AlpineProvider and UbuntuProvider implementations

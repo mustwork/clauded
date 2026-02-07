@@ -11,7 +11,7 @@ import click
 from ..config import Config
 from ..constants import LANGUAGE_CONFIG
 from ..spinner import spinner
-from ..wizard import _menu_multi_select, _menu_select
+from ..wizard import _menu_multi_select, _menu_select, _select_distro
 from . import detect
 from .result import DetectionResult
 
@@ -21,6 +21,7 @@ def run_with_detection(
     detection: DetectionResult | None = None,
     *,
     debug: bool = False,
+    distro_override: str | None = None,
 ) -> Config:
     """Run interactive wizard with detection-based defaults.
 
@@ -91,6 +92,9 @@ def run_with_detection(
         defaults = defaults_dict
 
     answers: dict[str, str | list[str] | bool] = {}
+
+    # Distribution selection (FIRST step)
+    answers["distro"] = _select_distro(distro_override)
 
     # Languages - multi-select
     # Note: defaults.get(lang) may return None (key missing) or "None" (not detected)

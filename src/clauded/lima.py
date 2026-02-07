@@ -11,7 +11,6 @@ import click
 import yaml
 
 from .config import Config
-from .downloads import get_alpine_image
 
 
 def destroy_vm_by_name(vm_name: str) -> None:
@@ -263,13 +262,62 @@ class LimaVM:
         """Get the path to Lima's SSH config for this VM."""
         return Path.home() / ".lima" / self.name / "ssh.config"
 
+    def get_vm_distro(self) -> str | None:
+        """Read the actual distro running in the VM via SSH.
+
+        CONTRACT:
+          Inputs:
+            - None (reads from /etc/clauded.json in VM)
+
+          Outputs:
+            - distro: string distro identifier ("alpine", "ubuntu")
+              or None if unavailable
+
+          Invariants:
+            - VM must be running
+            - /etc/clauded.json must exist (created during provisioning)
+
+          Properties:
+            - Returns None if VM not provisioned yet (file doesn't exist)
+            - Returns None if SSH command fails
+
+          Algorithm:
+            1. Use limactl shell to read /etc/clauded.json via SSH
+            2. Parse JSON and extract "distro" field
+            3. Return distro value or None on error
+
+        Returns:
+            The distro identifier from the VM, or None if unavailable
+        """
+        if not self.is_running():
+            return None
+
+        try:
+            result = subprocess.run(
+                ["limactl", "shell", self.name, "cat", "/etc/clauded.json"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                # File doesn't exist yet (VM not provisioned) or other error
+                return None
+
+            metadata = json.loads(result.stdout)
+            distro = metadata.get("distro")
+            return str(distro) if distro is not None else None
+
+        except (json.JSONDecodeError, subprocess.SubprocessError):
+            return None
+
     def _get_image_config(self) -> dict[str, str]:
         """Get the Lima image configuration with integrity verification.
 
         Returns:
             Dict with 'location', 'arch', and 'digest' for Lima image config.
-            Uses custom image URL if configured, otherwise defaults to verified
-            Alpine Linux cloud image.
+            Uses custom image URL if configured, otherwise selects cloud image
+            based on vm_distro field.
         """
         if self.config.vm_image:
             # User-specified image - no checksum verification available
@@ -278,16 +326,19 @@ class LimaVM:
                 "arch": "aarch64",
             }
 
-        # Use Alpine image from centralized downloads
-        # Note: No digest verification - Alpine rebuilds images in-place
-        alpine = get_alpine_image()
+        # Get distro-specific cloud image
+        from .distro import get_distro_provider
+
+        provider = get_distro_provider(self.config.vm_distro)
+        image_data = provider.get_cloud_image()
+
         config = {
-            "location": alpine["url"],
-            "arch": alpine["arch"],
+            "location": image_data["url"],
+            "arch": image_data["arch"],
         }
         # Only include digest if sha256 is specified (for future use)
-        if "sha256" in alpine:
-            config["digest"] = f"sha256:{alpine['sha256']}"
+        if "sha256" in image_data:
+            config["digest"] = f"sha256:{image_data['sha256']}"
         return config
 
     def _generate_lima_config(self) -> dict[str, Any]:

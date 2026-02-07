@@ -1,0 +1,156 @@
+{
+  "story_id": "02",
+  "status": "done",
+  "created_at": "2026-02-07T00:00:00Z",
+  "updated_at": "2026-02-07T01:05:00Z",
+  "completed_at": "2026-02-07T01:05:00Z",
+
+  "implementation": {
+    "status": "complete",
+    "started_at": "2026-02-07T00:00:00Z",
+    "completed_at": "2026-02-07T00:30:00Z",
+    "files_created": [
+      "tests/test_cli_distro.py",
+      "tests/test_wizard_distro.py",
+      "tests/test_distro_change.py"
+    ],
+    "files_modified": [
+      "src/clauded/cli.py",
+      "src/clauded/wizard.py",
+      "src/clauded/config.py",
+      "src/clauded/lima.py",
+      "src/clauded/detect/wizard_integration.py",
+      "CHANGELOG.md"
+    ],
+    "mocks_introduced": []
+  },
+
+  "verification_rounds": [
+    {
+      "round": 1,
+      "timestamp": "2026-02-07T00:45:00Z",
+      "results": [
+        {"question_id": "VQ-02-001", "result": "pass"},
+        {"question_id": "VQ-02-002", "result": "pass"},
+        {"question_id": "VQ-02-003", "result": "pass"},
+        {"question_id": "VQ-02-004", "result": "pass"},
+        {"question_id": "VQ-02-005", "result": "pass"},
+        {"question_id": "VQ-02-006", "result": "pass"},
+        {"question_id": "VQ-02-007", "result": "pass"},
+        {"question_id": "VQ-02-008", "result": "pass"},
+        {"question_id": "VQ-02-009", "result": "pass"},
+        {"question_id": "VQ-02-010", "result": "pass"},
+        {"question_id": "VQ-02-011", "result": "pass"},
+        {"question_id": "VQ-02-012", "result": "pass"},
+        {"question_id": "VQ-02-013", "result": "pass"},
+        {"question_id": "VQ-02-014", "result": "pass"},
+        {"question_id": "VQ-02-015", "result": "pass"},
+        {"question_id": "VQ-02-DEAD", "result": "fail", "evidence": "_get_valid_default() function is unused"},
+        {"question_id": "VQ-02-DUP", "result": "fail", "evidence": "Distro selection logic duplicated in wizard.py and wizard_integration.py"},
+        {"question_id": "VQ-02-INT", "result": "pass"}
+      ],
+      "summary": {
+        "total": 18,
+        "passed": 16,
+        "failed": 2
+      },
+      "verification_passed": false,
+      "all_passed": false
+    },
+    {
+      "round": 2,
+      "timestamp": "2026-02-07T01:00:00Z",
+      "results": [
+        {"question_id": "VQ-02-001", "result": "pass"},
+        {"question_id": "VQ-02-002", "result": "pass"},
+        {"question_id": "VQ-02-003", "result": "pass"},
+        {"question_id": "VQ-02-004", "result": "pass"},
+        {"question_id": "VQ-02-005", "result": "pass"},
+        {"question_id": "VQ-02-006", "result": "pass"},
+        {"question_id": "VQ-02-007", "result": "pass"},
+        {"question_id": "VQ-02-008", "result": "pass"},
+        {"question_id": "VQ-02-009", "result": "pass"},
+        {"question_id": "VQ-02-010", "result": "pass"},
+        {"question_id": "VQ-02-011", "result": "pass"},
+        {"question_id": "VQ-02-012", "result": "pass"},
+        {"question_id": "VQ-02-013", "result": "pass"},
+        {"question_id": "VQ-02-014", "result": "pass"},
+        {"question_id": "VQ-02-015", "result": "pass"},
+        {"question_id": "VQ-02-DEAD", "result": "pass", "evidence": "Removed unused _get_valid_default() function from wizard.py"},
+        {"question_id": "VQ-02-DUP", "result": "pass", "evidence": "Created shared _select_distro() helper in wizard.py, used by both run() and run_with_detection()"},
+        {"question_id": "VQ-02-INT", "result": "pass"}
+      ],
+      "summary": {
+        "total": 18,
+        "passed": 18,
+        "failed": 0
+      },
+      "verification_passed": true,
+      "test_gate": {
+        "ran_at": "2026-02-07T01:00:00Z",
+        "command": "uv run pytest tests/",
+        "passed": true,
+        "total_tests": 862,
+        "passed_tests": 862,
+        "failed_tests": 0,
+        "failures": [],
+        "evidence": "862 passed in 12.87s"
+      },
+      "all_passed": true
+    }
+  ],
+
+  "remediation_attempts": [
+    {
+      "attempt": 1,
+      "timestamp": "2026-02-07T00:50:00Z",
+      "triggered_by_round": 1,
+      "root_cause_analysis": {
+        "categories_identified": ["dead_code", "duplication"],
+        "patterns": [
+          {
+            "category": "dead_code",
+            "affected_questions": ["VQ-02-DEAD"],
+            "pattern_description": "_get_valid_default() function no longer used after refactoring"
+          },
+          {
+            "category": "duplication",
+            "affected_questions": ["VQ-02-DUP"],
+            "pattern_description": "Distro selection menu logic duplicated between wizard.run() and run_with_detection()"
+          }
+        ]
+      },
+      "issues_addressed": [
+        {
+          "question_id": "VQ-02-DEAD",
+          "root_cause_category": "dead_code",
+          "issue": "Unused _get_valid_default() function in wizard.py",
+          "action_taken": "Removed the unused function (lines 87-95)",
+          "files_changed": ["src/clauded/wizard.py"],
+          "evidence": "Function no longer present in wizard.py"
+        },
+        {
+          "question_id": "VQ-02-DUP",
+          "root_cause_category": "duplication",
+          "issue": "Distro selection logic duplicated in wizard.py and wizard_integration.py",
+          "action_taken": "Created shared _select_distro() helper in wizard.py, updated both run() and run_with_detection() to use it. Fixed test patch location in test_wizard_distro.py",
+          "files_changed": ["src/clauded/wizard.py", "src/clauded/detect/wizard_integration.py", "tests/test_wizard_distro.py"],
+          "evidence": "_select_distro() is now the single source for distro selection logic"
+        }
+      ],
+      "regression_check": {
+        "ran_at": "2026-02-07T01:00:00Z",
+        "baseline_tests": 862,
+        "current_tests": 862,
+        "all_baseline_passing": true,
+        "new_failures": [],
+        "regressions_detected": false
+      },
+      "outcome": "proceed_to_verification",
+      "next_verification_round": 2
+    }
+  ],
+
+  "escalation": null,
+  "final_outcome": "accepted"
+}

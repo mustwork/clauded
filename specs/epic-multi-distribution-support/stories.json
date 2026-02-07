@@ -109,7 +109,7 @@
         }
       ],
       "introduces_mocks": [],
-      "status": "pending",
+      "status": "done",
       "notes": "This story enables full user interaction flow (flag, wizard, change detection) but relies on mock for Ubuntu provisioning since role variants don't exist yet. Can test Alpine VM creation end-to-end. Ubuntu testing requires mocking ansible-playbook success or skipping role execution."
     },
     {

@@ -1,0 +1,173 @@
+{
+  "created_at": "2026-02-07T00:00:00Z",
+  "story_id": "02",
+  "story_title": "CLI wizard distro selection",
+
+  "questions": [
+    {
+      "id": "VQ-02-001",
+      "category": "TEST",
+      "question": "Do tests verify CLI flag validation for supported and unsupported distros?",
+      "actionable_check": "Check test_cli_distro.py for test_distro_flag_unsupported_shows_error - verify it tests invalid distro rejection and shows supported distros list",
+      "evidence_required": ["test file path", "test function name", "assertions checking error message"],
+      "pass_criteria": "Test exists and verifies unsupported distro shows error with supported distros list",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-002",
+      "category": "TEST",
+      "question": "Do tests verify wizard shows distro selection as first question?",
+      "actionable_check": "Check test_wizard_distro.py for test_wizard_shows_distro_as_first_question - verify it checks distro menu is called before language selection",
+      "evidence_required": ["test file path", "test function name", "assertion checking first call"],
+      "pass_criteria": "Test exists and verifies distro selection is FIRST wizard question",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-003",
+      "category": "TEST",
+      "question": "Do tests verify wizard defaults to Alpine?",
+      "actionable_check": "Check test_wizard_distro.py for test_wizard_defaults_to_alpine - verify it checks default_index points to alpine",
+      "evidence_required": ["test file path", "test function name", "default index assertion"],
+      "pass_criteria": "Test exists and verifies Alpine is default selection in wizard",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-004",
+      "category": "TEST",
+      "question": "Do tests verify --distro flag pre-selects distro in wizard?",
+      "actionable_check": "Check test_wizard_distro.py for test_wizard_with_distro_override_* tests - verify they check distro question is skipped when flag provided",
+      "evidence_required": ["test file paths", "test function names", "assertions checking distro not asked"],
+      "pass_criteria": "Tests exist for both alpine and ubuntu override, verify question is skipped",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-005",
+      "category": "ARCHITECTURE",
+      "question": "Does wizard.run() accept distro_override parameter?",
+      "actionable_check": "Check src/clauded/wizard.py run() function signature for distro_override parameter",
+      "evidence_required": ["file path", "function signature", "parameter name and type"],
+      "pass_criteria": "run() has distro_override: str | None = None parameter",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-006",
+      "category": "ARCHITECTURE",
+      "question": "Does run_with_detection() accept distro_override parameter?",
+      "actionable_check": "Check src/clauded/detect/wizard_integration.py run_with_detection() for distro_override parameter",
+      "evidence_required": ["file path", "function signature", "parameter name and type"],
+      "pass_criteria": "run_with_detection() has distro_override: str | None = None parameter",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-007",
+      "category": "ARCHITECTURE",
+      "question": "Does Config.from_wizard() set vm_distro from answers?",
+      "actionable_check": "Check src/clauded/config.py Config.from_wizard() method - verify it reads answers['distro'] and sets vm_distro",
+      "evidence_required": ["file path", "code snippet showing vm_distro=answers.get('distro', 'alpine')"],
+      "pass_criteria": "from_wizard() sets vm_distro from answers with alpine default",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-008",
+      "category": "ARCHITECTURE",
+      "question": "Does LimaVM have get_vm_distro() method for SSH reading?",
+      "actionable_check": "Check src/clauded/lima.py for get_vm_distro() method that reads /etc/clauded.json via SSH",
+      "evidence_required": ["file path", "method signature", "limactl shell command for cat /etc/clauded.json"],
+      "pass_criteria": "Method exists, uses limactl shell to cat /etc/clauded.json, parses distro field",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-009",
+      "category": "ARCHITECTURE",
+      "question": "Does CLI have _handle_distro_change() helper function?",
+      "actionable_check": "Check src/clauded/cli.py for _handle_distro_change() function that compares config vs VM distro",
+      "evidence_required": ["file path", "function name", "distro comparison logic", "user prompt"],
+      "pass_criteria": "Function exists, compares distros, prompts user, returns bool indicating VM recreated",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-010",
+      "category": "SPEC",
+      "question": "Does CLI validate --distro flag against SUPPORTED_DISTROS?",
+      "actionable_check": "Check src/clauded/cli.py main() function for distro validation using SUPPORTED_DISTROS",
+      "evidence_required": ["file path", "validation code", "error message for unsupported distro"],
+      "pass_criteria": "Validates distro in SUPPORTED_DISTROS, shows error with supported list if invalid",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-011",
+      "category": "SPEC",
+      "question": "Does CLI check for --distro conflicts with existing config?",
+      "actionable_check": "Check src/clauded/cli.py main() for conflict detection comparing --distro with config.vm_distro",
+      "evidence_required": ["file path", "conflict check code", "error message showing both distros"],
+      "pass_criteria": "Checks if config exists, compares --distro with config.vm_distro, shows clear error on mismatch",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-012",
+      "category": "SPEC",
+      "question": "Does distro change detection only run when VM is running?",
+      "actionable_check": "Check _handle_distro_change() for vm.is_running() check at beginning",
+      "evidence_required": ["file path", "is_running() check", "early return if not running"],
+      "pass_criteria": "Function returns False immediately if VM not running",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-013",
+      "category": "SPEC",
+      "question": "Does distro change show clear warning about data loss?",
+      "actionable_check": "Check _handle_distro_change() for warning message mentioning 'data loss' or 'destroy all data'",
+      "evidence_required": ["warning message text", "mentions VM recreation", "mentions data loss"],
+      "pass_criteria": "Warning clearly states VM will be destroyed and data lost",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-014",
+      "category": "SPEC",
+      "question": "Does distro change confirmation default to NO?",
+      "actionable_check": "Check _handle_distro_change() click.confirm() call for default=False",
+      "evidence_required": ["confirm call", "default=False parameter"],
+      "pass_criteria": "Confirmation uses default=False for safety",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-015",
+      "category": "SPEC",
+      "question": "Does user cancellation exit without changes?",
+      "actionable_check": "Check _handle_distro_change() for SystemExit(0) when user declines",
+      "evidence_required": ["code path for declined confirmation", "SystemExit(0) call", "message about cancellation"],
+      "pass_criteria": "Function raises SystemExit(0) if user answers N, with clear cancellation message",
+      "added_in_round": 1
+    }
+  ],
+
+  "mandatory_questions": [
+    {
+      "id": "VQ-02-DEAD",
+      "category": "QUALITY",
+      "question": "Is there any dead code introduced by this story?",
+      "actionable_check": "Search for unused functions, classes, imports in files modified by this story (cli.py, wizard.py, lima.py, config.py, wizard_integration.py)",
+      "evidence_required": ["file paths", "unused symbol names if any"],
+      "pass_criteria": "No unused code in story scope",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-DUP",
+      "category": "QUALITY",
+      "question": "Are there any duplicate implementations?",
+      "actionable_check": "Check for similar distro validation logic or distro reading logic in multiple places",
+      "evidence_required": ["file paths", "duplicated logic description if any"],
+      "pass_criteria": "No duplicate implementations - distro validation uses SUPPORTED_DISTROS, distro reading uses get_vm_distro()",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-02-INT",
+      "category": "TEST",
+      "question": "Do integration tests validate the story's workflow?",
+      "actionable_check": "Verify test files test_cli_distro.py, test_wizard_distro.py, test_distro_change.py exist and have passing tests",
+      "evidence_required": ["test file paths", "passing test count"],
+      "pass_criteria": "At least 7 passing tests covering CLI flag, wizard, and distro change detection",
+      "added_in_round": 1
+    }
+  ]
+}

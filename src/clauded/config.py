@@ -246,6 +246,7 @@ class Config:
 
         return cls(
             vm_name=vm_name,
+            vm_distro=answers.get("distro", "alpine"),
             cpus=int(answers.get("cpus", 4)),
             memory=answers.get("memory", "8GiB"),
             disk=answers.get("disk", "20GiB"),

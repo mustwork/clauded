@@ -84,23 +84,58 @@ def _menu_multi_select(title: str, items: list[tuple[str, str, bool]]) -> list[s
     return [items[i][1] for i in indices]
 
 
-def _get_valid_default(value: str | None, choices: list[str]) -> str:
-    """Return value if it's in choices, otherwise return 'None'.
+def _select_distro(distro_override: str | None = None) -> str:
+    """Prompt user to select a Linux distribution or use override.
 
-    This handles the case where a config has an old version that's no longer
-    in the available choices (e.g., Go "1.20" when choices are now "1.23.5", "1.22.10").
+    Args:
+        distro_override: Pre-selected distro from --distro flag, or None to show menu.
+
+    Returns:
+        Selected distro name ("alpine" or "ubuntu").
+
+    Raises:
+        KeyboardInterrupt: If user cancels selection.
     """
-    if value and value in choices:
-        return value
-    return "None"
+    from .distro import SUPPORTED_DISTROS, get_distro_provider
+
+    if distro_override:
+        return distro_override
+
+    # Build menu items with display names
+    distro_items = []
+    default_index = 0
+    for i, distro_name in enumerate(SUPPORTED_DISTROS):
+        provider = get_distro_provider(distro_name)
+        distro_items.append((provider.display_name, distro_name))
+        if distro_name == "alpine":
+            default_index = i
+
+    selected_distro = _menu_select(
+        "Select Linux distribution:",
+        distro_items,
+        default_index,
+    )
+
+    if selected_distro is None:
+        raise KeyboardInterrupt()
+
+    return selected_distro
 
 
-def run(project_path: Path) -> Config:
-    """Run the interactive wizard and return a Config."""
+def run(project_path: Path, *, distro_override: str | None = None) -> Config:
+    """Run the interactive wizard and return a Config.
+
+    Args:
+        project_path: Path to project directory
+        distro_override: Pre-select this distro (from --distro flag)
+    """
 
     print("\n  clauded - VM Environment Setup\n")
 
     answers: dict[str, str | list[str] | bool] = {}
+
+    # Distribution selection (FIRST step)
+    answers["distro"] = _select_distro(distro_override)
 
     # Languages - multi-select
     selected_languages = _menu_multi_select(
