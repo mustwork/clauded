@@ -92,6 +92,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Docker daemon not starting after installation**: Fixed OpenRC service startup on Alpine Linux
+  - Ansible's `service` module doesn't reliably start OpenRC services
+  - Now uses `rc-service docker start` directly for reliable daemon startup
+  - Added verification step to ensure daemon is actually running
 - **Edit/reprovision no longer disrupts other sessions**: `--edit`, `--reprovision`, and `--reboot` now check for other active sessions before performing operations that could disrupt them
   - SSH reconnect (needed for group membership changes) is skipped when other sessions exist
   - `--reboot` refuses to reboot when other sessions are active

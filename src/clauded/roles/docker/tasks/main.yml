@@ -31,6 +31,13 @@
   ignore_errors: yes
 
 - name: Start Docker service
-  service:
-    name: docker
-    state: started
+  command: rc-service docker start
+  register: docker_start
+  changed_when: "'started' in docker_start.stdout or docker_start.rc == 0"
+  failed_when: false
+
+- name: Verify Docker daemon is running
+  command: rc-service docker status
+  register: docker_status
+  changed_when: false
+  failed_when: "'started' not in docker_status.stdout"
