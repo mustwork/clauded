@@ -17,6 +17,17 @@ from .config import Config
 from .downloads import get_downloads
 from .lima import LimaVM
 
+# Roles that have distro-specific variants (e.g., common-alpine, common-ubuntu).
+# Roles NOT in this set use the original name without suffix.
+# This set grows as Stories 04-06 migrate remaining roles.
+_ROLES_WITH_VARIANTS = frozenset(
+    {
+        "common",
+        "python",
+        "node",
+    }
+)
+
 # Allowlist of safe environment variables to pass to ansible-playbook.
 # This prevents leaking sensitive variables (AWS credentials, API keys, etc.)
 # into the Ansible subprocess while allowing required functionality.
@@ -98,9 +109,61 @@ class Provisioner:
         self.roles_path = Path(__file__).parent / "roles"
         self.debug = debug
 
+    def _apply_distro_suffix(self, base_roles: list[str]) -> list[str]:
+        """Apply distro suffix to roles that have variants.
+
+        Args:
+            base_roles: List of base role names (e.g., ["common", "python", "docker"])
+
+        Returns:
+            List of role names with distro suffix applied where appropriate.
+            Roles in _ROLES_WITH_VARIANTS get f"{role}-{distro}" suffix.
+            Other roles keep their original name.
+        """
+        distro = self.config.vm_distro
+        result = []
+        for role in base_roles:
+            if role in _ROLES_WITH_VARIANTS:
+                result.append(f"{role}-{distro}")
+            else:
+                result.append(role)
+        return result
+
+    def _validate_roles_exist(self, role_names: list[str]) -> list[str]:
+        """Validate that all required roles exist.
+
+        Args:
+            role_names: List of role names (with distro suffix where applicable)
+
+        Returns:
+            List of missing role names.
+        """
+        missing = []
+        for role in role_names:
+            role_path = self.roles_path / role
+            if not role_path.is_dir():
+                missing.append(role)
+        return missing
+
     def run(self) -> None:
         """Run the provisioning playbook."""
-        playbook = self._generate_playbook()
+        # Get base roles and apply distro suffix
+        base_roles = self._get_base_roles()
+        roles_with_suffix = self._apply_distro_suffix(base_roles)
+
+        # Validate all roles exist before running
+        missing_roles = self._validate_roles_exist(roles_with_suffix)
+        if missing_roles:
+            click.echo(
+                f"Error: Missing Ansible roles for distro '{self.config.vm_distro}':\n"
+                + "\n".join(f"  - {role}" for role in missing_roles)
+                + "\n\nThis may indicate incomplete distro support. "
+                "Check that all required role variants exist.",
+                err=True,
+            )
+            raise SystemExit(1)
+
+        playbook = self._generate_playbook(roles_with_suffix)
         inventory = self._generate_inventory()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -121,7 +184,7 @@ class Provisioner:
             lima_ssh_config = self.vm.get_ssh_config_path()
 
             print(f"\nProvisioning VM '{self.vm.name}'...")
-            print(f"Roles: {', '.join(self._get_roles())}\n")
+            print(f"Roles: {', '.join(roles_with_suffix)}\n")
 
             # Display SQLite storage disclaimer (C3)
             if "sqlite" in self.config.databases:
@@ -165,8 +228,12 @@ class Provisioner:
                 )
                 raise SystemExit(1) from None
 
-    def _get_roles(self) -> list[str]:
-        """Determine which roles to include based on config."""
+    def _get_base_roles(self) -> list[str]:
+        """Determine which base roles to include based on config.
+
+        Returns base role names WITHOUT distro suffix.
+        Use _apply_distro_suffix() to add suffixes for roles with variants.
+        """
         roles = ["common"]  # Base system packages (git, curl, etc.)
 
         if self.config.python:
@@ -224,8 +291,12 @@ class Provisioner:
 
         return roles
 
-    def _generate_playbook(self) -> list[dict[str, Any]]:
-        """Generate the Ansible playbook."""
+    def _generate_playbook(self, roles: list[str]) -> list[dict[str, Any]]:
+        """Generate the Ansible playbook.
+
+        Args:
+            roles: List of role names with distro suffix applied where applicable.
+        """
         timestamp_fmt = "%Y-%m-%d %H:%M:%S UTC"
         provision_timestamp = datetime.now(UTC).strftime(timestamp_fmt)
 
@@ -274,7 +345,7 @@ class Provisioner:
                         else []
                     ),
                 },
-                "roles": self._get_roles(),
+                "roles": roles,
             }
         ]
 

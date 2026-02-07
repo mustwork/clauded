@@ -1,0 +1,138 @@
+---
+# Install Node.js on Ubuntu using NodeSource PPA
+# Ubuntu's default nodejs package is often outdated
+
+- name: Remove any previous Node.js installation
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /opt/fnm
+    - /usr/local/bin/fnm
+    - /opt/node
+  ignore_errors: yes
+
+- name: Install prerequisites for NodeSource
+  apt:
+    name:
+      - curl
+      - gnupg
+      - ca-certificates
+    state: present
+    update_cache: yes
+
+- name: Create keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download NodeSource GPG key
+  shell: |
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+  args:
+    creates: /etc/apt/keyrings/nodesource.gpg
+
+- name: Add NodeSource repository
+  copy:
+    dest: /etc/apt/sources.list.d/nodesource.list
+    content: |
+      deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main
+    mode: '0644'
+
+- name: Update apt cache after adding NodeSource repository
+  apt:
+    update_cache: yes
+
+- name: Install Node.js from NodeSource
+  apt:
+    name: nodejs
+    state: present
+
+- name: Verify Node.js installation
+  command: node --version
+  register: node_version_output
+  changed_when: false
+
+- name: Display Node.js version
+  debug:
+    msg: "Node.js version: {{ node_version_output.stdout }}"
+
+# Install and enable corepack for yarn/pnpm version management
+- name: Check if corepack is already available
+  command: corepack --version
+  register: corepack_check
+  failed_when: false
+  changed_when: false
+
+- name: Install corepack via npm
+  command: npm install -g corepack --ignore-scripts --force
+  when: corepack_check.rc != 0
+
+- name: Verify corepack installation
+  command: corepack --version
+  register: corepack_version_output
+  changed_when: false
+
+- name: Display corepack version
+  debug:
+    msg: "Corepack version: {{ corepack_version_output.stdout }}"
+
+- name: Enable corepack
+  command: corepack enable
+  changed_when: false
+
+# Install bun
+- name: Install bun dependencies
+  apt:
+    name:
+      - unzip
+      - curl
+    state: present
+
+- name: Create bun installation directory
+  file:
+    path: /opt/bun/bin
+    state: directory
+    mode: '0755'
+
+- name: Download bun binary
+  get_url:
+    url: "{{ downloads.bun.binary['linux-aarch64'].url }}"
+    dest: /tmp/bun.zip
+    mode: '0644'
+
+- name: Extract bun binary
+  unarchive:
+    src: /tmp/bun.zip
+    dest: /tmp
+    remote_src: yes
+
+- name: Install bun binary
+  copy:
+    src: /tmp/bun-linux-aarch64/bun
+    dest: /opt/bun/bin/bun
+    mode: '0755'
+    remote_src: yes
+
+- name: Clean up bun download artifacts
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/bun.zip
+    - /tmp/bun-linux-aarch64
+
+- name: Create bun symlink
+  file:
+    src: /opt/bun/bin/bun
+    dest: /usr/local/bin/bun
+    state: link
+    force: yes
+
+- name: Create bunx symlink (bun provides bunx as an alias)
+  file:
+    src: /opt/bun/bin/bun
+    dest: /usr/local/bin/bunx
+    state: link
+    force: yes

@@ -54,15 +54,15 @@ def minimal_config() -> Config:
     )
 
 
-class TestProvisionerGetRoles:
-    """Tests for Provisioner._get_roles()."""
+class TestProvisionerGetBaseRoles:
+    """Tests for Provisioner._get_base_roles()."""
 
     def test_always_includes_common(self, minimal_config: Config) -> None:
         """Common role is always included."""
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "common" in roles
         assert roles[0] == "common"  # First role
@@ -72,7 +72,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "python" in roles
 
@@ -81,7 +81,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "python" not in roles
 
@@ -90,7 +90,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "node" in roles
 
@@ -99,7 +99,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "node" not in roles
 
@@ -108,7 +108,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "java" in roles
 
@@ -117,7 +117,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "java" not in roles
 
@@ -126,7 +126,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "kotlin" in roles
 
@@ -135,7 +135,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "kotlin" not in roles
 
@@ -144,7 +144,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "rust" in roles
 
@@ -153,7 +153,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "rust" not in roles
 
@@ -162,7 +162,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "go" in roles
 
@@ -171,7 +171,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "go" not in roles
 
@@ -180,7 +180,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "dart" in roles
 
@@ -189,7 +189,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "dart" not in roles
 
@@ -198,7 +198,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "c" in roles
 
@@ -207,7 +207,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "c" not in roles
 
@@ -216,7 +216,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "docker" in roles
 
@@ -225,7 +225,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "aws_cli" in roles
 
@@ -234,7 +234,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "gh" in roles
 
@@ -243,7 +243,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "gradle" in roles
 
@@ -261,7 +261,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(config)
         provisioner = Provisioner(config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "gradle" in roles
         assert "maven" in roles
@@ -271,7 +271,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "maven" in roles
 
@@ -280,7 +280,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "uv" in roles
 
@@ -289,7 +289,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "poetry" in roles
 
@@ -298,7 +298,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "postgresql" in roles
 
@@ -307,7 +307,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "redis" in roles
 
@@ -316,7 +316,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "mysql" in roles
 
@@ -325,7 +325,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "mongodb" in roles
 
@@ -334,7 +334,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "playwright" in roles
 
@@ -353,7 +353,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(config)
         provisioner = Provisioner(config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "node" in roles
         assert "playwright" in roles
@@ -365,7 +365,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "claude_code" in roles
 
@@ -374,7 +374,7 @@ class TestProvisionerGetRoles:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         expected_roles = [
             "common",
@@ -407,9 +407,121 @@ class TestProvisionerGetRoles:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert roles == ["common"]
+
+
+class TestProvisionerApplyDistroSuffix:
+    """Tests for Provisioner._apply_distro_suffix()."""
+
+    def test_applies_alpine_suffix_to_variant_roles(self, full_config: Config) -> None:
+        """Alpine suffix applied to roles in _ROLES_WITH_VARIANTS."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+        base_roles = ["common", "python", "node"]
+
+        result = provisioner._apply_distro_suffix(base_roles)
+
+        assert result == ["common-alpine", "python-alpine", "node-alpine"]
+
+    def test_applies_ubuntu_suffix_to_variant_roles(self, full_config: Config) -> None:
+        """Ubuntu suffix applied when distro is ubuntu."""
+        # Create ubuntu config
+        ubuntu_config = Config(
+            vm_name=full_config.vm_name,
+            cpus=full_config.cpus,
+            memory=full_config.memory,
+            disk=full_config.disk,
+            mount_host=full_config.mount_host,
+            mount_guest=full_config.mount_guest,
+            vm_distro="ubuntu",
+            python=full_config.python,
+            node=full_config.node,
+        )
+        vm = LimaVM(ubuntu_config)
+        provisioner = Provisioner(ubuntu_config, vm)
+        base_roles = ["common", "python", "node"]
+
+        result = provisioner._apply_distro_suffix(base_roles)
+
+        assert result == ["common-ubuntu", "python-ubuntu", "node-ubuntu"]
+
+    def test_non_variant_roles_unchanged(self, full_config: Config) -> None:
+        """Roles not in _ROLES_WITH_VARIANTS remain unchanged."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+        base_roles = ["uv", "poetry", "docker", "aws_cli"]
+
+        result = provisioner._apply_distro_suffix(base_roles)
+
+        assert result == ["uv", "poetry", "docker", "aws_cli"]
+
+    def test_mixed_roles_correctly_processed(self, full_config: Config) -> None:
+        """Mixed list: variant roles get suffix, others unchanged."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+        base_roles = ["common", "python", "uv", "poetry", "node", "docker"]
+
+        result = provisioner._apply_distro_suffix(base_roles)
+
+        expected = [
+            "common-alpine",
+            "python-alpine",
+            "uv",
+            "poetry",
+            "node-alpine",
+            "docker",
+        ]
+        assert result == expected
+
+
+class TestProvisionerValidateRolesExist:
+    """Tests for Provisioner._validate_roles_exist()."""
+
+    def test_returns_empty_list_when_all_roles_exist(self, full_config: Config) -> None:
+        """No missing roles when all requested roles exist."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+        # These roles exist in the package
+        roles = ["common-alpine", "python-alpine", "uv", "poetry"]
+
+        missing = provisioner._validate_roles_exist(roles)
+
+        assert missing == []
+
+    def test_returns_missing_role_names(self, full_config: Config) -> None:
+        """Returns list of role names that don't exist."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+        roles = ["common-alpine", "nonexistent-role", "another-missing"]
+
+        missing = provisioner._validate_roles_exist(roles)
+
+        assert "nonexistent-role" in missing
+        assert "another-missing" in missing
+        assert "common-alpine" not in missing
+
+    def test_validates_ubuntu_roles_exist(self, full_config: Config) -> None:
+        """Ubuntu role variants are validated correctly."""
+        ubuntu_config = Config(
+            vm_name=full_config.vm_name,
+            cpus=full_config.cpus,
+            memory=full_config.memory,
+            disk=full_config.disk,
+            mount_host=full_config.mount_host,
+            mount_guest=full_config.mount_guest,
+            vm_distro="ubuntu",
+            python=full_config.python,
+            node=full_config.node,
+        )
+        vm = LimaVM(ubuntu_config)
+        provisioner = Provisioner(ubuntu_config, vm)
+        roles = ["common-ubuntu", "python-ubuntu", "node-ubuntu"]
+
+        missing = provisioner._validate_roles_exist(roles)
+
+        assert missing == []
 
 
 class TestProvisionerGeneratePlaybook:
@@ -419,8 +531,9 @@ class TestProvisionerGeneratePlaybook:
         """Playbook is a list with one play."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
 
-        playbook = provisioner._generate_playbook()
+        playbook = provisioner._generate_playbook(roles)
 
         assert isinstance(playbook, list)
         assert len(playbook) == 1
@@ -429,8 +542,9 @@ class TestProvisionerGeneratePlaybook:
         """Play targets 'vm' host group."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
 
-        playbook = provisioner._generate_playbook()
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["hosts"] == "vm"
 
@@ -438,8 +552,9 @@ class TestProvisionerGeneratePlaybook:
         """Play uses become for privilege escalation."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
 
-        playbook = provisioner._generate_playbook()
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["become"] is True
 
@@ -448,7 +563,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["python_version"] == "3.12"
 
@@ -457,7 +573,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["node_version"] == "20"
 
@@ -468,7 +585,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["python_version"] == "3.12"
 
@@ -477,7 +595,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["node_version"] == "20"
 
@@ -486,7 +605,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["java_version"] == "21"
 
@@ -495,7 +615,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["java_version"] == "21"
 
@@ -504,7 +625,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["kotlin_version"] == "2.0"
 
@@ -515,7 +637,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["kotlin_version"] == "2.0"
 
@@ -524,7 +647,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["rust_version"] == "stable"
 
@@ -533,7 +657,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["rust_version"] == "stable"
 
@@ -542,7 +667,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["go_version"] == "1.23.5"
 
@@ -551,7 +677,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["go_version"] == "1.23.5"
 
@@ -560,7 +687,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["dart_version"] == "3.7"
 
@@ -569,7 +697,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["dart_version"] == "3.7"
 
@@ -578,7 +707,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["c_version"] == "gcc14"
 
@@ -587,7 +717,8 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(minimal_config)
         provisioner = Provisioner(minimal_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["c_version"] == "gcc14"
 
@@ -596,10 +727,11 @@ class TestProvisionerGeneratePlaybook:
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        playbook = provisioner._generate_playbook()
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+        playbook = provisioner._generate_playbook(roles)
 
         assert "roles" in playbook[0]
-        assert "common" in playbook[0]["roles"]
+        assert "common-alpine" in playbook[0]["roles"]
 
     def test_play_includes_gitconfig_content_when_exists(
         self, full_config: Config, tmp_path: Path
@@ -612,7 +744,8 @@ class TestProvisionerGeneratePlaybook:
         provisioner = Provisioner(full_config, vm)
 
         with patch("clauded.provisioner.Path.home", return_value=tmp_path):
-            playbook = provisioner._generate_playbook()
+            roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+            playbook = provisioner._generate_playbook(roles)
 
         expected = "[user]\n\tname = Test User\n"
         assert playbook[0]["vars"]["gitconfig_content"] == expected
@@ -625,7 +758,8 @@ class TestProvisionerGeneratePlaybook:
         provisioner = Provisioner(full_config, vm)
 
         with patch("clauded.provisioner.Path.home", return_value=tmp_path):
-            playbook = provisioner._generate_playbook()
+            roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+            playbook = provisioner._generate_playbook(roles)
 
         assert playbook[0]["vars"]["gitconfig_content"] == ""
 
@@ -653,7 +787,8 @@ class TestProvisionerGeneratePlaybook:
         gitconfig.write_text(adversarial_content)
 
         with patch("clauded.provisioner.Path.home", return_value=tmp_path):
-            playbook = provisioner._generate_playbook()
+            roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+            playbook = provisioner._generate_playbook(roles)
 
         # Content should pass through unchanged - Ansible handles escaping
         assert playbook[0]["vars"]["gitconfig_content"] == adversarial_content
@@ -769,11 +904,12 @@ class TestProvisionerRolesPath:
         assert provisioner.roles_path.is_dir()
 
     def test_common_role_exists(self, full_config: Config) -> None:
-        """Common role directory exists."""
+        """Common role directory exists for configured distro."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
-        common_role = provisioner.roles_path / "common"
+        # full_config uses alpine, so check for common-alpine
+        common_role = provisioner.roles_path / "common-alpine"
         assert common_role.exists()
         assert (common_role / "tasks" / "main.yml").exists()
 
@@ -793,11 +929,9 @@ def test_provisioner_without_sqlite_config() -> None:
         frameworks=["claude-code"],
     )
 
-    from unittest.mock import MagicMock
-
     vm = MagicMock()
     provisioner = Provisioner(config, vm)
-    roles = provisioner._get_roles()
+    roles = provisioner._get_base_roles()
 
     assert "postgresql" in roles
     assert "redis" in roles
@@ -820,7 +954,7 @@ def test_provisioner_with_sqlite_config() -> None:
 
     vm = MagicMock()
     provisioner = Provisioner(config, vm)
-    roles = provisioner._get_roles()
+    roles = provisioner._get_base_roles()
 
     assert "sqlite" in roles
 

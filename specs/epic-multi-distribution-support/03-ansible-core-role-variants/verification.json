@@ -1,0 +1,101 @@
+{
+  "created_at": "2026-02-07T10:40:00Z",
+  "story_id": "03-ansible-core-role-variants",
+  "story_title": "Ansible Core Role Variants",
+
+  "questions": [
+    {
+      "id": "VQ-03-001",
+      "category": "ARCHITECTURE",
+      "question": "Are role variants completely independent with no distro conditionals?",
+      "actionable_check": "Search for 'when:.*ansible_os_family' or 'when:.*ansible_distribution' in all role tasks/main.yml files",
+      "evidence_required": ["grep results showing no distro conditionals in role tasks"],
+      "pass_criteria": "Zero distro conditionals found in any role variant tasks",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-03-002",
+      "category": "ARCHITECTURE",
+      "question": "Do Python modules avoid hardcoded distro names?",
+      "actionable_check": "Search config.py, lima.py, provisioner.py for literal strings 'alpine' or 'ubuntu' outside of SUPPORTED_DISTROS constant",
+      "evidence_required": ["grep results", "list of any hardcoded references found"],
+      "pass_criteria": "No hardcoded distro names except in distro.py SUPPORTED_DISTROS or downloads.yml keys",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-03-003",
+      "category": "TEST",
+      "question": "Does role validation prevent missing roles from causing provisioning failures?",
+      "actionable_check": "Run provisioner with missing role variant, verify clear error message before Ansible runs",
+      "evidence_required": ["test output showing validation error", "error message content"],
+      "pass_criteria": "Error raised before Ansible execution, message lists specific missing roles",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-03-004",
+      "category": "SPEC",
+      "question": "Do Ubuntu roles use Ubuntu-specific package management exclusively?",
+      "actionable_check": "Search Ubuntu role tasks for 'apk:', 'rc-service', or other Alpine-specific commands",
+      "evidence_required": ["grep results from common-ubuntu, python-ubuntu, node-ubuntu tasks"],
+      "pass_criteria": "Zero Alpine-specific commands in Ubuntu roles, only apt/systemctl used",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-03-005",
+      "category": "SPEC",
+      "question": "Do Alpine roles (renamed) still work correctly for Alpine VMs?",
+      "actionable_check": "Run full test suite, verify Alpine-specific tests pass",
+      "evidence_required": ["pytest output", "test_provisioner.py results"],
+      "pass_criteria": "All Alpine-related tests pass, role renaming didn't break functionality",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-03-006",
+      "category": "SPEC",
+      "question": "Does provisioner role selection use f'{role}-{distro}' pattern correctly?",
+      "actionable_check": "Inspect provisioner._get_roles() return value, verify suffix application logic",
+      "evidence_required": ["code inspection", "unit test for suffix application"],
+      "pass_criteria": "Role list has distro suffix applied via f-string pattern, no string concatenation bugs",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-03-007",
+      "category": "QUALITY",
+      "question": "Are stub files cleaned up?",
+      "actionable_check": "Search for files with -STUB suffix or provisioner_stub.py",
+      "evidence_required": ["file listing"],
+      "pass_criteria": "No stub files remain in src/clauded/",
+      "added_in_round": 1
+    }
+  ],
+
+  "mandatory_questions": [
+    {
+      "id": "VQ-03-DEAD",
+      "category": "QUALITY",
+      "question": "Is there any dead code introduced by this story?",
+      "actionable_check": "Search for unused functions, classes, imports in files modified by this story (provisioner.py, role files)",
+      "evidence_required": ["file paths", "unused symbol names"],
+      "pass_criteria": "No unused code in story scope",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-03-DUP",
+      "category": "QUALITY",
+      "question": "Are there any duplicate implementations?",
+      "actionable_check": "Compare common-alpine and common-ubuntu tasks for duplicated logic that should be abstracted",
+      "evidence_required": ["file paths", "duplicated logic description"],
+      "pass_criteria": "Role variants have no abstraction opportunities - they are intentionally separate",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-03-INT",
+      "category": "TEST",
+      "question": "Do integration tests validate the story's workflow?",
+      "actionable_check": "Verify integration test exists that exercises role selection, validation, and suffix application",
+      "evidence_required": ["test file", "test function", "flow description"],
+      "pass_criteria": "At least one integration test covers role selection and validation end-to-end",
+      "added_in_round": 1
+    }
+  ]
+}

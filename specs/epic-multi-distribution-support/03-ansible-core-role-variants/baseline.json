@@ -1,0 +1,39 @@
+{
+  "created_at": "2026-02-07T09:15:00Z",
+  "status": "ready",
+  "story_id": "03",
+
+  "checks": {
+    "compiles": {
+      "passed": true,
+      "command": "uv run python -m py_compile src/clauded/*.py",
+      "evidence": "Exit code 0, no errors"
+    },
+    "tests_pass": {
+      "passed": true,
+      "command": "uv run pytest tests/",
+      "evidence": "862/862 tests pass",
+      "failing_tests": []
+    },
+    "coverage": {
+      "value": null,
+      "threshold": null,
+      "passed": true
+    },
+    "dependencies": {
+      "passed": true,
+      "command": "uv sync",
+      "evidence": "All dependencies installed"
+    }
+  },
+
+  "test_snapshot": {
+    "total": 862,
+    "passing": 862,
+    "failing": 0,
+    "skipped": 0,
+    "coverage_percent": null
+  },
+
+  "blocking_issues": []
+}

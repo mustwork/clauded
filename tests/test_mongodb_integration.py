@@ -29,7 +29,7 @@ class TestMongoDBIntegration:
         vm = LimaVM(config)
         provisioner = Provisioner(config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "mongodb" in roles
         assert "common" in roles
@@ -48,7 +48,7 @@ class TestMongoDBIntegration:
         vm = LimaVM(config)
         provisioner = Provisioner(config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "mongodb" in roles
         assert "postgresql" in roles
@@ -68,7 +68,7 @@ class TestMongoDBIntegration:
         vm = LimaVM(config)
         provisioner = Provisioner(config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         assert "mongodb" not in roles
 
@@ -93,7 +93,7 @@ class TestMongoDBIntegration:
         vm = LimaVM(config)
         provisioner = Provisioner(config, vm)
 
-        roles = provisioner._get_roles()
+        roles = provisioner._get_base_roles()
 
         # Property: mongodb in roles <=> mongodb in databases
         if "mongodb" in databases:
@@ -135,8 +135,8 @@ class TestMongoDBIntegration:
         provisioner1 = Provisioner(config1, vm1)
         provisioner2 = Provisioner(config2, vm2)
 
-        roles1 = provisioner1._get_roles()
-        roles2 = provisioner2._get_roles()
+        roles1 = provisioner1._get_base_roles()
+        roles2 = provisioner2._get_base_roles()
 
         # Property: same database roles included regardless of order
         db_roles1 = [r for r in roles1 if r in databases]

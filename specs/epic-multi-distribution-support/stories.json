@@ -155,7 +155,7 @@
       "complexity": "high",
       "mock_dependencies": [],
       "introduces_mocks": [],
-      "status": "pending",
+      "status": "done",
       "notes": "RESOLVES: MOCK-02-001 from Story 02. This story creates the first working Ubuntu roles and establishes the variant pattern all other roles will follow. High complexity due to architectural refactoring (renaming existing roles) and establishing validation logic. After this story, Ubuntu VMs can provision with Python and Node."
     },
     {

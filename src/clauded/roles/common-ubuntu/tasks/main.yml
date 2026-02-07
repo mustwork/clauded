@@ -1,0 +1,240 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Increase system-wide file descriptor limit
+  sysctl:
+    name: fs.file-max
+    value: '100000'
+    state: present
+    sysctl_set: yes
+
+- name: Configure file descriptor limits for PAM sessions
+  copy:
+    dest: /etc/security/limits.d/99-clauded.conf
+    content: |
+      # Increase file descriptor limits for development tools (uv, ansible, etc.)
+      *               soft    nofile          8192
+      *               hard    nofile          8192
+    mode: '0644'
+
+- name: Configure sshd service with higher file descriptor limits
+  lineinfile:
+    path: /etc/default/ssh
+    regexp: '^ULIMIT='
+    line: 'ULIMIT="-n 8192"'
+    create: yes
+    mode: '0644'
+  notify: restart ssh
+
+- name: Remove legacy profile.d ulimit script
+  file:
+    path: /etc/profile.d/10-file-limits.sh
+    state: absent
+
+- name: Set file descriptor limits for login shells
+  copy:
+    dest: /etc/profile.d/ulimit.sh
+    content: |
+      #!/bin/sh
+      if command -v prlimit >/dev/null 2>&1; then
+        sudo -n prlimit --nofile=8192:8192 --pid $$ >/dev/null 2>&1 || true
+      fi
+      ulimit -n 8192
+    mode: '0644'
+
+- name: Allow ulimit script to raise hard nofile limit without password
+  copy:
+    dest: /etc/sudoers.d/clauded-prlimit
+    content: |
+      {{ ansible_user }} ALL=(root) NOPASSWD: /usr/bin/prlimit
+    mode: '0440'
+    validate: 'visudo -cf %s'
+
+- name: Ensure mount guest path exists for limactl shell workdir (may be a mount)
+  file:
+    path: "{{ clauded_mount_guest }}"
+    state: directory
+  when: clauded_mount_guest is defined and clauded_mount_guest | length > 0
+  failed_when: false
+
+- name: Attempt to set ownership on mount guest path (may be unsupported)
+  file:
+    path: "{{ clauded_mount_guest }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  when: clauded_mount_guest is defined and clauded_mount_guest | length > 0
+  failed_when: false
+
+- name: Install common packages
+  apt:
+    name:
+      # SSL/TLS and HTTP clients
+      - ca-certificates
+      - curl
+      - wget
+      # Archive and compression
+      - tar
+      - gzip
+      - xz-utils
+      - unzip
+      # File sync
+      - rsync
+      # SSH server and client
+      - openssh-server
+      - openssh-client
+      # Privilege escalation
+      - sudo
+      - util-linux
+      # JSON processor
+      - jq
+      # Version control
+      - git
+      # Directory-local environment
+      - direnv
+      # Debugging and diagnostics
+      - strace
+      - lsof
+      - iproute2
+      - dnsutils
+      - htop
+      # Build tools and core utilities
+      - coreutils
+      - gnupg
+      - build-essential
+      - bash
+    state: present
+
+- name: Set bash as default shell for {{ ansible_user }}
+  user:
+    name: "{{ ansible_user }}"
+    shell: /bin/bash
+
+- name: Get actual remote username
+  become: no
+  command: whoami
+  register: remote_whoami
+  changed_when: false
+
+- name: Get actual home directory
+  become: no
+  shell: echo $HOME
+  register: remote_home
+  changed_when: false
+
+- name: Ensure home directory has correct ownership
+  file:
+    path: "{{ remote_home.stdout }}"
+    state: directory
+    owner: "{{ remote_whoami.stdout }}"
+    group: "{{ remote_whoami.stdout }}"
+    mode: '0755'
+
+# Defensive .gitconfig handling: re-copy from host if missing or empty.
+# This recovers from ungraceful VM shutdowns that may corrupt or lose the file.
+- name: Check if .gitconfig exists
+  stat:
+    path: "{{ remote_home.stdout }}/.gitconfig"
+  register: gitconfig_stat
+
+- name: Check .gitconfig content if it exists
+  slurp:
+    src: "{{ remote_home.stdout }}/.gitconfig"
+  register: gitconfig_content_check
+  when: gitconfig_stat.stat.exists and gitconfig_stat.stat.size > 0
+  failed_when: false
+
+- name: Warn if .gitconfig was missing or empty (recovering)
+  debug:
+    msg: "WARNING: .gitconfig was missing or empty - restoring from host"
+  when: >
+    gitconfig_content | length > 0 and
+    (not gitconfig_stat.stat.exists or gitconfig_stat.stat.size == 0)
+
+- name: Copy host .gitconfig to VM
+  copy:
+    dest: "{{ remote_home.stdout }}/.gitconfig"
+    content: "{{ gitconfig_content }}"
+    owner: "{{ remote_whoami.stdout }}"
+    group: "{{ remote_whoami.stdout }}"
+    mode: '0644'
+  when: gitconfig_content | length > 0
+
+# Defensive .claude.json handling: detect corruption and restore from backup.
+# Claude Code creates .claude.json.backup.* files that can be used for recovery.
+- name: Check if .claude.json exists
+  stat:
+    path: "{{ remote_home.stdout }}/.claude.json"
+  register: claude_json_stat
+
+- name: Validate .claude.json is valid JSON
+  shell: python3 -c "import json; json.load(open('{{ remote_home.stdout }}/.claude.json'))"
+  register: claude_json_valid
+  when: claude_json_stat.stat.exists and claude_json_stat.stat.size > 0
+  failed_when: false
+  changed_when: false
+  become: no
+
+- name: Find .claude.json backup files
+  find:
+    paths: "{{ remote_home.stdout }}"
+    patterns: ".claude.json.backup.*"
+    file_type: file
+  register: claude_json_backups
+  when: >
+    claude_json_stat.stat.exists and
+    (claude_json_stat.stat.size == 0 or claude_json_valid.rc != 0)
+
+- name: Warn about corrupted .claude.json
+  debug:
+    msg: "WARNING: .claude.json is corrupted (ungraceful shutdown?) - attempting recovery from backup"
+  when: >
+    claude_json_stat.stat.exists and
+    (claude_json_stat.stat.size == 0 or (claude_json_valid.rc is defined and claude_json_valid.rc != 0))
+
+- name: Restore .claude.json from most recent backup
+  copy:
+    src: "{{ (claude_json_backups.files | sort(attribute='mtime', reverse=true) | first).path }}"
+    dest: "{{ remote_home.stdout }}/.claude.json"
+    remote_src: yes
+    owner: "{{ remote_whoami.stdout }}"
+    group: "{{ remote_whoami.stdout }}"
+    mode: '0644'
+  become: no
+  when: >
+    claude_json_stat.stat.exists and
+    (claude_json_stat.stat.size == 0 or (claude_json_valid.rc is defined and claude_json_valid.rc != 0)) and
+    claude_json_backups.files | length > 0
+
+- name: Warn if no backup available for corrupted .claude.json
+  debug:
+    msg: "WARNING: .claude.json is corrupted and no backup found - Claude Code will recreate it"
+  when: >
+    claude_json_stat.stat.exists and
+    (claude_json_stat.stat.size == 0 or (claude_json_valid.rc is defined and claude_json_valid.rc != 0)) and
+    (claude_json_backups.files is not defined or claude_json_backups.files | length == 0)
+
+- name: Set bash as default shell for root
+  user:
+    name: root
+    shell: /bin/bash
+
+- name: Store clauded metadata
+  copy:
+    dest: /etc/clauded.json
+    content: |
+      {
+        "project_name": "{{ clauded_project_name }}",
+        "distro": "{{ vm_distro }}",
+        "version": "{{ clauded_version }}",
+        "commit": "{{ clauded_commit }}",
+        "provisioned": "{{ clauded_provision_timestamp }}"
+      }
+    mode: '0644'
+
+- name: Remove legacy welcome message script (welcome now printed by host)
+  file:
+    path: /etc/profile.d/00-clauded-welcome.sh
+    state: absent

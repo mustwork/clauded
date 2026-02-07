@@ -59,7 +59,7 @@ def test_e2e_sqlite_detection_from_file(tmp_path: Path) -> None:
 
     mock_vm = MagicMock()
     provisioner = Provisioner(config, mock_vm)
-    roles = provisioner._get_roles()
+    roles = provisioner._get_base_roles()
     assert "sqlite" in roles
 
 
@@ -160,7 +160,7 @@ def test_e2e_sqlite_coexists_with_other_databases(tmp_path: Path) -> None:
 
     mock_vm = MagicMock()
     provisioner = Provisioner(config, mock_vm)
-    roles = provisioner._get_roles()
+    roles = provisioner._get_base_roles()
     assert "postgresql" in roles
     assert "redis" in roles
     assert "mysql" in roles
@@ -223,5 +223,5 @@ def test_e2e_sqlite_user_can_deselect(tmp_path: Path) -> None:
 
     mock_vm = MagicMock()
     provisioner = Provisioner(config, mock_vm)
-    roles = provisioner._get_roles()
+    roles = provisioner._get_base_roles()
     assert "sqlite" not in roles
