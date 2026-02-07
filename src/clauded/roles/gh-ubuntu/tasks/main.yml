@@ -1,0 +1,42 @@
+---
+# Install GitHub CLI on Ubuntu using official apt repository
+
+- name: Install prerequisites for GitHub CLI
+  apt:
+    name:
+      - curl
+      - gnupg
+    state: present
+    update_cache: yes
+
+- name: Add GitHub CLI GPG key
+  shell: |
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/githubcli-archive-keyring.gpg
+
+- name: Set permissions on GPG key
+  file:
+    path: /usr/share/keyrings/githubcli-archive-keyring.gpg
+    mode: '0644'
+
+- name: Add GitHub CLI apt repository
+  apt_repository:
+    repo: "deb [arch=arm64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+    state: present
+    filename: github-cli
+
+- name: Install GitHub CLI
+  apt:
+    name: gh
+    state: present
+    update_cache: yes
+
+- name: Verify gh installation
+  command: gh --version
+  register: gh_version
+  changed_when: false
+
+- name: Display gh version
+  debug:
+    msg: "GitHub CLI version: {{ gh_version.stdout }}"

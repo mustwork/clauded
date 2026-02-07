@@ -224,7 +224,7 @@
       "complexity": "medium",
       "mock_dependencies": [],
       "introduces_mocks": [],
-      "status": "pending",
+      "status": "done",
       "notes": "Similar pattern to Story 04 but focused on development tools. Docker variant is critical and requires careful testing of systemctl integration vs Alpine's rc-service. Can be implemented in parallel with Story 04 after Story 03 completes."
     },
     {

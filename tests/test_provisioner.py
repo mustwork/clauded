@@ -451,27 +451,29 @@ class TestProvisionerApplyDistroSuffix:
         """Roles not in _ROLES_WITH_VARIANTS remain unchanged."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
-        base_roles = ["uv", "poetry", "docker", "aws_cli"]
+        # These are Story 06 roles that don't have variants yet
+        base_roles = ["postgresql", "redis", "mysql", "sqlite"]
 
         result = provisioner._apply_distro_suffix(base_roles)
 
-        assert result == ["uv", "poetry", "docker", "aws_cli"]
+        assert result == ["postgresql", "redis", "mysql", "sqlite"]
 
     def test_mixed_roles_correctly_processed(self, full_config: Config) -> None:
         """Mixed list: variant roles get suffix, others unchanged."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
-        base_roles = ["common", "python", "uv", "poetry", "node", "docker"]
+        # Mix of variant roles (common, python, uv, docker) and non-variant (postgresql)
+        base_roles = ["common", "python", "uv", "postgresql", "node", "docker"]
 
         result = provisioner._apply_distro_suffix(base_roles)
 
         expected = [
             "common-alpine",
             "python-alpine",
-            "uv",
-            "poetry",
+            "uv-alpine",
+            "postgresql",
             "node-alpine",
-            "docker",
+            "docker-alpine",
         ]
         assert result == expected
 
@@ -483,8 +485,8 @@ class TestProvisionerValidateRolesExist:
         """No missing roles when all requested roles exist."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
-        # These roles exist in the package
-        roles = ["common-alpine", "python-alpine", "uv", "poetry"]
+        # These roles exist in the package (with distro suffixes)
+        roles = ["common-alpine", "python-alpine", "uv-alpine", "poetry-alpine"]
 
         missing = provisioner._validate_roles_exist(roles)
 

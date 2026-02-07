@@ -1,0 +1,27 @@
+---
+# Install Poetry on Ubuntu via pipx
+
+- name: Install Poetry via pipx
+  shell: |
+    pipx install poetry
+  args:
+    creates: /root/.local/bin/poetry
+  environment:
+    PIPX_HOME: /root/.local/pipx
+    PIPX_BIN_DIR: /root/.local/bin
+
+- name: Create symlink for poetry
+  file:
+    src: /root/.local/bin/poetry
+    dest: /usr/local/bin/poetry
+    state: link
+    force: yes
+
+- name: Verify Poetry installation
+  command: poetry --version
+  register: poetry_version_output
+  changed_when: false
+
+- name: Display Poetry version
+  debug:
+    msg: "Poetry version: {{ poetry_version_output.stdout }}"

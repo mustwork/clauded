@@ -1,0 +1,78 @@
+---
+# Install uv on Ubuntu
+
+- name: Install curl for uv download
+  apt:
+    name: curl
+    state: present
+    update_cache: yes
+
+- name: Download uv installer script via HTTPS
+  get_url:
+    url: "{{ downloads.uv.installer_url }}"
+    dest: /tmp/uv-install.sh
+    mode: '0755'
+
+- name: Install uv (Python package manager)
+  command: /tmp/uv-install.sh
+  args:
+    creates: /usr/local/bin/uv
+  environment:
+    UV_INSTALL_DIR: /usr/local/bin
+
+- name: Clean up uv installer
+  file:
+    path: /tmp/uv-install.sh
+    state: absent
+
+- name: Verify uv installation
+  command: uv --version
+  register: uv_version_output
+  changed_when: false
+
+- name: Display uv version
+  debug:
+    msg: "uv version: {{ uv_version_output.stdout }}"
+
+# On Ubuntu: Install Python via uv (glibc support)
+- name: Install Python {{ python_version }} via uv
+  command: uv python install {{ python_version }}
+  register: uv_python_install
+  changed_when: "'Installed' in uv_python_install.stderr or 'Installed' in uv_python_install.stdout"
+
+- name: Find uv-installed Python binary path
+  shell: uv python find {{ python_version }}
+  register: python_path
+  changed_when: false
+
+- name: Create python symlink to uv-managed Python
+  file:
+    src: "{{ python_path.stdout | trim }}"
+    dest: /usr/local/bin/python
+    state: link
+    force: yes
+
+- name: Create python3 symlink to uv-managed Python
+  file:
+    src: "{{ python_path.stdout | trim }}"
+    dest: /usr/local/bin/python3
+    state: link
+    force: yes
+
+# Environment configuration
+- name: Set UV_PYTHON_PREFERENCE environment variable
+  copy:
+    dest: /etc/profile.d/uv-python.sh
+    content: |
+      export UV_PYTHON_PREFERENCE=managed
+      export PATH=/usr/local/bin:$PATH
+    mode: '0644'
+
+- name: Verify Python version
+  command: /usr/local/bin/python --version
+  register: python_version_output
+  changed_when: false
+
+- name: Display Python version
+  debug:
+    msg: "Python version: {{ python_version_output.stdout }}"

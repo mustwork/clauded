@@ -1,0 +1,72 @@
+---
+# Install uv on Alpine Linux
+# Note: uv doesn't support musl Python distributions yet (https://github.com/astral-sh/uv/issues/6890)
+# So on Alpine, we use system Python installed by python-alpine role
+
+- name: Install curl for uv download
+  apk:
+    name: curl
+    state: present
+
+- name: Download uv installer script via HTTPS
+  get_url:
+    url: "{{ downloads.uv.installer_url }}"
+    dest: /tmp/uv-install.sh
+    mode: '0755'
+
+- name: Install uv (Python package manager)
+  command: /tmp/uv-install.sh
+  args:
+    creates: /usr/local/bin/uv
+  environment:
+    UV_INSTALL_DIR: /usr/local/bin
+
+- name: Clean up uv installer
+  file:
+    path: /tmp/uv-install.sh
+    state: absent
+
+- name: Verify uv installation
+  command: uv --version
+  register: uv_version_output
+  changed_when: false
+
+- name: Display uv version
+  debug:
+    msg: "uv version: {{ uv_version_output.stdout }}"
+
+# On Alpine: Use system Python (installed by python-alpine role via apk)
+# uv python install doesn't work on musl-based systems
+- name: Find system Python path
+  command: which python3
+  register: alpine_python_path
+  changed_when: false
+
+- name: Create python symlink to system Python
+  file:
+    src: "{{ alpine_python_path.stdout | trim }}"
+    dest: /usr/local/bin/python
+    state: link
+    force: yes
+
+- name: Note Alpine Python limitation
+  debug:
+    msg: "Using system Python on Alpine (uv python install not supported on musl)"
+
+# Environment configuration
+- name: Set UV_PYTHON_PREFERENCE environment variable
+  copy:
+    dest: /etc/profile.d/uv-python.sh
+    content: |
+      export UV_PYTHON_PREFERENCE=only-system
+      export PATH=/usr/local/bin:$PATH
+    mode: '0644'
+
+- name: Verify Python version
+  command: /usr/local/bin/python --version
+  register: python_version_output
+  changed_when: false
+
+- name: Display Python version
+  debug:
+    msg: "Python version: {{ python_version_output.stdout }}"

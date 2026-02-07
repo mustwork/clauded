@@ -1,0 +1,26 @@
+---
+# AWS CLI on Alpine Linux
+# AWS CLI v2 binary requires glibc, so on Alpine we install via pip
+
+- name: Install AWS CLI dependencies
+  apk:
+    name:
+      - py3-pip
+      - groff
+      - less
+    state: present
+
+- name: Install AWS CLI via pip
+  pip:
+    name: awscli
+    executable: pip3
+    extra_args: --break-system-packages
+
+- name: Verify AWS CLI installation
+  command: aws --version
+  register: aws_version
+  changed_when: false
+
+- name: Display AWS CLI version
+  debug:
+    msg: "AWS CLI version: {{ aws_version.stdout }}"

@@ -33,6 +33,14 @@ _ROLES_WITH_VARIANTS = frozenset(
         "go",
         "dart",
         "c",
+        # Tool roles (Story 05)
+        "docker",
+        "uv",
+        "poetry",
+        "maven",
+        "gradle",
+        "aws_cli",
+        "gh",
     }
 )
 

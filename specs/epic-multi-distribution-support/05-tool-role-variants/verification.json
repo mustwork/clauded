@@ -1,0 +1,72 @@
+{
+  "created_at": "2026-02-07T13:30:00Z",
+  "story_id": "05",
+  "questions": [
+    {
+      "id": "VQ-05-001",
+      "category": "implementation",
+      "question": "Do all Ubuntu tool roles use apt and systemd instead of apk and rc-service?",
+      "actionable_check": "Search for 'apk:' and 'rc-service' in all -ubuntu tool role files",
+      "evidence_required": ["grep results showing zero Alpine-specific commands in Ubuntu roles"],
+      "pass_criteria": "Zero occurrences of apk, rc-service, rc-update in Ubuntu tool roles"
+    },
+    {
+      "id": "VQ-05-002",
+      "category": "architecture",
+      "question": "Do role variants have NO distro conditionals (when: alpine, when: ubuntu)?",
+      "actionable_check": "Search for 'when:.*alpine' or 'when:.*ubuntu' in all tool role tasks",
+      "evidence_required": ["grep results for distro conditionals"],
+      "pass_criteria": "Zero distro conditionals - each variant handles only its own distro"
+    },
+    {
+      "id": "VQ-05-003",
+      "category": "implementation",
+      "question": "Does docker-ubuntu use systemctl for service management?",
+      "actionable_check": "Read docker-ubuntu/tasks/main.yml and verify systemd module usage",
+      "evidence_required": ["systemd module usage in docker-ubuntu role"],
+      "pass_criteria": "docker-ubuntu uses systemd module for enable/start, not rc-service"
+    },
+    {
+      "id": "VQ-05-004",
+      "category": "implementation",
+      "question": "Are all 7 tool roles added to _ROLES_WITH_VARIANTS?",
+      "actionable_check": "Check _ROLES_WITH_VARIANTS in provisioner.py for docker, uv, poetry, maven, gradle, aws_cli, gh",
+      "evidence_required": ["_ROLES_WITH_VARIANTS contents"],
+      "pass_criteria": "All 7 tool roles present in the frozenset"
+    },
+    {
+      "id": "VQ-05-005",
+      "category": "tests",
+      "question": "Do all tests pass with no regressions?",
+      "actionable_check": "Run uv run pytest and verify all pass",
+      "evidence_required": ["pytest output showing all tests pass"],
+      "pass_criteria": "All tests pass (869 at baseline)"
+    }
+  ],
+  "mandatory_questions": [
+    {
+      "id": "VQ-05-DEAD",
+      "category": "code_quality",
+      "question": "Is there any dead code, unused variables, or orphaned imports in the implementation?",
+      "actionable_check": "Run ruff check and review new role files for unused code",
+      "evidence_required": ["ruff check output", "review of role files"],
+      "pass_criteria": "No dead code or unused variables"
+    },
+    {
+      "id": "VQ-05-DUP",
+      "category": "code_quality",
+      "question": "Is there inappropriate code duplication that violates DRY?",
+      "actionable_check": "Review role variants for inappropriate duplication",
+      "evidence_required": ["analysis of role variants"],
+      "pass_criteria": "Intentional duplication per spec (clarity > DRY for Ansible roles)"
+    },
+    {
+      "id": "VQ-05-INT",
+      "category": "integration",
+      "question": "Do all 14 tool role directories have correct structure (tasks/main.yml)?",
+      "actionable_check": "List all tool role directories and verify structure",
+      "evidence_required": ["directory listing of tool roles"],
+      "pass_criteria": "All 14 roles (7 Alpine + 7 Ubuntu) have tasks/main.yml"
+    }
+  ]
+}

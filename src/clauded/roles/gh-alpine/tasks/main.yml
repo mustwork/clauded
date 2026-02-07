@@ -1,0 +1,17 @@
+---
+# Install GitHub CLI on Alpine Linux
+
+- name: Install GitHub CLI
+  apk:
+    name: github-cli
+    state: present
+    update_cache: yes
+
+- name: Verify gh installation
+  command: gh --version
+  register: gh_version
+  changed_when: false
+
+- name: Display gh version
+  debug:
+    msg: "GitHub CLI version: {{ gh_version.stdout }}"

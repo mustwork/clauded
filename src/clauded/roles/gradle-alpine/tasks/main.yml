@@ -1,0 +1,71 @@
+---
+# Install Gradle on Alpine Linux
+
+- name: Install required packages for Gradle installation
+  apk:
+    name:
+      - curl
+      - unzip
+    state: present
+    update_cache: yes
+
+- name: Set Gradle download metadata
+  set_fact:
+    gradle_version: "{{ downloads.gradle.default_version }}"
+    gradle_download: "{{ downloads.gradle.versions[downloads.gradle.default_version] }}"
+
+- name: Create Gradle installation directory
+  file:
+    path: /opt/gradle
+    state: directory
+    mode: '0755'
+
+- name: Download Gradle
+  get_url:
+    url: "{{ gradle_download.url }}"
+    dest: /tmp/gradle.zip
+    mode: '0644'
+
+- name: Extract Gradle
+  unarchive:
+    src: /tmp/gradle.zip
+    dest: /opt/gradle
+    remote_src: yes
+    creates: "/opt/gradle/gradle-{{ gradle_version }}"
+
+- name: Create symlink for current Gradle version
+  file:
+    src: "/opt/gradle/gradle-{{ gradle_version }}"
+    dest: /opt/gradle/current
+    state: link
+    force: yes
+
+- name: Set Gradle environment variables system-wide
+  copy:
+    dest: /etc/profile.d/gradle.sh
+    content: |
+      export GRADLE_HOME=/opt/gradle/current
+      export PATH=$GRADLE_HOME/bin:$PATH
+    mode: '0644'
+
+- name: Create symlink for Gradle binary
+  file:
+    src: /opt/gradle/current/bin/gradle
+    dest: /usr/local/bin/gradle
+    state: link
+
+- name: Clean up downloaded archive
+  file:
+    path: /tmp/gradle.zip
+    state: absent
+
+- name: Verify Gradle installation
+  command: /opt/gradle/current/bin/gradle --version
+  environment:
+    JAVA_HOME: "{{ java_home }}"
+  register: gradle_version_output
+  changed_when: false
+
+- name: Display Gradle version
+  debug:
+    msg: "{{ gradle_version_output.stdout_lines }}"
