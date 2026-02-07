@@ -6,6 +6,10 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 
 `clauded` is a CLI tool that creates lightweight, isolated Linux VMs for each of your projects using [Lima](https://github.com/lima-vm/lima) (Linux Machines for macOS). It automatically provisions your development environment with the exact tools, databases, and frameworks you need through declarative configuration and Ansible.
 
+**Supported Distributions:**
+- **Alpine Linux** (default) - Minimal footprint, fast boot
+- **Ubuntu 24.04 LTS** - Broader package ecosystem, glibc-based
+
 **Why clauded?**
 
 - **Isolated Environments**: Each project gets its own VM with dedicated resources
@@ -106,6 +110,7 @@ clauded
 If no `.clauded.yaml` exists, the interactive wizard will guide you through setup:
 
 ```
+? Select distribution: Alpine Linux
 ? Python version: 3.12
 ? Node.js version: 20
 ? Java version: 21
@@ -116,6 +121,13 @@ If no `.clauded.yaml` exists, the interactive wizard will guide you through setu
 ? Select databases: postgresql, redis, mongodb, sqlite
 ? Select frameworks: claude-code, playwright
 ? Customize VM resources? No
+```
+
+You can also specify the distribution directly with the `--distro` flag:
+
+```bash
+clauded --distro ubuntu  # Create Ubuntu-based VM
+clauded --distro alpine  # Create Alpine-based VM (default)
 ```
 
 This generates `.clauded.yaml`, creates the VM, provisions it with Ansible, and drops you into a shell.
@@ -166,7 +178,29 @@ clauded --detect
 
 Show detected languages, versions, frameworks, and databases without creating a VM.
 
-### 7. Destroy the VM
+### 7. Change Distribution
+
+To change from Alpine to Ubuntu (or vice versa), edit `.clauded.yaml` and change `vm.distro`:
+
+```yaml
+vm:
+  distro: ubuntu  # Change from alpine to ubuntu
+```
+
+Then run `clauded`. You'll be prompted to confirm VM recreation since the distribution change requires a new VM:
+
+```
+⚠️  Distribution mismatch detected!
+Current VM uses: alpine
+Config specifies: ubuntu
+
+Changing distribution requires destroying and recreating the VM.
+All VM data will be lost. Your project files are safe (mounted from host).
+
+Recreate VM with ubuntu? [y/N]:
+```
+
+### 8. Destroy the VM
 
 ```bash
 clauded --destroy
@@ -174,7 +208,7 @@ clauded --destroy
 
 You'll be prompted whether to also remove `.clauded.yaml`.
 
-### 8. Automatic Crash Recovery
+### 9. Automatic Crash Recovery
 
 If a VM operation is interrupted (power loss, Ctrl+C, system crash), `clauded` automatically detects the incomplete state on next startup:
 
@@ -201,10 +235,11 @@ Create or edit `.clauded.yaml` in your project root:
 version: "1"
 vm:
   name: clauded-a1b2c3d4  # Auto-generated from project path
+  distro: alpine         # Distribution: alpine (default) or ubuntu
   cpus: 4
   memory: 8GiB
   disk: 20GiB
-  keep_running: false  # Keep VM running after shell exit (see below)
+  keep_running: false    # Keep VM running after shell exit (see below)
 mount:
   host: /Users/you/projects/myproject
   guest: /Users/you/projects/myproject

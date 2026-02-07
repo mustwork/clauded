@@ -1,0 +1,72 @@
+{
+  "created_at": "2026-02-07T14:40:00Z",
+  "story_id": "07",
+  "questions": [
+    {
+      "id": "VQ-07-001",
+      "category": "documentation",
+      "question": "Does README.md document the --distro CLI flag with usage examples?",
+      "actionable_check": "Search README.md for '--distro' flag documentation with both alpine and ubuntu examples",
+      "evidence_required": ["README.md content showing --distro flag", "Usage examples for both distros"],
+      "pass_criteria": "README.md contains --distro flag documentation with examples for both alpine and ubuntu"
+    },
+    {
+      "id": "VQ-07-002",
+      "category": "documentation",
+      "question": "Does README.md document the wizard distro selection as the first step?",
+      "actionable_check": "Search README.md for wizard example showing distro selection as first question",
+      "evidence_required": ["Wizard example in README.md", "Distro selection shown first"],
+      "pass_criteria": "README.md shows wizard example with distro selection as first prompt"
+    },
+    {
+      "id": "VQ-07-003",
+      "category": "documentation",
+      "question": "Does README.md include instructions for changing distributions on existing VMs?",
+      "actionable_check": "Search README.md for section explaining how to change distro and the recreation warning",
+      "evidence_required": ["Section on changing distributions", "Warning about VM recreation and data loss"],
+      "pass_criteria": "README.md documents distro change workflow including user confirmation prompt"
+    },
+    {
+      "id": "VQ-07-004",
+      "category": "documentation",
+      "question": "Does CHANGELOG.md have an entry for multi-distribution support under [Unreleased]?",
+      "actionable_check": "Search CHANGELOG.md for multi-distribution support entry in Added section",
+      "evidence_required": ["CHANGELOG.md entry under Unreleased > Added", "Mention of role variants"],
+      "pass_criteria": "CHANGELOG.md has comprehensive entry documenting multi-distro support with role variants"
+    },
+    {
+      "id": "VQ-07-005",
+      "category": "documentation",
+      "question": "Does README.md list both supported distributions (Alpine and Ubuntu)?",
+      "actionable_check": "Check README.md for supported distributions section",
+      "evidence_required": ["List of supported distributions", "Brief description of each"],
+      "pass_criteria": "README.md lists Alpine Linux and Ubuntu 24.04 LTS as supported distributions"
+    }
+  ],
+  "mandatory_questions": [
+    {
+      "id": "VQ-07-M01",
+      "category": "regression",
+      "question": "Do all 869 baseline tests still pass after documentation changes?",
+      "actionable_check": "Run full test suite and verify pass count",
+      "evidence_required": ["Test output showing pass count", "No new failures"],
+      "pass_criteria": "All 869 tests pass, no regressions introduced"
+    },
+    {
+      "id": "VQ-07-M02",
+      "category": "architecture",
+      "question": "Are all 46 role variants (23 Alpine + 23 Ubuntu) present in the roles directory?",
+      "actionable_check": "Count role directories with -alpine and -ubuntu suffixes",
+      "evidence_required": ["List of role directories", "Count of variants per distro"],
+      "pass_criteria": "46 total role variants exist: 23 with -alpine suffix, 23 with -ubuntu suffix"
+    },
+    {
+      "id": "VQ-07-M03",
+      "category": "architecture",
+      "question": "Does the provisioner correctly apply distro suffix to all roles in _ROLES_WITH_VARIANTS?",
+      "actionable_check": "Verify _ROLES_WITH_VARIANTS contains all 23 roles and _apply_distro_suffix works",
+      "evidence_required": ["_ROLES_WITH_VARIANTS content", "Test coverage for suffix application"],
+      "pass_criteria": "_ROLES_WITH_VARIANTS has 23 entries and suffix is applied correctly"
+    }
+  ]
+}

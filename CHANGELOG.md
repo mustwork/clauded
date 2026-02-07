@@ -36,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Config defaults to 'alpine' when distro field missing (backward compatibility)
   - VM metadata (/etc/clauded.json) now includes distro field
   - Comprehensive unit tests for distro validation and provider implementations
+- **Complete Multi-Distribution Support**: All Ansible roles now have both Alpine and Ubuntu variants
+  - 46 total role variants: 23 Alpine + 23 Ubuntu
+  - Core roles: common, python, node
+  - Language roles: java, kotlin, rust, go, dart, c
+  - Tool roles: docker, uv, poetry, maven, gradle, aws_cli, gh
+  - Database roles: postgresql, redis, mysql, sqlite, mongodb
+  - Framework roles: claude_code, playwright
+  - Each variant uses distro-appropriate package managers (apk vs apt) and service managers (OpenRC vs systemd)
+  - Strict variant architecture: no distro conditionals in role tasks
+  - Provisioner automatically appends -alpine or -ubuntu suffix based on config
 - **Multi-Instance Session Detection**: VM shutdown now detects other active sessions
   - VMs only stop when the last session exits, preventing disruption to concurrent users
   - Counts pts devices in `/dev/pts` to detect active SSH sessions
