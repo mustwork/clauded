@@ -258,7 +258,7 @@
       "complexity": "high",
       "mock_dependencies": [],
       "introduces_mocks": [],
-      "status": "pending",
+      "status": "done",
       "notes": "Completes the role variant matrix. High complexity due to database service configuration differences between Alpine (OpenRC) and Ubuntu (systemd). Careful testing needed to ensure databases start correctly with systemctl. MongoDB requires adding official repository on Ubuntu."
     },
     {

@@ -1,0 +1,10 @@
+---
+# Install MySQL client libraries and development headers only.
+# The actual database server runs externally.
+- name: Install MySQL client and development libraries
+  apt:
+    name:
+      - mysql-client
+      - libmysqlclient-dev
+    state: present
+    update_cache: yes

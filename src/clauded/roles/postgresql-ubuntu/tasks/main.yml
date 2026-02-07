@@ -1,0 +1,10 @@
+---
+# Install PostgreSQL client libraries and development headers only.
+# The actual database server runs externally.
+- name: Install PostgreSQL client and development libraries
+  apt:
+    name:
+      - postgresql-client
+      - libpq-dev
+    state: present
+    update_cache: yes

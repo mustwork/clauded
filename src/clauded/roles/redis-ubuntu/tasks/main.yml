@@ -1,0 +1,37 @@
+---
+# Install Redis on Ubuntu
+
+- name: Install Redis
+  apt:
+    name:
+      - redis-server
+    state: present
+    update_cache: yes
+
+- name: Enable Redis service
+  systemd:
+    name: redis-server
+    enabled: yes
+
+- name: Start Redis service
+  systemd:
+    name: redis-server
+    state: started
+
+- name: Wait for Redis to be ready
+  wait_for:
+    port: 6379
+    host: 127.0.0.1
+    delay: 2
+    timeout: 30
+  ignore_errors: yes
+
+- name: Check Redis status
+  command: systemctl status redis-server
+  register: redis_status
+  changed_when: false
+  failed_when: false
+
+- name: Display Redis status
+  debug:
+    msg: "Redis status: {{ redis_status.stdout | default('unknown') }}"

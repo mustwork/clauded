@@ -1,0 +1,10 @@
+---
+# Install MariaDB client libraries and development headers only.
+# The actual database server runs externally.
+- name: Install MariaDB client and development libraries
+  apk:
+    name:
+      - mariadb-client
+      - mariadb-dev
+      - mariadb-connector-c
+    state: present

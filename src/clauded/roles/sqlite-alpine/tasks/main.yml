@@ -1,0 +1,16 @@
+---
+- name: Install SQLite
+  apk:
+    name:
+      - sqlite
+    state: present
+
+- name: Verify SQLite installation
+  command: sqlite3 --version
+  register: sqlite_version
+  changed_when: false
+  failed_when: false
+
+- name: Display SQLite version
+  debug:
+    msg: "SQLite version: {{ sqlite_version.stdout | default('unknown') }}"

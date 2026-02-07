@@ -1,0 +1,72 @@
+{
+  "created_at": "2026-02-07T14:10:00Z",
+  "story_id": "06",
+  "questions": [
+    {
+      "id": "VQ-06-001",
+      "category": "implementation",
+      "question": "Do all Ubuntu database/framework roles use apt instead of apk?",
+      "actionable_check": "Search for 'apk:' in all -ubuntu database/framework role files",
+      "evidence_required": ["grep results showing zero apk usage in Ubuntu roles"],
+      "pass_criteria": "Zero occurrences of apk in Ubuntu database/framework roles"
+    },
+    {
+      "id": "VQ-06-002",
+      "category": "implementation",
+      "question": "Does redis-ubuntu use systemd for service management?",
+      "actionable_check": "Read redis-ubuntu/tasks/main.yml and verify systemd module usage",
+      "evidence_required": ["systemd module usage in redis-ubuntu role"],
+      "pass_criteria": "redis-ubuntu uses systemd module, not rc-service"
+    },
+    {
+      "id": "VQ-06-003",
+      "category": "architecture",
+      "question": "Do role variants have NO distro conditionals?",
+      "actionable_check": "Search for 'when:.*alpine' or 'when:.*ubuntu' in database/framework roles",
+      "evidence_required": ["grep results for distro conditionals"],
+      "pass_criteria": "Zero distro conditionals in variant roles"
+    },
+    {
+      "id": "VQ-06-004",
+      "category": "implementation",
+      "question": "Are all 7 database/framework roles added to _ROLES_WITH_VARIANTS?",
+      "actionable_check": "Check _ROLES_WITH_VARIANTS for postgresql, redis, mysql, sqlite, mongodb, claude_code, playwright",
+      "evidence_required": ["_ROLES_WITH_VARIANTS contents"],
+      "pass_criteria": "All 7 roles present in the frozenset"
+    },
+    {
+      "id": "VQ-06-005",
+      "category": "tests",
+      "question": "Do all tests pass with no regressions?",
+      "actionable_check": "Run uv run pytest and verify all pass",
+      "evidence_required": ["pytest output showing all tests pass"],
+      "pass_criteria": "All tests pass (869 at baseline)"
+    }
+  ],
+  "mandatory_questions": [
+    {
+      "id": "VQ-06-DEAD",
+      "category": "code_quality",
+      "question": "Is there any dead code, unused variables, or orphaned imports?",
+      "actionable_check": "Run ruff check and review new role files",
+      "evidence_required": ["ruff check output"],
+      "pass_criteria": "No dead code or unused variables"
+    },
+    {
+      "id": "VQ-06-DUP",
+      "category": "code_quality",
+      "question": "Is there inappropriate code duplication that violates DRY?",
+      "actionable_check": "Review role variants for duplication",
+      "evidence_required": ["analysis of role variants"],
+      "pass_criteria": "Intentional duplication per spec (clarity > DRY)"
+    },
+    {
+      "id": "VQ-06-INT",
+      "category": "integration",
+      "question": "Do all 14 database/framework role directories have correct structure?",
+      "actionable_check": "List all role directories and verify tasks/main.yml exists",
+      "evidence_required": ["directory listing"],
+      "pass_criteria": "All 14 roles (7 Alpine + 7 Ubuntu) have tasks/main.yml"
+    }
+  ]
+}

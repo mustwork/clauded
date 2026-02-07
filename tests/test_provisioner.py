@@ -451,18 +451,18 @@ class TestProvisionerApplyDistroSuffix:
         """Roles not in _ROLES_WITH_VARIANTS remain unchanged."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
-        # These are Story 06 roles that don't have variants yet
-        base_roles = ["postgresql", "redis", "mysql", "sqlite"]
+        # Hypothetical roles not in _ROLES_WITH_VARIANTS remain unchanged
+        base_roles = ["hypothetical_role", "another_role", "future_role"]
 
         result = provisioner._apply_distro_suffix(base_roles)
 
-        assert result == ["postgresql", "redis", "mysql", "sqlite"]
+        assert result == ["hypothetical_role", "another_role", "future_role"]
 
-    def test_mixed_roles_correctly_processed(self, full_config: Config) -> None:
-        """Mixed list: variant roles get suffix, others unchanged."""
+    def test_all_real_roles_get_suffix(self, full_config: Config) -> None:
+        """All real roles in _ROLES_WITH_VARIANTS get distro suffix."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
-        # Mix of variant roles (common, python, uv, docker) and non-variant (postgresql)
+        # All real roles now have variants after Story 06
         base_roles = ["common", "python", "uv", "postgresql", "node", "docker"]
 
         result = provisioner._apply_distro_suffix(base_roles)
@@ -471,7 +471,7 @@ class TestProvisionerApplyDistroSuffix:
             "common-alpine",
             "python-alpine",
             "uv-alpine",
-            "postgresql",
+            "postgresql-alpine",
             "node-alpine",
             "docker-alpine",
         ]

@@ -1,0 +1,126 @@
+---
+# Install system dependencies required by Playwright browsers on Alpine
+- name: Install Playwright core system dependencies
+  apk:
+    name:
+      - xvfb
+      - nss
+      - freetype
+      - harfbuzz
+      - ttf-freefont
+      - font-noto
+      - libstdc++
+      - mesa-gl
+      - mesa-egl
+      - libxcomposite
+      - libxdamage
+      - libxrandr
+      - libxshmfence
+      - libatk-1.0
+      - at-spi2-core
+      - cups-libs
+      - libdrm
+      - dbus-libs
+      - libxkbcommon
+      - pango
+      - cairo
+      - alsa-lib
+    state: present
+
+# Install system browsers as fallback (optional, useful for non-Playwright usage)
+- name: Install system Chromium
+  apk:
+    name: chromium
+    state: present
+  when: "'chromium' in playwright_browsers"
+
+- name: Install system Firefox
+  apk:
+    name: firefox
+    state: present
+  when: "'firefox' in playwright_browsers"
+
+# WebKit requires additional dependencies on Alpine
+- name: Install WebKit dependencies
+  apk:
+    name:
+      - libwoff2common
+      - libwoff2dec
+      - libevent
+      - libvpx
+      - libopus
+      - gst-plugins-base
+      - gst-plugins-good
+      - gst-plugins-bad
+      - gstreamer
+      - libsoup3
+      - libsecret
+      - libmanette
+      - libavif
+      - libjxl
+      - enchant2
+      - hyphen
+    state: present
+  when: "'webkit' in playwright_browsers"
+  ignore_errors: yes
+
+# Install playwright globally via npm command (Ansible npm module has issues on Alpine)
+- name: Install Playwright globally via npm
+  command: npm install -g playwright @playwright/test
+  register: playwright_npm_install
+  changed_when: "'added' in playwright_npm_install.stdout or 'up to date' not in playwright_npm_install.stdout"
+
+- name: Verify Playwright installation
+  command: npx playwright --version
+  register: playwright_version
+  changed_when: false
+
+- name: Display Playwright version
+  debug:
+    msg: "Playwright version: {{ playwright_version.stdout }}"
+
+# Create browsers directory with proper permissions
+- name: Create Playwright browsers directory
+  file:
+    path: /opt/playwright-browsers
+    state: directory
+    mode: '0777'
+
+# Install selected Playwright browsers
+- name: Install Playwright browsers
+  command: "npx playwright install {{ playwright_browsers | join(' ') }}"
+  environment:
+    PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+  register: browsers_install
+  changed_when: "'Downloading' in browsers_install.stdout"
+  when: playwright_browsers | length > 0
+
+- name: Display installed browsers
+  debug:
+    msg: "Installed Playwright browsers: {{ playwright_browsers | join(', ') }}"
+  when: playwright_browsers | length > 0
+
+# Create Chrome compatibility symlinks for tools that expect Chrome at standard paths
+- name: Create Chrome compatibility directory
+  file:
+    path: /opt/google/chrome
+    state: directory
+    mode: '0755'
+  when: "'chromium' in playwright_browsers"
+
+- name: Create Chrome symlink for compatibility
+  file:
+    src: /usr/bin/chromium-browser
+    dest: /opt/google/chrome/chrome
+    state: link
+  when: "'chromium' in playwright_browsers"
+
+# Set environment variables for Playwright
+- name: Set Playwright environment variables
+  copy:
+    dest: /etc/profile.d/playwright.sh
+    content: |
+      export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+      export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+      export PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH=/usr/bin/firefox
+    mode: '0644'

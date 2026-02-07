@@ -1,0 +1,16 @@
+---
+- name: Install MongoDB tools
+  apk:
+    name:
+      - mongodb-tools
+    state: present
+
+- name: Verify mongodump installation
+  command: mongodump --version
+  register: mongodump_version
+  changed_when: false
+  failed_when: false
+
+- name: Display mongodump version
+  debug:
+    msg: "mongodump version: {{ mongodump_version.stdout | default('unknown') }}"

@@ -19,7 +19,7 @@ from .lima import LimaVM
 
 # Roles that have distro-specific variants (e.g., common-alpine, common-ubuntu).
 # Roles NOT in this set use the original name without suffix.
-# This set grows as Stories 04-06 migrate remaining roles.
+# All roles now have variants after Story 06.
 _ROLES_WITH_VARIANTS = frozenset(
     {
         # Core roles (Story 03)
@@ -41,6 +41,15 @@ _ROLES_WITH_VARIANTS = frozenset(
         "gradle",
         "aws_cli",
         "gh",
+        # Database roles (Story 06)
+        "postgresql",
+        "redis",
+        "mysql",
+        "sqlite",
+        "mongodb",
+        # Framework roles (Story 06)
+        "claude_code",
+        "playwright",
     }
 )
 
