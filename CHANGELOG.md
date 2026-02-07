@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Distribution Provider Infrastructure**: Foundational support for multi-distribution VMs
+  - Added `vm.distro` field to config schema (supports 'alpine', 'ubuntu')
+  - Created DistroProvider protocol with AlpineProvider and UbuntuProvider implementations
+  - Added Ubuntu 24.04 LTS cloud image metadata to downloads.yml
+  - Config defaults to 'alpine' when distro field missing (backward compatibility)
+  - VM metadata (/etc/clauded.json) now includes distro field
+  - Comprehensive unit tests for distro validation and provider implementations
 - **Multi-Instance Session Detection**: VM shutdown now detects other active sessions
   - VMs only stop when the last session exits, preventing disruption to concurrent users
   - Counts pts devices in `/dev/pts` to detect active SSH sessions

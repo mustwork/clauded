@@ -1,0 +1,36 @@
+{
+  "created_at": "2026-02-07T08:25:00Z",
+  "status": "ready",
+  "story_id": "01",
+  "checks": {
+    "compiles": {
+      "passed": true,
+      "command": "uv run ruff check src/ tests/ && uv run mypy src/",
+      "evidence": "All checks passed! Success: no issues found in 21 source files"
+    },
+    "tests_pass": {
+      "passed": true,
+      "command": "uv run pytest tests/ -v",
+      "evidence": "784/784 tests pass in 12.66s",
+      "failing_tests": []
+    },
+    "coverage": {
+      "value": null,
+      "threshold": null,
+      "passed": true
+    },
+    "dependencies": {
+      "passed": true,
+      "command": "uv sync --extra dev",
+      "evidence": "Resolved 37 packages, Installed 2 packages (coverage, pytest-cov)"
+    }
+  },
+  "test_snapshot": {
+    "total": 784,
+    "passing": 784,
+    "failing": 0,
+    "skipped": 0,
+    "coverage_percent": null
+  },
+  "blocking_issues": []
+}

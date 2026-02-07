@@ -262,6 +262,7 @@ class Provisioner:
                     "clauded_project_name": self.config.project_name,
                     "clauded_mount_guest": self.config.mount_guest,
                     "clauded_mount_host": self.config.mount_host,
+                    "vm_distro": self.config.vm_distro,
                     "gitconfig_content": gitconfig_content,
                     # Centralized download metadata for integrity verification
                     "downloads": downloads,

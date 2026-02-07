@@ -16,6 +16,12 @@ alpine_image:
   arch: "aarch64"
   url: "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2"
 
+# Ubuntu cloud image for Lima VMs (24.04 LTS Noble)
+ubuntu_image:
+  version: "24.04"
+  arch: "aarch64"
+  url: "https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-arm64.img"
+
 # Go language
 go:
   default_version: "1.23.5"

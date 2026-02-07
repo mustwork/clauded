@@ -1,0 +1,128 @@
+{
+  "created_at": "2026-02-07T09:25:00Z",
+  "story_id": "01",
+  "story_title": "Add distribution provider infrastructure and config schema",
+
+  "questions": [
+    {
+      "id": "VQ-01-001",
+      "category": "TEST",
+      "question": "Do unit tests verify DistroProvider implementations return correct metadata?",
+      "actionable_check": "Run unit tests for AlpineProvider and UbuntuProvider - verify each property (name, display_name, get_cloud_image, get_ansible_role_prefix) returns expected values",
+      "evidence_required": ["test file path", "test function names", "assertion coverage for all provider methods"],
+      "pass_criteria": "Tests exist for AlpineProvider and UbuntuProvider covering all protocol methods with correct assertions",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-002",
+      "category": "TEST",
+      "question": "Do unit tests verify get_distro_provider() factory returns correct instances?",
+      "actionable_check": "Run unit tests for get_distro_provider() - verify returns AlpineProvider for 'alpine', UbuntuProvider for 'ubuntu', raises ValueError for invalid distro",
+      "evidence_required": ["test file path", "test assertions for each supported distro", "error case test"],
+      "pass_criteria": "Tests verify factory returns correct provider type for each SUPPORTED_DISTROS value and raises for invalid input",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-003",
+      "category": "TEST",
+      "question": "Do unit tests verify config schema accepts valid distro values?",
+      "actionable_check": "Run unit tests that load/save config with vm.distro='alpine' and vm.distro='ubuntu' - verify no errors and correct value persisted",
+      "evidence_required": ["test file path", "tests for each supported distro value", "config load/save round-trip test"],
+      "pass_criteria": "Tests successfully load and save configs with each supported distro value",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-004",
+      "category": "TEST",
+      "question": "Do unit tests verify config schema rejects invalid distro values?",
+      "actionable_check": "Run unit tests that attempt to load config with vm.distro='invalid' or vm.distro='fedora' - verify ConfigValidationError raised",
+      "evidence_required": ["test file path", "test for invalid distro", "assertion for ConfigValidationError"],
+      "pass_criteria": "Test verifies ConfigValidationError raised when loading config with unsupported distro value",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-005",
+      "category": "TEST",
+      "question": "Do unit tests verify missing vm.distro defaults to 'alpine'?",
+      "actionable_check": "Run unit tests that load legacy config without vm.distro field - verify config.vm_distro returns 'alpine'",
+      "evidence_required": ["test file path", "test for legacy config", "assertion that distro defaults to alpine"],
+      "pass_criteria": "Test confirms missing distro field loads successfully and defaults to 'alpine' for backward compatibility",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-006",
+      "category": "TEST",
+      "question": "Do unit tests verify get_cloud_image() function supports both distros?",
+      "actionable_check": "Run unit tests for downloads.py get_cloud_image('alpine') and get_cloud_image('ubuntu') - verify returns correct metadata from downloads.yml",
+      "evidence_required": ["test file path", "tests for each distro", "assertions for url/version/arch fields"],
+      "pass_criteria": "Tests verify get_cloud_image() returns correct cloud image metadata for alpine and ubuntu",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-007",
+      "category": "ARCHITECTURE",
+      "question": "Does downloads.yml contain ubuntu_image metadata entry?",
+      "actionable_check": "Read downloads.yml and verify ubuntu_image key exists with url, version='24.04', arch='aarch64'",
+      "evidence_required": ["ubuntu_image entry from downloads.yml", "url pointing to Ubuntu cloud image", "correct version and arch"],
+      "pass_criteria": "downloads.yml contains ubuntu_image with valid URL, version 24.04, and aarch64 architecture",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-008",
+      "category": "QUALITY",
+      "question": "Does src/clauded/distro.py follow the DistroProvider protocol pattern correctly?",
+      "actionable_check": "Review distro.py source - verify Protocol definition exists, AlpineProvider and UbuntuProvider implement all required methods",
+      "evidence_required": ["Protocol class definition", "AlpineProvider implementation", "UbuntuProvider implementation"],
+      "pass_criteria": "DistroProvider protocol defines all required methods, both providers implement protocol correctly",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-009",
+      "category": "SPEC",
+      "question": "Does the implementation maintain backward compatibility with legacy configs?",
+      "actionable_check": "Load a .clauded.yaml file without vm.distro field - verify it loads successfully and defaults to alpine without errors or warnings",
+      "evidence_required": ["test result", "no ConfigValidationError", "vm_distro='alpine' default"],
+      "pass_criteria": "Legacy configs without distro field load successfully and default to alpine",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-010",
+      "category": "SPEC",
+      "question": "Does /etc/clauded.json metadata include distro field after provisioning?",
+      "actionable_check": "Review common role tasks/main.yml - verify JSON template includes distro field from vm_distro variable",
+      "evidence_required": ["common role YAML content", "distro field in JSON template"],
+      "pass_criteria": "/etc/clauded.json template includes distro field matching vm_distro variable",
+      "added_in_round": 1
+    }
+  ],
+
+  "mandatory_questions": [
+    {
+      "id": "VQ-01-DEAD",
+      "category": "QUALITY",
+      "question": "Is there any dead code introduced by this story?",
+      "actionable_check": "Search for unused functions, classes, imports in distro.py, config.py, downloads.py - check if all new code is referenced",
+      "evidence_required": ["file paths", "unused symbol names if any"],
+      "pass_criteria": "No unused code in story scope - all new functions/classes are used",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-DUP",
+      "category": "QUALITY",
+      "question": "Are there any duplicate implementations?",
+      "actionable_check": "Review AlpineProvider and UbuntuProvider implementations - verify no duplicated logic that should be shared",
+      "evidence_required": ["provider implementation code", "any duplicated logic identified"],
+      "pass_criteria": "No significant code duplication - both providers are minimal and distro-specific",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-INT",
+      "category": "TEST",
+      "question": "Do integration tests validate the story's workflow?",
+      "actionable_check": "Verify integration test exists that: creates config with distro field, saves it, loads it back, verifies distro persisted correctly",
+      "evidence_required": ["test file", "test function", "config save/load workflow test"],
+      "pass_criteria": "At least one integration test covers config distro field round-trip (save and load)",
+      "added_in_round": 1
+    }
+  ]
+}

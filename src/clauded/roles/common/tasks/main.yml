@@ -224,6 +224,7 @@
     content: |
       {
         "project_name": "{{ clauded_project_name }}",
+        "distro": "{{ vm_distro }}",
         "version": "{{ clauded_version }}",
         "commit": "{{ clauded_commit }}",
         "provisioned": "{{ clauded_provision_timestamp }}"

@@ -13,6 +13,7 @@ from typing import Any
 import yaml
 
 from .constants import LANGUAGE_CONFIG
+from .distro import SUPPORTED_DISTROS
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,31 @@ class ConfigValidationError(Exception):
     """Raised when config values are invalid."""
 
     pass
+
+
+def _validate_distro(distro: str | None) -> str:
+    """Validate distribution name.
+
+    Args:
+        distro: Distribution name from config, or None for default
+
+    Returns:
+        Validated distro name ('alpine' if None for backward compatibility)
+
+    Raises:
+        ConfigValidationError: If distro is not in SUPPORTED_DISTROS
+    """
+    if distro is None:
+        # Backward compatibility: missing distro defaults to alpine
+        return "alpine"
+
+    if distro not in SUPPORTED_DISTROS:
+        raise ConfigValidationError(
+            f"Unsupported distro '{distro}'. "
+            f"Supported distros: {', '.join(SUPPORTED_DISTROS)}"
+        )
+
+    return distro
 
 
 def _validate_runtime_version(
@@ -168,6 +194,7 @@ class Config:
 
     # VM settings
     vm_name: str = ""
+    vm_distro: str = "alpine"  # Distribution: alpine or ubuntu
     cpus: int = 4
     memory: str = "8GiB"
     disk: str = "20GiB"
@@ -348,6 +375,9 @@ class Config:
             )
             mount_guest = mount_host
 
+        # Validate distro (defaults to alpine if missing for backward compatibility)
+        vm_distro = _validate_distro(data.get("vm", {}).get("distro"))
+
         # Validate runtime versions (strict validation for supported versions)
         env = data.get("environment", {})
         python_ver = _validate_runtime_version("python", env.get("python"))
@@ -368,6 +398,7 @@ class Config:
         return cls(
             version=version,
             vm_name=vm_name,
+            vm_distro=vm_distro,
             cpus=data["vm"]["cpus"],
             memory=data["vm"]["memory"],
             disk=data["vm"]["disk"],
@@ -398,6 +429,7 @@ class Config:
         """Save config to a .clauded.yaml file."""
         vm_data: dict[str, Any] = {
             "name": self.vm_name,
+            "distro": self.vm_distro,
             "cpus": self.cpus,
             "memory": self.memory,
             "disk": self.disk,

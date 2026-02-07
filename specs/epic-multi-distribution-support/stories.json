@@ -1,0 +1,314 @@
+{
+  "epic_name": "multi-distribution-support",
+  "created_at": "2026-02-07T00:00:00Z",
+  "updated_at": "2026-02-07T00:00:00Z",
+  "total_stories": 7,
+  "stories": [
+    {
+      "id": "01",
+      "name": "distro-infrastructure",
+      "title": "Add distribution provider infrastructure and config schema",
+      "description": "Implement the foundational infrastructure for multi-distro support: add vm.distro field to config schema with validation, create DistroProvider protocol with AlpineProvider and UbuntuProvider implementations, add Ubuntu cloud image metadata to downloads.yml, and update /etc/clauded.json to include distro field. This provides the base abstraction for all subsequent stories.",
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-018",
+        "AC-019",
+        "AC-020",
+        "AC-021",
+        "AC-032",
+        "AC-033",
+        "AC-034",
+        "AC-041",
+        "AC-042"
+      ],
+      "scope": {
+        "includes": [
+          "vm.distro field in config schema (str, validated)",
+          "Config validation for supported distros (alpine, ubuntu)",
+          "Default to alpine when vm.distro missing (backward compatibility)",
+          "DistroProvider protocol/interface definition",
+          "AlpineProvider implementation (name, display_name, get_cloud_image, get_ansible_role_prefix, validate_environment)",
+          "UbuntuProvider implementation (all same methods)",
+          "get_distro_provider() factory function",
+          "Ubuntu cloud image metadata in downloads.yml (url, version, arch)",
+          "Update get_cloud_image() in downloads.py to support distro parameter",
+          "Add distro field to /etc/clauded.json metadata structure",
+          "Unit tests for config validation",
+          "Unit tests for DistroProvider implementations",
+          "Unit tests for cloud image metadata"
+        ],
+        "excludes": [
+          "CLI flag implementation (Story 02)",
+          "Wizard integration (Story 02)",
+          "Actual VM creation with Ubuntu (Story 03+)",
+          "Ansible role variants (Story 03-06)",
+          "Distro change detection (Story 02)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "done",
+      "notes": "Foundation story with no dependencies. Establishes abstractions used by all other stories. Focus on clean provider interface that works for both Alpine (existing) and Ubuntu (new). Ensure backward compatibility for configs without vm.distro field."
+    },
+    {
+      "id": "02",
+      "name": "cli-wizard-distro-selection",
+      "title": "Implement CLI flag and wizard distro selection with change detection",
+      "description": "Add --distro CLI flag, implement distro selection as first wizard step, and add distro change detection logic that triggers VM recreation warnings. Users can specify distro via flag, select in wizard (with Alpine default), and receive clear warnings when attempting to change distro on existing VMs. Detection happens via SSH after VM boot by comparing config with /etc/clauded.json.",
+      "acceptance_criteria": [
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-043"
+      ],
+      "scope": {
+        "includes": [
+          "--distro flag parsing in CLI",
+          "Flag validation (supported distro check)",
+          "Flag conflict detection with existing config",
+          "New wizard step for distro selection (first question)",
+          "Wizard default to alpine",
+          "Wizard pre-fill from --distro flag",
+          "Generated config includes vm.distro from wizard selection",
+          "Distro change detection via SSH (read /etc/clauded.json after boot)",
+          "Distro mismatch warning prompt with clear messaging",
+          "User confirmation flow (y/N) for VM recreation",
+          "VM destruction and recreation with new distro on confirmation",
+          "Exit without changes on cancellation",
+          "Error handling for --distro with legacy configs",
+          "Integration tests for CLI flag",
+          "Integration tests for wizard flow",
+          "E2E tests for distro change flow"
+        ],
+        "excludes": [
+          "DistroProvider infrastructure (Story 01 - already done)",
+          "Actual Ubuntu role provisioning (Story 03-06)",
+          "Role variant creation (Story 03-06)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [
+        {
+          "mock_id": "MOCK-02-001",
+          "description": "Ubuntu VM provisioning succeeds without actual Ubuntu roles",
+          "interface": "Provisioner role execution",
+          "reason": "Ubuntu role variants not yet created (Stories 03-06)",
+          "resolved_by": "Story 03"
+        }
+      ],
+      "introduces_mocks": [],
+      "status": "pending",
+      "notes": "This story enables full user interaction flow (flag, wizard, change detection) but relies on mock for Ubuntu provisioning since role variants don't exist yet. Can test Alpine VM creation end-to-end. Ubuntu testing requires mocking ansible-playbook success or skipping role execution."
+    },
+    {
+      "id": "03",
+      "name": "ansible-core-role-variants",
+      "title": "Create role variant architecture with common and base language roles",
+      "description": "Refactor existing roles to use -alpine suffix, update provisioner to select roles with -{distro} suffix pattern, add role existence validation, and create Ubuntu variants for core roles (common, python, node). This establishes the strict variants pattern and makes the first Ubuntu VMs functional with basic languages.",
+      "acceptance_criteria": [
+        "AC-022",
+        "AC-023",
+        "AC-028",
+        "AC-029",
+        "AC-030",
+        "AC-031",
+        "AC-037",
+        "AC-038",
+        "AC-039"
+      ],
+      "scope": {
+        "includes": [
+          "Rename existing roles to -alpine variants (common → common-alpine, python → python-alpine, node → node-alpine)",
+          "Update provisioner role selection to use f'{role}-{distro}' pattern",
+          "Add pre-provisioning role existence validation in provisioner",
+          "Clear error message listing missing roles if validation fails",
+          "Create common-ubuntu role (apt, systemctl, build-essential)",
+          "Create python-ubuntu role (apt install python3)",
+          "Create node-ubuntu role (NodeSource PPA or nvm)",
+          "Verify no hardcoded distro names in config.py (use SUPPORTED_DISTROS constant)",
+          "Verify no hardcoded distro names in lima.py (use get_distro_provider())",
+          "Verify no hardcoded distro names in provisioner.py (use generic pattern)",
+          "Verify role variants have no distro conditionals in tasks",
+          "Integration tests for role selection logic",
+          "Integration tests for role validation",
+          "E2E test for Ubuntu VM with Python and Node"
+        ],
+        "excludes": [
+          "Other language roles (Story 04)",
+          "Tool roles (Story 05)",
+          "Database and framework roles (Story 06)",
+          "Full integration testing (Story 07)"
+        ]
+      },
+      "complexity": "high",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "pending",
+      "notes": "RESOLVES: MOCK-02-001 from Story 02. This story creates the first working Ubuntu roles and establishes the variant pattern all other roles will follow. High complexity due to architectural refactoring (renaming existing roles) and establishing validation logic. After this story, Ubuntu VMs can provision with Python and Node."
+    },
+    {
+      "id": "04",
+      "name": "language-role-variants",
+      "title": "Create Ubuntu variants for all language roles",
+      "description": "Create Ubuntu variants for remaining language roles: java, kotlin, rust, go, dart, c. Each variant implements distro-specific installation using apt packages, PPAs, or version managers as appropriate. After this story, all supported languages work on Ubuntu VMs.",
+      "acceptance_criteria": [
+        "AC-025",
+        "AC-031"
+      ],
+      "scope": {
+        "includes": [
+          "Create java-ubuntu role (OpenJDK via apt)",
+          "Create kotlin-ubuntu role (SDKMAN or manual download)",
+          "Create rust-ubuntu role (rustup)",
+          "Create go-ubuntu role (official tarball or snap)",
+          "Create dart-ubuntu role (apt from Dart PPA)",
+          "Create c-ubuntu role (build-essential, gcc, make)",
+          "Verify no distro conditionals in any new role tasks",
+          "Integration tests verifying all language-ubuntu roles exist",
+          "E2E test for Ubuntu VM with multiple languages installed"
+        ],
+        "excludes": [
+          "Alpine language roles (already exist as -alpine from Story 03)",
+          "Tool roles (Story 05)",
+          "Database roles (Story 06)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "pending",
+      "notes": "Parallel to Story 03 pattern but focused on languages. Can be implemented independently once Story 03 establishes the variant pattern. Each language may have different installation methods on Ubuntu (apt vs PPA vs version manager), requiring research for best practices."
+    },
+    {
+      "id": "05",
+      "name": "tool-role-variants",
+      "title": "Create Ubuntu variants for all tool roles",
+      "description": "Create Ubuntu variants for all tool roles: docker, uv, poetry, maven, gradle, aws_cli, gh. Each variant implements distro-specific installation using apt, snap, official installers, or other appropriate methods. Includes proper service setup for Docker (systemctl).",
+      "acceptance_criteria": [
+        "AC-024",
+        "AC-026",
+        "AC-031"
+      ],
+      "scope": {
+        "includes": [
+          "Create docker-ubuntu role (apt install docker.io, systemctl enable docker)",
+          "Create uv-ubuntu role (curl installer or pip)",
+          "Create poetry-ubuntu role (official installer)",
+          "Create maven-ubuntu role (apt or official tarball)",
+          "Create gradle-ubuntu role (SDKMAN or official zip)",
+          "Create aws_cli-ubuntu role (official installer script)",
+          "Create gh-ubuntu role (GitHub CLI apt repository)",
+          "Verify docker-ubuntu uses systemctl (not rc-service)",
+          "Verify no distro conditionals in any new role tasks",
+          "Integration tests verifying all tool-ubuntu roles exist",
+          "E2E test for Ubuntu VM with Docker and CLI tools"
+        ],
+        "excludes": [
+          "Alpine tool roles (already exist as -alpine)",
+          "Database roles (Story 06)",
+          "Framework roles like playwright/claude_code (Story 06)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "pending",
+      "notes": "Similar pattern to Story 04 but focused on development tools. Docker variant is critical and requires careful testing of systemctl integration vs Alpine's rc-service. Can be implemented in parallel with Story 04 after Story 03 completes."
+    },
+    {
+      "id": "06",
+      "name": "database-framework-role-variants",
+      "title": "Create Ubuntu variants for database and framework roles",
+      "description": "Create Ubuntu variants for all database roles (postgresql, redis, mysql, sqlite, mongodb) and framework/testing roles (claude_code, playwright). Each database variant implements distro-specific installation and service management. After this story, ALL roles have complete Ubuntu variants.",
+      "acceptance_criteria": [
+        "AC-027",
+        "AC-031"
+      ],
+      "scope": {
+        "includes": [
+          "Create postgresql-ubuntu role (apt install postgresql, systemctl setup)",
+          "Create redis-ubuntu role (apt install redis, systemctl setup)",
+          "Create mysql-ubuntu role (apt install mysql-server, systemctl setup)",
+          "Create sqlite-ubuntu role (apt install sqlite3)",
+          "Create mongodb-ubuntu role (MongoDB official apt repository, systemctl setup)",
+          "Create claude_code-ubuntu role (download + install Claude Code CLI)",
+          "Create playwright-ubuntu role (npm/apt dependencies for browser automation)",
+          "Verify database services use systemctl (not rc-service)",
+          "Verify no distro conditionals in any new role tasks",
+          "Integration tests verifying all database-ubuntu and framework-ubuntu roles exist",
+          "E2E test for Ubuntu VM with PostgreSQL and Redis services running"
+        ],
+        "excludes": [
+          "Alpine database/framework roles (already exist as -alpine)",
+          "Integration testing across all roles (Story 07)"
+        ]
+      },
+      "complexity": "high",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "pending",
+      "notes": "Completes the role variant matrix. High complexity due to database service configuration differences between Alpine (OpenRC) and Ubuntu (systemd). Careful testing needed to ensure databases start correctly with systemctl. MongoDB requires adding official repository on Ubuntu."
+    },
+    {
+      "id": "07",
+      "name": "integration-testing-documentation",
+      "title": "Complete integration testing and update documentation",
+      "description": "Implement comprehensive end-to-end tests for both Alpine and Ubuntu distros across all feature combinations, add distro change flow tests, verify performance requirements, and update all documentation (README, CHANGELOG). Ensures the entire epic is production-ready and properly documented.",
+      "acceptance_criteria": [
+        "AC-016",
+        "AC-017",
+        "AC-035",
+        "AC-036",
+        "AC-040",
+        "AC-044"
+      ],
+      "scope": {
+        "includes": [
+          "E2E tests for Alpine VM with full stack (multiple languages, tools, databases)",
+          "E2E tests for Ubuntu VM with full stack (multiple languages, tools, databases)",
+          "Distro change flow tests (alpine→ubuntu, ubuntu→alpine)",
+          "Performance benchmarks for distro detection (< 100ms requirement)",
+          "Manual verification of extensibility constraint (review for adding Debian)",
+          "Update README with --distro flag documentation",
+          "Update README with wizard distro selection step",
+          "Update README with distro change instructions",
+          "Add CHANGELOG entry under [Unreleased] > Added",
+          "Verify all existing tests still pass with both distros",
+          "Cross-distro compatibility matrix testing"
+        ],
+        "excludes": [
+          "Role variant implementation (Stories 03-06 - already done)",
+          "Individual role tests (covered in Stories 03-06)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "pending",
+      "notes": "Final integration story that validates the entire epic. Depends on all role variants being complete (Stories 03-06). Includes both automated testing and manual verification of architecture constraints. Documentation updates ensure users understand the new feature."
+    }
+  ],
+  "story_order": [
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07"
+  ],
+  "dependency_notes": "Stories follow clear sequential dependencies aligned with migration strategy phases: Story 01 provides infrastructure for all others. Story 02 enables user interaction but mocks Ubuntu provisioning. Story 03 resolves the mock and establishes role variant pattern. Stories 04-06 can be implemented in parallel after Story 03, each completing a category of role variants. Story 07 depends on Stories 03-06 being complete for full integration testing. No cross-dependencies between Stories 04, 05, and 06.",
+  "mock_resolution_plan": "Only one temporary mock introduced: MOCK-02-001 in Story 02 (Ubuntu provisioning without roles). This mock is necessary because Story 02 implements the user-facing CLI and wizard features but cannot fully provision Ubuntu VMs until role variants exist. The mock allows testing of config generation, flag handling, and wizard flow with Ubuntu selection. MOCK-02-001 is resolved by Story 03, which creates the first working Ubuntu role variants (common, python, node). After Story 03, no mocks remain - all subsequent stories add real implementations."
+}
