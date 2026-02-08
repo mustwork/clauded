@@ -439,6 +439,7 @@ def apply_detection_to_config(
     new_config = ConfigClass(
         version=config.version,
         vm_name=config.vm_name,
+        vm_distro=config.vm_distro,
         cpus=config.cpus,
         memory=config.memory,
         disk=config.disk,
@@ -752,7 +753,8 @@ def run_edit_with_detection(
     if answers["keep_vm_running"] is None:
         raise KeyboardInterrupt()
 
-    # Preserve VM resources from original config (cannot be changed without recreation)
+    # Preserve VM settings from original config (cannot be changed without recreation)
+    answers["distro"] = config.vm_distro
     answers["cpus"] = str(config.cpus)
     answers["memory"] = config.memory
     answers["disk"] = config.disk

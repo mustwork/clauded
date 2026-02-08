@@ -105,6 +105,8 @@
       - gnupg
       - build-essential
       - bash
+      # Credential storage
+      - gnome-keyring
     state: present
 
 - name: Set bash as default shell for {{ ansible_user }}

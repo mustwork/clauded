@@ -34,3 +34,7 @@
 - Step-by-step procedures
 - Implementation-level documentation when depth is needed
 - Technical architecture details
+
+## Project Specific Guidelines
+
+- The code in this project is fully responsible for the resulting VM setup. I.e. there SHOULD NOT be any code handling unexpected configurations.
