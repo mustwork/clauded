@@ -48,7 +48,7 @@
       - libwoff2dec
       - libevent
       - libvpx
-      - libopus
+      - opus
       - gst-plugins-base
       - gst-plugins-good
       - gst-plugins-bad
@@ -62,7 +62,6 @@
       - hyphen
     state: present
   when: "'webkit' in playwright_browsers"
-  ignore_errors: yes
 
 # Install playwright globally via npm command (Ansible npm module has issues on Alpine)
 - name: Install Playwright globally via npm
