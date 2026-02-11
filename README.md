@@ -1,10 +1,10 @@
 # clauded
 
-Isolated, per-project Lima VMs with automatic environment provisioning that feel just like `claude`.
+Isolated, per-project Lima VMs (MacOS) with automatic environment provisioning that feel just like `claude`.
 
 ## Overview
 
-`clauded` is a CLI tool that creates lightweight, isolated Linux VMs for each of your projects using [Lima](https://github.com/lima-vm/lima) (Linux Machines for macOS). It automatically provisions your development environment with the exact tools, databases, and frameworks you need through declarative configuration and Ansible.
+`clauded` is a CLI tool that creates lightweight, isolated Linux VMs for each of your projects using [Lima](https://github.com/lima-vm/lima) (Linux Machines for macOS). It provisions your development environment with the tools, and frameworks you need through declarative configuration and Ansible.
 
 **Supported Distributions:**
 - **Alpine Linux** (default) - Minimal footprint, fast boot
@@ -12,11 +12,13 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 
 **Why clauded?**
 
+- **Sandboxing**: Peace of mind when skipping confirmation prompts by claude-code
 - **Isolated Environments**: Each project gets its own VM with dedicated resources
 - **Declarative Configuration**: Define your stack in `.clauded.yaml` and commit it to version control
 - **Zero Setup Friction**: Interactive wizard guides you through environment creation
 - **Reproducible Across Teams**: Team members get identical environments from the same config
 - **No Local Pollution**: Keep your host machine clean while running complex stacks
+- **Exchangeable Usage**: `clauded` and `claude` share the same configuration and history
 
 ## Features
 
@@ -30,13 +32,12 @@ Isolated, per-project Lima VMs with automatic environment provisioning that feel
 - **Database Support**: PostgreSQL, Redis, MySQL, SQLite, and MongoDB CLI tools with automatic installation
 - **Developer Tools**: Docker, AWS CLI, GitHub CLI, Git pre-installed
 - **Testing Frameworks**: Playwright with browser binaries ready to use
-- **AI Integration**: Claude Code CLI for AI-assisted development
 - **VM Lifecycle Management**: Create, start, stop, destroy, and reprovision VMs
 - **Multi-Instance Support**: Multiple terminals can connect to the same VM; VM only stops when the last session exits
 - **Atomic Config Updates**: Automatic rollback on failure ensures config never references broken VMs
 - **Crash Recovery**: Detects and recovers from interrupted operations on startup
 - **Customizable Resources**: Configure CPU, memory, and disk allocation per project
-- **Workspace Mounting**: Your project directory mounted at the same path in the VM
+- **Workspace Mounting**: Your project and claude config directories are mounted at the same path in the VM
 
 ## Supported Environments
 
