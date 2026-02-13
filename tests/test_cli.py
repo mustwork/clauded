@@ -735,6 +735,85 @@ class TestVmCleanupOnExit:
                 # Verify message about other sessions
                 assert "other active session(s)" in result.output
 
+    def test_vm_not_stopped_when_user_declines_prompt(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """VM stays running when user answers No to confirmation prompt."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 0
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                # Mock click.confirm to return False (user declines)
+                with patch("clauded.cli.click.confirm", return_value=False):
+                    runner.invoke(main, [])
+
+                    # Verify shell was entered
+                    mock_vm.shell.assert_called_once()
+                    # Verify VM was NOT stopped
+                    mock_vm.stop.assert_not_called()
+
+    def test_vm_not_stopped_when_user_cancels_with_ctrl_c(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """VM stays running when user cancels prompt with Ctrl+C."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 0
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                # Mock click.confirm to raise KeyboardInterrupt (Ctrl+C)
+                with patch(
+                    "clauded.cli.click.confirm", side_effect=KeyboardInterrupt()
+                ):
+                    runner.invoke(main, [])
+
+                    # Verify shell was entered
+                    mock_vm.shell.assert_called_once()
+                    # Verify VM was NOT stopped (exception caught)
+                    mock_vm.stop.assert_not_called()
+
+    def test_vm_stopped_silently_in_non_interactive_mode(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """In non-interactive mode, VM stops silently without prompts or output."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 0
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                # Mock sys.stdin.isatty() to return False (non-interactive)
+                with patch("clauded.cli.sys.stdin.isatty", return_value=False):
+                    # click.confirm auto-returns True with default=True in non-TTY
+                    with patch("clauded.cli.click.confirm", return_value=True):
+                        result = runner.invoke(main, [])
+
+                        # Verify shell was entered
+                        mock_vm.shell.assert_called_once()
+                        # Verify VM was stopped
+                        mock_vm.stop.assert_called_once()
+                        # Verify NO output about stopping (silent mode)
+                        assert "Stopping VM" not in result.output
+                        assert "stopped" not in result.output
+
 
 class TestCliDetectWorkflow:
     """Tests for --detect workflow."""

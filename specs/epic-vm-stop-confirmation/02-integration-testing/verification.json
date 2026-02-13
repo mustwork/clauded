@@ -1,0 +1,71 @@
+{
+  "created_at": "2026-02-13T11:05:00Z",
+  "story_id": "02",
+  "questions": [
+    {
+      "id": "VQ-02-001",
+      "category": "test_coverage",
+      "question": "Are there tests verifying VM stays running when user declines the prompt?",
+      "actionable_check": "Verify test_vm_not_stopped_when_user_declines_prompt exists in TestVmCleanupOnExit and tests click.confirm returning False.",
+      "evidence_required": [
+        "Test exists in tests/test_cli.py",
+        "Test mocks click.confirm to return False",
+        "Test verifies vm.stop() is NOT called"
+      ],
+      "pass_criteria": "Test exists and verifies VM not stopped when user declines",
+      "root_cause_if_fail": "missing_test"
+    },
+    {
+      "id": "VQ-02-002",
+      "category": "test_coverage",
+      "question": "Are there tests verifying VM stays running when user cancels with Ctrl+C?",
+      "actionable_check": "Verify test_vm_not_stopped_when_user_cancels_with_ctrl_c exists and tests KeyboardInterrupt exception handling.",
+      "evidence_required": [
+        "Test exists in tests/test_cli.py",
+        "Test mocks click.confirm to raise KeyboardInterrupt",
+        "Test verifies vm.stop() is NOT called"
+      ],
+      "pass_criteria": "Test exists and verifies exception handling for Ctrl+C",
+      "root_cause_if_fail": "missing_test"
+    },
+    {
+      "id": "VQ-02-003",
+      "category": "test_coverage",
+      "question": "Are there tests verifying non-interactive mode silent behavior?",
+      "actionable_check": "Verify test_vm_stopped_silently_in_non_interactive_mode exists and tests sys.stdin.isatty() returning False.",
+      "evidence_required": [
+        "Test exists in tests/test_cli.py",
+        "Test mocks sys.stdin.isatty() to return False",
+        "Test verifies no output messages appear",
+        "Test verifies VM is stopped"
+      ],
+      "pass_criteria": "Test exists and verifies silent stop in non-interactive mode",
+      "root_cause_if_fail": "missing_test"
+    }
+  ],
+  "mandatory_questions": [
+    {
+      "id": "MQ-02-001",
+      "category": "regression",
+      "question": "Does the full test suite pass with the new tests?",
+      "actionable_check": "Run pytest tests/ and verify all tests pass (baseline 869 + 3 new = 872).",
+      "evidence_required": [
+        "Test execution showing 872 tests pass",
+        "Zero failures"
+      ],
+      "pass_criteria": "All 872 tests pass",
+      "root_cause_if_fail": "test_failure"
+    },
+    {
+      "id": "MQ-02-002",
+      "category": "code_quality",
+      "question": "Do the new tests pass linting?",
+      "actionable_check": "Run ruff check on tests/test_cli.py.",
+      "evidence_required": [
+        "ruff reports no errors"
+      ],
+      "pass_criteria": "Linting passes",
+      "root_cause_if_fail": "impl_bug"
+    }
+  ]
+}
