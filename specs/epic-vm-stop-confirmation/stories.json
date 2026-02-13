@@ -1,0 +1,120 @@
+{
+  "epic_name": "vm-stop-confirmation",
+  "created_at": "2026-02-13T00:00:00Z",
+  "updated_at": "2026-02-13T07:04:16Z",
+  "total_stories": 2,
+  "stories": [
+    {
+      "id": "01",
+      "name": "core-implementation",
+      "title": "Implement confirmation prompt in _stop_vm_if_last_session",
+      "description": "Modify the _stop_vm_if_last_session function in src/clauded/cli.py to prompt the user with click.confirm() before stopping the VM. The prompt asks 'This is the last active session. Stop VM <name>?' with default=True (Enter confirms stop). Handle user responses: Yes stops VM, No leaves VM running, Ctrl+C/Ctrl+D treated as No. Distinguish between interactive (TTY) and non-interactive contexts - in non-interactive mode, default to stop silently with no output. Add proper error handling and preserve SIGINT handling during actual VM stop operation.",
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-006",
+        "AC-007"
+      ],
+      "scope": {
+        "includes": [
+          "Replace silent VM stop logic with click.confirm() call",
+          "Prompt text: 'This is the last active session. Stop VM <name>?'",
+          "Default behavior: True (Enter confirms stop)",
+          "Handle user confirmation (Yes/Y/Enter) - stop VM",
+          "Handle user decline (No/N) - leave VM running",
+          "Handle Ctrl+C/Ctrl+D/EOF during prompt - treat as No (safe fallback)",
+          "Detect interactive vs non-interactive context with sys.stdin.isatty()",
+          "Non-interactive mode: auto-confirm with no output (preserve current silent behavior)",
+          "Echo messages only in interactive mode",
+          "Preserve existing SIGINT ignore during actual vm.stop() call",
+          "Add appropriate exception handling for click.Abort, EOFError, KeyboardInterrupt",
+          "Update function to include import sys at module level if needed"
+        ],
+        "excludes": [
+          "Changes to other functions in cli.py",
+          "Changes to VM stopping logic itself (only add prompt before stop)",
+          "Changes to session counting logic (already works correctly)",
+          "Changes to keep_vm_running config handling (already works correctly)",
+          "Unit tests (click.confirm() requires TTY, not suitable for unit testing)"
+        ]
+      },
+      "complexity": "low",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "status": "in_progress",
+      "notes": "Single-function modification with clear requirements from spec. All logic changes are localized to _stop_vm_if_last_session function (lines 78-110 in cli.py). The implementation follows the exact pattern provided in spec.md. No dependencies on other components. No test fixtures needed - uses real click.confirm() and sys.stdin.isatty() for TTY detection."
+    },
+    {
+      "id": "02",
+      "name": "integration-testing",
+      "title": "Add comprehensive integration tests for VM stop confirmation",
+      "description": "Create integration tests that verify all acceptance criteria for the VM stop confirmation feature. Tests must cover interactive confirmation (Yes/No responses), non-interactive mode (piped input), configuration behavior (keep_vm_running), and multi-session scenarios. Tests should use real VMs or appropriate test doubles for subprocess interactions to verify the complete flow from user input through VM lifecycle management.",
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007"
+      ],
+      "scope": {
+        "includes": [
+          "Integration test: Prompt appears when last session exits with keep_vm_running=false",
+          "Integration test: VM stops when user answers Yes/Y/Enter",
+          "Integration test: VM stays running when user answers No/N",
+          "Integration test: No prompt when keep_vm_running=true (VM stays running)",
+          "Integration test: No prompt when other sessions active (VM stays running)",
+          "Integration test: Non-interactive mode (piped stdin) stops VM silently without output",
+          "Integration test: Verify prompt message contains required text (last session, VM name)",
+          "Mock or fixture strategy for subprocess calls (limactl commands)",
+          "Mock or fixture strategy for click.confirm() to simulate user input",
+          "Mock or fixture strategy for sys.stdin.isatty() to test non-interactive mode",
+          "Test cleanup to ensure VMs and test artifacts are removed",
+          "Documentation comments explaining test setup and fixtures"
+        ],
+        "excludes": [
+          "Unit tests for _stop_vm_if_last_session (not practical with click.confirm())",
+          "E2E tests with real VM creation (too slow for CI/CD - use test doubles)",
+          "Tests for unrelated CLI functions",
+          "Changes to production code (Story 01 already implements the feature)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": [
+        {
+          "fixture_id": "FIXTURE-02-001",
+          "description": "Test doubles for limactl subprocess calls (list, stop, shell) to avoid real VM operations in tests",
+          "interface": "subprocess.run(), subprocess.Popen() for limactl commands",
+          "reason": "Cannot use real VMs in CI/CD - tests would be too slow and require Lima installation. Permanent test infrastructure.",
+          "permanent": true
+        },
+        {
+          "fixture_id": "FIXTURE-02-002",
+          "description": "Mock click.confirm() responses to simulate user input (Yes/No/Ctrl+C) in test scenarios",
+          "interface": "click.confirm() return values and exceptions",
+          "reason": "Cannot use real TTY input in automated tests. Permanent test infrastructure.",
+          "permanent": true
+        },
+        {
+          "fixture_id": "FIXTURE-02-003",
+          "description": "Mock sys.stdin.isatty() to simulate interactive vs non-interactive contexts",
+          "interface": "sys.stdin.isatty() return value",
+          "reason": "Cannot control TTY state in automated tests. Permanent test infrastructure.",
+          "permanent": true
+        }
+      ],
+      "status": "pending",
+      "notes": "Can be implemented independently of Story 01 by reading the spec, but will need Story 01 completed to verify tests pass against actual implementation. Tests should be written to match the exact behavior specified in spec.md. Medium complexity due to need for proper mocking strategy and comprehensive coverage of all scenarios (interactive, non-interactive, multiple sessions, config variations)."
+    }
+  ],
+  "story_order": [
+    "01",
+    "02"
+  ],
+  "dependency_notes": "Stories are designed to be independent in theory (Story 02 can be written from spec alone), but Story 02 tests will only pass once Story 01 implementation is complete. Recommended order: implement Story 01 first to add the feature, then Story 02 to verify it works. Both stories are self-contained with no external dependencies - all changes are in src/clauded/cli.py and tests/test_cli.py (or new test file).",
+  "mock_resolution_plan": "No temporary mocks introduced. All test doubles in Story 02 are permanent test fixtures (subprocess mocking, click.confirm mocking, TTY state mocking) that remain as part of the test infrastructure. These are standard testing practices and are not tracked as mocks requiring resolution."
+}

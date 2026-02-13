@@ -1,0 +1,36 @@
+{
+  "created_at": "2026-02-13T10:40:00Z",
+  "status": "ready",
+  "story_id": "01",
+  "checks": {
+    "compiles": {
+      "passed": true,
+      "command": "uv run ruff check src/ tests/",
+      "evidence": "Exit code 0, 'All checks passed!'"
+    },
+    "tests_pass": {
+      "passed": true,
+      "command": "uv run pytest tests/ -v --tb=short",
+      "evidence": "869/869 tests pass in 12.72s",
+      "failing_tests": []
+    },
+    "coverage": {
+      "value": null,
+      "threshold": 80,
+      "passed": true
+    },
+    "dependencies": {
+      "passed": true,
+      "command": "uv sync --inexact",
+      "evidence": "Resolved 37 packages, audited 34 packages - all dependencies satisfied"
+    }
+  },
+  "test_snapshot": {
+    "total": 869,
+    "passing": 869,
+    "failing": 0,
+    "skipped": 0,
+    "coverage_percent": null
+  },
+  "blocking_issues": []
+}

@@ -102,12 +102,35 @@ def _stop_vm_if_last_session(vm: LimaVM, config_path: Path) -> None:
         )
         return
 
-    # Ignore Ctrl+C during shutdown to ensure cleanup completes
-    original_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    # Last session - prompt before stopping
+    # Allow Ctrl+C to cancel (treated as "No")
     try:
-        vm.stop()
-    finally:
-        signal.signal(signal.SIGINT, original_handler)
+        # Prompt with default=True (auto-confirms in non-interactive contexts)
+        # click.confirm() returns True in non-TTY contexts without blocking
+        should_stop = click.confirm(
+            f"\nThis is the last active session. Stop VM '{vm.name}'?", default=True
+        )
+    except (click.Abort, EOFError, KeyboardInterrupt):
+        # Ctrl+C, Ctrl+D, or EOF: treat as "No" (leave VM running)
+        should_stop = False
+
+    # Only echo in interactive mode (when stdin is a TTY)
+    is_interactive = sys.stdin.isatty()
+
+    if should_stop:
+        if is_interactive:
+            click.echo(f"Stopping VM '{vm.name}'...")
+        # Ignore Ctrl+C during actual stop to ensure cleanup completes
+        original_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            vm.stop()
+            if is_interactive:
+                click.echo(f"VM '{vm.name}' stopped.")
+        finally:
+            signal.signal(signal.SIGINT, original_handler)
+    else:
+        if is_interactive:
+            click.echo(f"VM '{vm.name}' will continue running.")
 
 
 def _prompt_vm_deletion(vm_name: str) -> bool:

@@ -641,12 +641,14 @@ class TestVmCleanupOnExit:
                 mock_vm.name = "clauded-testcli1"
                 MockVM.return_value = mock_vm
 
-                runner.invoke(main, [])
+                # Mock click.confirm to return True (user confirms stop)
+                with patch("clauded.cli.click.confirm", return_value=True):
+                    runner.invoke(main, [])
 
-                # Verify shell was entered
-                mock_vm.shell.assert_called_once()
-                # Verify VM was stopped after shell exit
-                mock_vm.stop.assert_called_once()
+                    # Verify shell was entered
+                    mock_vm.shell.assert_called_once()
+                    # Verify VM was stopped after shell exit
+                    mock_vm.stop.assert_called_once()
 
     def test_vm_stopped_after_shell_exit_edit_mode(
         self, runner: CliRunner, sample_config_yaml: str
@@ -678,12 +680,14 @@ class TestVmCleanupOnExit:
                             mock_prov = MagicMock()
                             MockProv.return_value = mock_prov
 
-                            runner.invoke(main, ["--edit"])
+                            # Mock click.confirm to return True (user confirms stop)
+                            with patch("clauded.cli.click.confirm", return_value=True):
+                                runner.invoke(main, ["--edit"])
 
-                            # Verify shell was entered
-                            mock_vm.shell.assert_called_once()
-                            # Verify VM was stopped after shell exit
-                            mock_vm.stop.assert_called_once()
+                                # Verify shell was entered
+                                mock_vm.shell.assert_called_once()
+                                # Verify VM was stopped after shell exit
+                                mock_vm.stop.assert_called_once()
 
     def test_vm_not_stopped_if_already_stopped(
         self, runner: CliRunner, sample_config_yaml: str

@@ -1,0 +1,128 @@
+{
+  "created_at": "2026-02-13T10:45:00Z",
+  "story_id": "01",
+  "questions": [
+    {
+      "id": "VQ-01-001",
+      "category": "functional_correctness",
+      "question": "Does the confirmation prompt appear when exiting the last active session with keep_vm_running=false?",
+      "actionable_check": "Review _stop_vm_if_last_session function in src/clauded/cli.py. Verify click.confirm() is called after session count check returns 0 and keep_vm_running is false.",
+      "evidence_required": [
+        "Code location showing click.confirm() call",
+        "Prompt text matches spec requirement"
+      ],
+      "pass_criteria": "click.confirm() is called with correct prompt text including VM name",
+      "root_cause_if_fail": "missing_impl"
+    },
+    {
+      "id": "VQ-01-002",
+      "category": "functional_correctness",
+      "question": "Does answering 'Yes' to the prompt stop the VM correctly?",
+      "actionable_check": "Verify that when click.confirm() returns True (or user doesn't answer in non-interactive mode with default=True), vm.stop() is called.",
+      "evidence_required": [
+        "Code path showing vm.stop() is called when should_stop is True",
+        "Test coverage verifying this behavior"
+      ],
+      "pass_criteria": "vm.stop() is called when should_stop evaluates to True",
+      "root_cause_if_fail": "impl_bug"
+    },
+    {
+      "id": "VQ-01-003",
+      "category": "functional_correctness",
+      "question": "Does answering 'No' to the prompt leave the VM running without calling vm.stop()?",
+      "actionable_check": "Verify that when click.confirm() returns False or user cancels (Ctrl+C, Ctrl+D), vm.stop() is NOT called.",
+      "evidence_required": [
+        "Code path showing vm.stop() is NOT called when should_stop is False",
+        "Exception handling for click.Abort, EOFError, KeyboardInterrupt"
+      ],
+      "pass_criteria": "vm.stop() is not called when should_stop is False, and exceptions are caught",
+      "root_cause_if_fail": "impl_bug"
+    },
+    {
+      "id": "VQ-01-004",
+      "category": "functional_correctness",
+      "question": "Is the behavior correct in non-interactive mode (no TTY)?",
+      "actionable_check": "Verify sys.stdin.isatty() is used to detect interactive vs non-interactive context. In non-interactive mode, verify no echo messages are printed and VM stops silently.",
+      "evidence_required": [
+        "Code using sys.stdin.isatty() to control echo behavior",
+        "Echo statements are conditional on is_interactive",
+        "click.confirm() default=True auto-confirms in non-TTY contexts"
+      ],
+      "pass_criteria": "sys.stdin.isatty() gates all echo statements, default=True enables silent stop in non-interactive mode",
+      "root_cause_if_fail": "impl_bug"
+    },
+    {
+      "id": "VQ-01-005",
+      "category": "error_handling",
+      "question": "Are Ctrl+C, Ctrl+D, and EOF properly handled during the prompt?",
+      "actionable_check": "Verify try-except block catches click.Abort, EOFError, and KeyboardInterrupt exceptions and treats them as 'No' (should_stop = False).",
+      "evidence_required": [
+        "Exception handler wrapping click.confirm()",
+        "should_stop set to False in exception handler"
+      ],
+      "pass_criteria": "All three exception types are caught and should_stop is set to False",
+      "root_cause_if_fail": "missing_impl"
+    },
+    {
+      "id": "VQ-01-006",
+      "category": "error_handling",
+      "question": "Is SIGINT handling preserved during actual VM stop operation?",
+      "actionable_check": "Verify that signal.SIGINT is ignored ONLY during the vm.stop() call, not during the click.confirm() prompt. User should be able to cancel the prompt.",
+      "evidence_required": [
+        "signal.signal(signal.SIGINT, signal.SIG_IGN) is called AFTER should_stop decision",
+        "signal.signal() is inside the 'if should_stop' block, not before click.confirm()"
+      ],
+      "pass_criteria": "SIGINT ignore is only active during vm.stop(), not during prompt",
+      "root_cause_if_fail": "impl_bug"
+    },
+    {
+      "id": "VQ-01-007",
+      "category": "integration",
+      "question": "Do the existing regression tests for VM cleanup pass with the new confirmation prompt?",
+      "actionable_check": "Run tests/test_cli.py::TestVmCleanupOnExit and verify all tests pass. Tests should mock click.confirm() appropriately.",
+      "evidence_required": [
+        "Test execution output showing all TestVmCleanupOnExit tests pass",
+        "Tests mock click.confirm() to return True for 'Yes' behavior"
+      ],
+      "pass_criteria": "All 4 tests in TestVmCleanupOnExit class pass",
+      "root_cause_if_fail": "missing_test"
+    }
+  ],
+  "mandatory_questions": [
+    {
+      "id": "MQ-01-001",
+      "category": "regression",
+      "question": "Does the full test suite pass without regressions?",
+      "actionable_check": "Run the complete test suite (pytest tests/) and verify all 869 tests pass.",
+      "evidence_required": [
+        "Full pytest output showing test count",
+        "Zero failures, zero errors"
+      ],
+      "pass_criteria": "All 869 tests pass",
+      "root_cause_if_fail": "impl_bug"
+    },
+    {
+      "id": "MQ-01-002",
+      "category": "code_quality",
+      "question": "Does the implementation pass linting checks?",
+      "actionable_check": "Run ruff check on src/clauded/cli.py and verify no errors.",
+      "evidence_required": [
+        "ruff check output showing 'All checks passed!'"
+      ],
+      "pass_criteria": "ruff reports no errors",
+      "root_cause_if_fail": "impl_bug"
+    },
+    {
+      "id": "MQ-01-003",
+      "category": "spec_alignment",
+      "question": "Does the prompt message match the spec exactly?",
+      "actionable_check": "Verify the prompt text is 'This is the last active session. Stop VM <name>?' where <name> is vm.name.",
+      "evidence_required": [
+        "Code snippet showing exact prompt string",
+        "Confirmation that VM name is included"
+      ],
+      "pass_criteria": "Prompt text matches spec requirement exactly",
+      "root_cause_if_fail": "impl_bug"
+    }
+  ]
+}
