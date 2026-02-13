@@ -42,7 +42,7 @@
       "complexity": "low",
       "mock_dependencies": [],
       "introduces_mocks": [],
-      "status": "in_progress",
+      "status": "done",
       "notes": "Single-function modification with clear requirements from spec. All logic changes are localized to _stop_vm_if_last_session function (lines 78-110 in cli.py). The implementation follows the exact pattern provided in spec.md. No dependencies on other components. No test fixtures needed - uses real click.confirm() and sys.stdin.isatty() for TTY detection."
     },
     {
@@ -107,7 +107,7 @@
           "permanent": true
         }
       ],
-      "status": "pending",
+      "status": "done",
       "notes": "Can be implemented independently of Story 01 by reading the spec, but will need Story 01 completed to verify tests pass against actual implementation. Tests should be written to match the exact behavior specified in spec.md. Medium complexity due to need for proper mocking strategy and comprehensive coverage of all scenarios (interactive, non-interactive, multiple sessions, config variations)."
     }
   ],

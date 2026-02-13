@@ -1,11 +1,14 @@
 {
   "epic_name": "vm-stop-confirmation",
   "created_at": "2026-02-12T10:35:00Z",
-  "updated_at": "2026-02-13T07:02:03Z",
-  "status": "in_progress",
-  "phase": "IMPLEMENTING",
-  "current_story": "01",
-  "completed_stories": [],
+  "updated_at": "2026-02-13T07:26:40Z",
+  "status": "done",
+  "phase": "COMPLETE",
+  "current_story": null,
+  "completed_stories": [
+    "01",
+    "02"
+  ],
   "blocked_stories": [],
   "escalated_stories": [],
   "phase_history": [
@@ -23,6 +26,12 @@
       "phase": "IMPLEMENTING",
       "timestamp": "2026-02-13T07:02:03Z",
       "trigger": "starting_story_01"
+    },
+    {
+      "phase": "COMPLETE",
+      "timestamp": "2026-02-13T07:26:40Z",
+      "trigger": "all_stories_done_and_integrated"
     }
-  ]
+  ],
+  "completed_at": "2026-02-13T07:26:40Z"
 }

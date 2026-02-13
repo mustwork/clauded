@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **VM Stop Confirmation Prompt**: Interactive confirmation before stopping VM
+  - Prompt appears when exiting last active session with `keep_vm_running: false`
+  - User can confirm (Yes/Y/Enter) to stop VM or decline (No/N) to keep it running
+  - Ctrl+C or Ctrl+D during prompt cancels stop (VM stays running)
+  - Non-interactive mode (piped stdin) stops VM silently without prompts
+  - Preserves existing behavior: no prompt when `keep_vm_running: true` or other sessions active
+
 - **CLI Distribution Selection**: `--distro` flag for distro selection at VM creation
   - `--distro alpine` or `--distro ubuntu` to specify distribution
   - Validates against supported distros (alpine, ubuntu)

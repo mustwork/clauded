@@ -281,6 +281,31 @@ Set `vm.keep_running: true` to keep VMs running after exit:
 
 This setting can be changed while a VM is running - the new value takes effect on the next shell exit.
 
+### Platform-Specific Build Directories
+
+Your project directory is mounted into the VM via [virtiofs](https://virtio-fs.gitlab.io/) — a shared filesystem, not a copy. Both host (macOS) and guest (Linux) see the exact same files. While the VM runs on the same ARM64 architecture as Apple Silicon, the operating systems use different binary formats (Mach-O on macOS vs ELF on Linux).
+
+This means **build directories containing native binaries don't work cross-platform**:
+
+| Directory | Problem |
+|-----------|---------|
+| `node_modules/` | Native addons (`.node` files) are compiled for one OS |
+| `target/` | Rust/Go binaries are OS-specific ELF or Mach-O |
+| `.venv/` | Python venvs may contain OS-specific shared libraries |
+| `__pycache__/` | Bytecode tied to specific Python build |
+| `.next/`, `dist/` | May contain platform-specific build cache |
+
+**Workaround**: Run the relevant install/build command inside the VM after connecting. For example, `npm install` inside the VM will produce Linux-native `node_modules`, overwriting the macOS ones on the shared mount.
+
+**Why not overlay mounts?** Bind-mounting VM-local directories over these paths (so host and guest each get independent copies) was considered. The trade-offs:
+
+| | Pros | Cons |
+|-|------|------|
+| **Overlay mounts** | Host and guest fully independent; no accidental cross-platform binary usage; both sides can install/build freely | Adds systemd/OpenRC mount units and provisioning complexity; directory watching for auto-mount; config validation for systemd-safe names; doubled disk usage; divergent state between host and guest can cause confusion |
+| **Shared mount (current)** | Simple, predictable, zero configuration; host edits are instantly visible in guest; single source of truth for all files | Must re-run install/build commands after switching between host and guest tooling; native binaries from one OS break on the other |
+
+The current shared mount approach keeps things simple. If you work primarily inside the VM (the intended workflow with Claude Code), this is a non-issue — just run your install commands there.
+
 ## Development
 
 ### Setup
