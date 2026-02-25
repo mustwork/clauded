@@ -1,0 +1,16 @@
+---
+# Install OpenAI Codex CLI globally via npm on Ubuntu
+
+- name: Install Codex globally via npm
+  command: npm install -g @openai/codex
+  register: codex_npm_install
+  changed_when: "'added' in codex_npm_install.stdout or 'up to date' not in codex_npm_install.stdout"
+
+- name: Verify Codex installation
+  command: codex --version
+  register: codex_version
+  changed_when: false
+
+- name: Display Codex version
+  debug:
+    msg: "Codex version: {{ codex_version.stdout }}"

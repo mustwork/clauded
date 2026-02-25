@@ -83,7 +83,7 @@ def run_with_detection(
             "c": "None",
             "tools": [],
             "databases": [],
-            "frameworks": ["claude-code"],
+            "frameworks": ["claude-code", "codex"],
             "cpus": "4",
             "memory": "8GiB",
             "disk": "20GiB",
@@ -182,8 +182,8 @@ def run_with_detection(
     database_options = {"postgresql", "redis", "mysql", "sqlite", "mongodb"}
     answers["tools"] = [s for s in selections if s in tool_options]
     answers["databases"] = [s for s in selections if s in database_options]
-    # Always include claude-code
-    answers["frameworks"] = ["claude-code"] + [
+    # Always include claude-code and codex
+    answers["frameworks"] = ["claude-code", "codex"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
 
@@ -536,12 +536,21 @@ def merge_detection_with_config(
     detected_databases = set(detection_defaults.get("databases", []))
     merged["databases"] = list(config_databases | detected_databases)
 
-    # Frameworks: union of existing and detected (claude-code always included)
+    # Frameworks: union of existing and detected
+    # claude-code and codex always included
     config_frameworks = set(config.frameworks) if config.frameworks else set()
     detected_frameworks = set(detection_defaults.get("frameworks", []))
     frameworks_list = list(config_frameworks | detected_frameworks)
     if "claude-code" not in frameworks_list:
         frameworks_list.insert(0, "claude-code")
+    if "codex" not in frameworks_list:
+        # Insert codex after claude-code
+        claude_pos = (
+            frameworks_list.index("claude-code") + 1
+            if "claude-code" in frameworks_list
+            else 0
+        )
+        frameworks_list.insert(claude_pos, "codex")
     merged["frameworks"] = frameworks_list
 
     # VM resources from config (cannot change without recreation)
@@ -711,8 +720,8 @@ def run_edit_with_detection(
     database_options = {"postgresql", "redis", "mysql", "sqlite", "mongodb"}
     answers["tools"] = [s for s in selections if s in tool_options]
     answers["databases"] = [s for s in selections if s in database_options]
-    # Always include claude-code
-    answers["frameworks"] = ["claude-code"] + [
+    # Always include claude-code and codex
+    answers["frameworks"] = ["claude-code", "codex"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
 

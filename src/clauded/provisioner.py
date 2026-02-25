@@ -49,6 +49,7 @@ _ROLES_WITH_VARIANTS = frozenset(
         "mongodb",
         # Framework roles (Story 06)
         "claude_code",
+        "codex",
         "playwright",
     }
 )
@@ -306,6 +307,11 @@ class Provisioner:
             roles.append("mongodb")
 
         # Frameworks
+        if "codex" in self.config.frameworks:
+            # Codex requires npm for installation
+            if "node" not in roles:
+                roles.insert(roles.index("common") + 1, "node")
+            roles.append("codex")
         if "playwright" in self.config.frameworks:
             # Playwright requires npm for installation
             if "node" not in roles:

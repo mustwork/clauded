@@ -1,0 +1,137 @@
+{
+  "created_at": "2026-02-25T20:25:00Z",
+  "story_id": "01",
+  "story_title": "Add codex framework to provisioner, wizard, and config",
+
+  "questions": [
+    {
+      "id": "VQ-01-001",
+      "category": "TEST",
+      "question": "Do all existing tests pass after adding codex integration?",
+      "actionable_check": "Run `uv run pytest tests/ -v` and verify 872 tests pass with no new failures",
+      "evidence_required": ["test output showing pass count", "regression check comparison"],
+      "pass_criteria": "All 872 tests pass with no regressions from baseline",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-002",
+      "category": "ARCHITECTURE",
+      "question": "Are the Ansible role files created following the playwright npm pattern?",
+      "actionable_check": "Verify codex-ubuntu/tasks/main.yml and codex-alpine/tasks/main.yml exist, use `npm install -g @openai/codex`, and include version verification with debug output",
+      "evidence_required": ["file paths", "task content showing npm install command", "version check command", "changed_when clause"],
+      "pass_criteria": "Both role files exist with proper npm installation pattern matching playwright roles",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-003",
+      "category": "SPEC",
+      "question": "Is codex added to _ROLES_WITH_VARIANTS in provisioner.py?",
+      "actionable_check": "Search provisioner.py for _ROLES_WITH_VARIANTS frozenset and verify 'codex' is in the list under framework roles section",
+      "evidence_required": ["provisioner.py line showing 'codex' in frozenset"],
+      "pass_criteria": "codex appears in _ROLES_WITH_VARIANTS frozenset",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-004",
+      "category": "SPEC",
+      "question": "Does the provisioner's _get_base_roles() method include codex role and auto-add node when codex is in frameworks?",
+      "actionable_check": "Read _get_base_roles() method in provisioner.py, verify codex block exists that checks config.frameworks, auto-adds node if missing, and appends 'codex' role",
+      "evidence_required": ["_get_base_roles() code showing codex handling", "node auto-insertion logic"],
+      "pass_criteria": "Method includes codex with node auto-dependency following playwright pattern",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-005",
+      "category": "SPEC",
+      "question": "Is codex always included in frameworks list by wizard.py?",
+      "actionable_check": "Search wizard.py for frameworks list construction (lines ~209 and ~369), verify both locations include 'codex' alongside 'claude-code'",
+      "evidence_required": ["wizard.py line 209 showing ['claude-code', 'codex'] + ...", "wizard.py line 369 showing same pattern"],
+      "pass_criteria": "Both wizard functions include codex in default frameworks list",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-006",
+      "category": "SPEC",
+      "question": "Does wizard_integration.py include codex in all three locations (static defaults, post-processing, merge)?",
+      "actionable_check": "Check wizard_integration.py line ~86 (static defaults), lines ~185-186 (post-wizard), and lines ~543-549 (merge function) for codex inclusion",
+      "evidence_required": ["line 86 showing codex in frameworks", "lines 185-186 showing codex in list construction", "merge function showing codex insertion logic"],
+      "pass_criteria": "All three locations include codex handling",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-007",
+      "category": "SPEC",
+      "question": "Does cli_integration.py include codex in create_wizard_defaults() for both success and fallback paths?",
+      "actionable_check": "Read create_wizard_defaults() in cli_integration.py, verify codex is added after frameworks extraction (line ~322) and in fallback dict (line ~348)",
+      "evidence_required": ["line showing codex insertion in main path", "fallback dict showing codex in frameworks"],
+      "pass_criteria": "Both paths (success and error fallback) include codex in frameworks",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-008",
+      "category": "TEST",
+      "question": "Are there unit tests covering codex inclusion in provisioner's _get_base_roles()?",
+      "actionable_check": "Search test_provisioner.py for tests verifying codex role inclusion and node auto-dependency behavior",
+      "evidence_required": ["test function names", "test assertions for codex role", "test assertions for node auto-add"],
+      "pass_criteria": "Tests exist and pass for codex framework inclusion and node dependency",
+      "added_in_round": 1
+    }
+  ],
+
+  "mandatory_questions": [
+    {
+      "id": "VQ-01-DEAD",
+      "category": "QUALITY",
+      "question": "Is there any dead code introduced by this story?",
+      "actionable_check": "Search for unused functions, classes, imports in provisioner.py, wizard.py, wizard_integration.py, cli_integration.py, and new ansible role files",
+      "evidence_required": ["file paths", "unused symbol names if any"],
+      "pass_criteria": "No unused code in story scope",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-DUP",
+      "category": "QUALITY",
+      "question": "Are there any duplicate implementations?",
+      "actionable_check": "Check for similar codex insertion logic patterns across wizard.py, wizard_integration.py, cli_integration.py - verify they follow consistent pattern without unnecessary duplication",
+      "evidence_required": ["file paths", "logic description"],
+      "pass_criteria": "Codex insertion follows consistent pattern across all files without unnecessary duplication",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-INT",
+      "category": "TEST",
+      "question": "Do integration tests validate the story's workflow?",
+      "actionable_check": "Verify unit tests exist in test_provisioner.py and test_wizard.py covering codex inclusion behavior end-to-end",
+      "evidence_required": ["test file", "test function", "flow description"],
+      "pass_criteria": "Tests cover provisioner role inclusion, wizard defaults, and config merging with codex",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-SCOPE",
+      "category": "SPEC",
+      "question": "Does every item in scope.includes have corresponding implementation AND verification?",
+      "actionable_check": "For each scope item (Ansible roles creation, provisioner _ROLES_WITH_VARIANTS, _get_base_roles codex handling, wizard.py updates, wizard_integration.py updates, cli_integration.py updates), verify implementation exists and has a VQ",
+      "evidence_required": ["scope.includes list", "implementation file:line per item", "VQ ID per item"],
+      "pass_criteria": "Every scope item has both implementation evidence and verification question",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-STUB",
+      "category": "QUALITY",
+      "question": "Does any code in this story contain stub markers indicating incomplete implementation?",
+      "actionable_check": "Grep codex-ubuntu/tasks/main.yml, codex-alpine/tasks/main.yml, provisioner.py, wizard.py, wizard_integration.py, cli_integration.py for: TODO, FIXME, HACK, XXX, placeholder, stub, 'not yet implemented'",
+      "evidence_required": ["grep output for each pattern", "file:line:context for any matches"],
+      "pass_criteria": "Zero stub/placeholder markers in production code",
+      "added_in_round": 1
+    },
+    {
+      "id": "VQ-01-PATTERN",
+      "category": "ARCHITECTURE",
+      "question": "Do codex integrations follow existing patterns from claude-code and playwright?",
+      "actionable_check": "Compare codex Ansible roles to playwright roles (npm install pattern, version check, changed_when). Compare codex default framework handling to claude-code pattern in wizard.py and wizard_integration.py. Compare codex node auto-dependency to playwright pattern in provisioner.py",
+      "evidence_required": ["side-by-side comparison of patterns", "consistency verification"],
+      "pass_criteria": "All codex integrations follow established patterns from existing frameworks",
+      "added_in_round": 1
+    }
+  ]
+}

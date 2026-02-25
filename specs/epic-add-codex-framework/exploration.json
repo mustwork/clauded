@@ -1,0 +1,45 @@
+{
+  "created_at": "2026-02-25T12:00:00Z",
+  "key_files": [
+    {"path": "src/clauded/provisioner.py", "lines": "22-54,255-316", "relevance": "_ROLES_WITH_VARIANTS and _get_base_roles() - add codex here", "source": "similar-features"},
+    {"path": "src/clauded/wizard.py", "lines": "192-211", "relevance": "Framework selection and claude-code default hardcoding", "source": "similar-features"},
+    {"path": "src/clauded/detect/wizard_integration.py", "lines": "86,185-186,540-544", "relevance": "Three locations where claude-code is hardcoded as default", "source": "similar-features"},
+    {"path": "src/clauded/detect/cli_integration.py", "lines": "315-322", "relevance": "create_wizard_defaults() ensures claude-code always in frameworks", "source": "similar-features"},
+    {"path": "src/clauded/config.py", "lines": "228,265,419", "relevance": "frameworks field in Config dataclass", "source": "similar-features"},
+    {"path": "src/clauded/roles/claude_code-ubuntu/tasks/main.yml", "lines": "1-79", "relevance": "Reference pattern for Ubuntu role (binary download)", "source": "similar-features"},
+    {"path": "src/clauded/roles/claude_code-alpine/tasks/main.yml", "lines": "1-80", "relevance": "Reference pattern for Alpine role (musl binary)", "source": "similar-features"},
+    {"path": "src/clauded/roles/playwright-ubuntu/tasks/main.yml", "lines": "1-30", "relevance": "npm install -g pattern for framework installation", "source": "similar-features"},
+    {"path": "src/clauded/roles/playwright-alpine/tasks/main.yml", "lines": "1-70", "relevance": "npm install -g pattern on Alpine", "source": "similar-features"},
+    {"path": "tests/test_provisioner.py", "lines": "332-371", "relevance": "Test patterns for framework role inclusion and auto-dependency", "source": "testing-and-conventions"}
+  ],
+  "patterns": [
+    {"name": "Default framework inclusion", "description": "Hardcode framework name in wizard.py answers, wizard_integration.py (3 locations), and cli_integration.py create_wizard_defaults()", "reference": "src/clauded/detect/wizard_integration.py:86,185-186,543-544"},
+    {"name": "Framework-to-role mapping", "description": "Check config.frameworks list, append role name with underscore (claude-code -> claude_code)", "reference": "src/clauded/provisioner.py:313-315"},
+    {"name": "npm-based framework install", "description": "Use npm install -g <package> in Ansible role, same command on both distros", "reference": "src/clauded/roles/playwright-ubuntu/tasks/main.yml:16"},
+    {"name": "Auto-dependency inclusion", "description": "If framework needs Node.js and node not in roles, insert after common", "reference": "src/clauded/provisioner.py:309-312"},
+    {"name": "Distro variants", "description": "Add role to _ROLES_WITH_VARIANTS, create {role}-alpine and {role}-ubuntu dirs", "reference": "src/clauded/provisioner.py:22-54"}
+  ],
+  "similar_features": ["claude-code (binary download, default framework)", "playwright (npm install, auto-includes node)"],
+  "architecture": {
+    "framework_config_flow": "wizard -> config.frameworks -> provisioner._get_base_roles() -> _apply_distro_suffix() -> ansible roles",
+    "naming_convention": "Config uses kebab-case (codex), role dirs use role-distro (codex-alpine), Python code uses underscore (codex)"
+  },
+  "extension_points": [
+    "_ROLES_WITH_VARIANTS frozenset",
+    "_get_base_roles() method",
+    "wizard.py framework defaults",
+    "detect/wizard_integration.py merge logic"
+  ],
+  "testing": {
+    "framework": "pytest with uv run",
+    "commands": "make test, make check, make lint, make format",
+    "patterns": "test_includes_{framework}_when_in_frameworks, test_{framework}_auto_includes_{dependency}",
+    "coverage_threshold": "80%"
+  },
+  "conventions": [
+    "Framework names: kebab-case in config, underscore in role names",
+    "ALWAYS check lint/format after increment",
+    "NEVER tailor production code to tests",
+    "Use uv for all package management"
+  ]
+}

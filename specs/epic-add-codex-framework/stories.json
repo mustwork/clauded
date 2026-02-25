@@ -1,0 +1,65 @@
+{
+  "epic_name": "add-codex-framework",
+  "created_at": "2026-02-25T12:00:00Z",
+  "updated_at": "2026-02-25T12:00:00Z",
+  "total_stories": 2,
+  "stories": [
+    {
+      "id": "01",
+      "name": "core-codex-integration",
+      "title": "Add codex framework to provisioner, wizard, and config",
+      "description": "Add codex as a non-configurable default framework throughout the codebase:\n\n1. Create Ansible roles:\n   - src/clauded/roles/codex-ubuntu/tasks/main.yml: npm install -g @openai/codex, verify installation\n   - src/clauded/roles/codex-alpine/tasks/main.yml: npm install -g @openai/codex, verify installation\n   Both roles should follow the playwright npm install pattern (command module, register output, changed_when, verify version)\n\n2. Provisioner changes (src/clauded/provisioner.py):\n   - Add 'codex' to _ROLES_WITH_VARIANTS frozenset\n   - Add codex block in _get_base_roles(): if 'codex' in config.frameworks, auto-add node if missing (same as playwright), append 'codex'\n\n3. Wizard changes (src/clauded/wizard.py):\n   - Line ~209: Change answers['frameworks'] = ['claude-code'] + [...] to ['claude-code', 'codex'] + [...]\n   - Line ~369: Same change in edit wizard flow\n\n4. Detection integration (src/clauded/detect/wizard_integration.py):\n   - Line ~86: Add 'codex' to static defaults frameworks list\n   - Lines ~185-186: Add 'codex' to post-wizard frameworks\n   - Lines ~543-544: Add codex check in merge_detection_with_config (if 'codex' not in frameworks_list, insert it)\n\n5. CLI integration (src/clauded/detect/cli_integration.py):\n   - In create_wizard_defaults(): ensure 'codex' is always in frameworks\n\n6. Tests:\n   - test_provisioner.py: test_includes_codex_when_in_frameworks, test_codex_auto_includes_node\n   - test_config.py or test_wizard.py: verify codex in default frameworks\n   - Existing property-based tests should be updated if they assert on frameworks content",
+      "acceptance_criteria": ["AC-003", "AC-004", "AC-005", "AC-006", "AC-007", "AC-008"],
+      "scope": {
+        "includes": ["Ansible roles", "provisioner.py", "wizard.py", "detect/wizard_integration.py", "detect/cli_integration.py", "unit tests"],
+        "excludes": ["E2E testing", "documentation updates"]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": [],
+      "status": "pending",
+      "e2e_test_plan": {
+        "scenarios": [
+          {
+            "name": "Codex role included in provisioning",
+            "description": "Verify that provisioner generates playbook with codex role for both distros",
+            "docker_compose_services": [],
+            "playwright_test_file": ""
+          }
+        ]
+      },
+      "notes": "This is the core implementation story. Codex roles are simple (npm install only, no browser deps like playwright). Follow playwright pattern for Node.js auto-dependency in provisioner."
+    },
+    {
+      "id": "02",
+      "name": "documentation-changelog",
+      "title": "Update documentation and changelog for codex framework",
+      "description": "Update project documentation to reflect the new codex framework:\n\n1. README.md:\n   - Add Codex to the 'Frameworks & Tools' table (after Claude Code row)\n   - Row: | Codex | AI-assisted development CLI (OpenAI) | Node.js |\n\n2. CHANGELOG.md:\n   - Add entry under [Unreleased] / Added:\n   - 'Added OpenAI Codex as default framework for Ubuntu and Alpine VMs'\n\n3. specs/spec.md (if frameworks are listed there, add codex)\n\n4. Run make check to verify no issues",
+      "acceptance_criteria": ["AC-007"],
+      "scope": {
+        "includes": ["README.md", "CHANGELOG.md", "specs/spec.md"],
+        "excludes": ["code changes", "test changes"]
+      },
+      "complexity": "low",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": [],
+      "status": "pending",
+      "e2e_test_plan": {
+        "scenarios": [
+          {
+            "name": "Documentation accuracy",
+            "description": "Verify README lists codex in frameworks table and CHANGELOG has entry",
+            "docker_compose_services": [],
+            "playwright_test_file": ""
+          }
+        ]
+      },
+      "notes": "Simple documentation update. Should be done after story 01 is complete."
+    }
+  ],
+  "story_order": ["01", "02"],
+  "dependency_notes": "Story 02 (docs) is independent of story 01 (code) but logically follows it. Both can be implemented independently.",
+  "mock_resolution_plan": "No temporary mocks required."
+}

@@ -32,7 +32,7 @@ def full_config() -> Config:
         c="gcc14",
         tools=["docker", "aws-cli", "gh"],
         databases=["postgresql", "redis", "mysql", "mongodb"],
-        frameworks=["playwright", "claude-code"],
+        frameworks=["playwright", "claude-code", "codex"],
     )
 
 
@@ -369,8 +369,39 @@ class TestProvisionerGetBaseRoles:
 
         assert "claude_code" in roles
 
+    def test_includes_codex_when_in_frameworks(self, full_config: Config) -> None:
+        """Codex role included when codex in frameworks."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+
+        roles = provisioner._get_base_roles()
+
+        assert "codex" in roles
+
+    def test_codex_auto_includes_node(self) -> None:
+        """Codex framework automatically includes node role (npm required)."""
+        config = Config(
+            vm_name="clauded-codex",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            node=None,  # Node not explicitly configured
+            frameworks=["codex"],
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+
+        roles = provisioner._get_base_roles()
+
+        assert "node" in roles
+        assert "codex" in roles
+        # Node should come before codex (dependency order)
+        assert roles.index("node") < roles.index("codex")
+
     def test_full_config_has_all_roles(self, full_config: Config) -> None:
-        """Full config produces all 22 roles."""
+        """Full config produces all 23 roles."""
         vm = LimaVM(full_config)
         provisioner = Provisioner(full_config, vm)
 
@@ -397,6 +428,7 @@ class TestProvisionerGetBaseRoles:
             "redis",
             "mysql",
             "mongodb",
+            "codex",
             "playwright",
             "claude_code",
         ]

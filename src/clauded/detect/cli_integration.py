@@ -312,7 +312,8 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
 
         defaults["databases"] = databases
 
-        # Extract frameworks with high or medium confidence, always include claude-code
+        # Extract frameworks with high or medium confidence
+        # Always include claude-code and codex
         frameworks = [
             item.name
             for item in result.frameworks
@@ -320,6 +321,14 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
         ]
         if "claude-code" not in frameworks:
             frameworks.insert(0, "claude-code")
+        if "codex" not in frameworks:
+            # Insert codex after claude-code
+            claude_pos = (
+                frameworks.index("claude-code") + 1
+                if "claude-code" in frameworks
+                else 0
+            )
+            frameworks.insert(claude_pos, "codex")
         defaults["frameworks"] = frameworks
 
         # Add default VM resources
@@ -345,7 +354,7 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
             "c": "None",
             "tools": [],
             "databases": [],
-            "frameworks": ["claude-code"],
+            "frameworks": ["claude-code", "codex"],
             "cpus": "4",
             "memory": "8GiB",
             "disk": "20GiB",

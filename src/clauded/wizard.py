@@ -205,8 +205,8 @@ def run(project_path: Path, *, distro_override: str | None = None) -> Config:
     database_options = {"postgresql", "redis", "mysql", "sqlite", "mongodb"}
     answers["tools"] = [s for s in selections if s in tool_options]
     answers["databases"] = [s for s in selections if s in database_options]
-    # Always include claude-code
-    answers["frameworks"] = ["claude-code"] + [
+    # Always include claude-code and codex
+    answers["frameworks"] = ["claude-code", "codex"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
 
@@ -365,8 +365,8 @@ def run_edit(config: Config, project_path: Path) -> Config:
     database_options = {"postgresql", "redis", "mysql", "sqlite", "mongodb"}
     answers["tools"] = [s for s in selections if s in tool_options]
     answers["databases"] = [s for s in selections if s in database_options]
-    # Always include claude-code
-    answers["frameworks"] = ["claude-code"] + [
+    # Always include claude-code and codex
+    answers["frameworks"] = ["claude-code", "codex"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
 
