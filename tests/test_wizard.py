@@ -27,7 +27,7 @@ def sample_config() -> Config:
         go="1.23.5",
         tools=["docker"],
         databases=["postgresql"],
-        frameworks=["claude-code"],
+        frameworks=["claude-code", "codex"],
         claude_dangerously_skip_permissions=True,
     )
 
@@ -50,7 +50,7 @@ def outdated_config() -> Config:
         go="1.22",  # No longer in choices (1.23.5, 1.22.10)
         tools=["docker"],
         databases=[],
-        frameworks=["claude-code"],
+        frameworks=["claude-code", "codex"],
         claude_dangerously_skip_permissions=True,
     )
 

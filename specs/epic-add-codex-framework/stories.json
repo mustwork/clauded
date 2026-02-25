@@ -1,7 +1,7 @@
 {
   "epic_name": "add-codex-framework",
   "created_at": "2026-02-25T12:00:00Z",
-  "updated_at": "2026-02-25T12:00:00Z",
+  "updated_at": "2026-02-25T21:30:00Z",
   "total_stories": 2,
   "stories": [
     {
@@ -18,7 +18,7 @@
       "mock_dependencies": [],
       "introduces_mocks": [],
       "test_fixtures": [],
-      "status": "pending",
+      "status": "done",
       "e2e_test_plan": {
         "scenarios": [
           {
@@ -45,7 +45,7 @@
       "mock_dependencies": [],
       "introduces_mocks": [],
       "test_fixtures": [],
-      "status": "pending",
+      "status": "done",
       "e2e_test_plan": {
         "scenarios": [
           {

@@ -310,6 +310,13 @@ class TestCreateWizardDefaults:
         assert "claude-code" in frameworks
 
     @given(result=detection_results())
+    def test_defaults_frameworks_always_include_codex(self, result):
+        """Property: codex always in frameworks list."""
+        defaults = create_wizard_defaults(result)
+        frameworks = defaults.get("frameworks", [])
+        assert "codex" in frameworks
+
+    @given(result=detection_results())
     def test_defaults_high_medium_confidence_included(self, result):
         """Property: High/medium confidence items in defaults."""
         defaults = create_wizard_defaults(result)
@@ -359,6 +366,7 @@ class TestCreateWizardDefaults:
         assert defaults["tools"] == []
         assert defaults["databases"] == []
         assert "claude-code" in defaults["frameworks"]
+        assert "codex" in defaults["frameworks"]
 
     def test_defaults_python_detected(self):
         """Example: Python version detected is normalized."""
@@ -453,7 +461,7 @@ class TestMergeDetectionWithConfig:
             "c": "None",
             "tools": [],
             "databases": [],
-            "frameworks": ["claude-code"],
+            "frameworks": ["claude-code", "codex"],
         }
 
         merged = merge_detection_with_config(detection_defaults, config)
@@ -479,7 +487,7 @@ class TestMergeDetectionWithConfig:
             "c": "None",
             "tools": ["uv"],
             "databases": [],
-            "frameworks": ["claude-code"],
+            "frameworks": ["claude-code", "codex"],
         }
 
         merged = merge_detection_with_config(detection_defaults, config)
@@ -506,7 +514,7 @@ class TestMergeDetectionWithConfig:
             "c": "None",
             "tools": ["uv", "gh"],  # Detection found these
             "databases": [],
-            "frameworks": ["claude-code"],
+            "frameworks": ["claude-code", "codex"],
         }
 
         merged = merge_detection_with_config(detection_defaults, config)
@@ -533,7 +541,7 @@ class TestMergeDetectionWithConfig:
             "c": "None",
             "tools": [],
             "databases": ["redis", "sqlite"],  # Detection found these
-            "frameworks": ["claude-code"],
+            "frameworks": ["claude-code", "codex"],
         }
 
         merged = merge_detection_with_config(detection_defaults, config)
