@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OpenAI Codex Framework Support**: Added Codex as a default framework for Ubuntu and Alpine VMs
+  - Installed via npm (`npm install -g @openai/codex`) alongside Claude Code
+  - Automatically included in all new VM configurations
+  - Follows the same npm installation pattern as Playwright framework
 - **VM Stop Confirmation Prompt**: Interactive confirmation before stopping VM
   - Prompt appears when exiting last active session with `keep_vm_running: false`
   - User can confirm (Yes/Y/Enter) to stop VM or decline (No/N) to keep it running

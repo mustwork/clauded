@@ -79,6 +79,7 @@ Isolated, per-project Lima VMs (MacOS) with automatic environment provisioning t
 | Framework | Description | Requires |
 |-----------|-------------|----------|
 | Claude Code | AI-assisted development CLI | Node.js |
+| Codex | AI-assisted development CLI (OpenAI) | Node.js |
 | Playwright | Browser automation and E2E testing | Node.js |
 
 ## Requirements

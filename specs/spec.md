@@ -103,7 +103,7 @@
 - Interactive menu prompts for Python/Node.js/Java/Kotlin/Rust/Go versions
 - Multi-select for tools (docker, git, aws-cli, gh, gradle)
 - Multi-select for databases (postgresql, redis, mysql, sqlite, mongodb)
-- Multi-select for frameworks (claude-code, playwright)
+- Multi-select for frameworks (claude-code, codex, playwright)
 - Optional VM resource customization
 - Return populated `Config` object
 - Non-interactive terminal detection: Exit with error if stdin is not a TTY
@@ -208,7 +208,8 @@ environment:
     - mysql       # optional
     - sqlite      # optional
   frameworks:
-    - claude-code  # optional
+    - claude-code  # always included (non-configurable default)
+    - codex        # always included (non-configurable default)
     - playwright   # optional
 ssh:
   host_key_checking: true  # default: true, set false to disable
@@ -269,11 +270,12 @@ ssh:
   - `mongodb` if "mongodb" in config.environment.databases
   - `playwright` if "playwright" in config.environment.frameworks
   - `claude_code` if "claude-code" in config.environment.frameworks
+  - `codex` if "codex" in config.environment.frameworks
 
 **Auto-bundled Roles**
 - When `python` is selected: `uv` and `poetry` are automatically included
 - When `java` or `kotlin` is selected: `maven` and `gradle` are automatically included
-- When `playwright` is selected: `node` is automatically included (npm dependency)
+- When `playwright` or `codex` is selected: `node` is automatically included (npm dependency)
 
 **Ansible Roles**
 
@@ -302,6 +304,7 @@ ssh:
 | `gradle` | Gradle build tool | Download latest, install to /opt/gradle (auto-bundled with Java/Kotlin) |
 | `playwright` | Playwright testing | npm install -g playwright, playwright install |
 | `claude_code` | Claude Code CLI | Native installer (claude.ai/install.sh), musl deps |
+| `codex` | OpenAI Codex CLI | npm install -g @openai/codex |
 
 **Playbook Generation**
 ```yaml
