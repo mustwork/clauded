@@ -129,6 +129,23 @@
     group: "{{ remote_whoami.stdout }}"
     mode: '0755'
 
+# Lima mounts ~/.claude at the VM home (e.g. /home/user.linux/.claude), but plugin
+# metadata files contain absolute host paths (e.g. /Users/user/.claude/plugins/local).
+# Create a symlink so those paths resolve inside the VM.
+- name: Ensure host home path exists for .claude symlink
+  file:
+    path: "{{ clauded_host_home }}"
+    state: directory
+    mode: '0755'
+  when: clauded_host_home != remote_home.stdout
+
+- name: Create .claude symlink under host home path for plugin compatibility
+  file:
+    path: "{{ clauded_host_home }}/.claude"
+    src: "{{ remote_home.stdout }}/.claude"
+    state: link
+  when: clauded_host_home != remote_home.stdout
+
 # Defensive .gitconfig handling: re-copy from host if missing or empty.
 # This recovers from ungraceful VM shutdowns that may corrupt or lose the file.
 - name: Check if .gitconfig exists

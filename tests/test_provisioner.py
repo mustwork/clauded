@@ -827,6 +827,16 @@ class TestProvisionerGeneratePlaybook:
         # Content should pass through unchanged - Ansible handles escaping
         assert playbook[0]["vars"]["gitconfig_content"] == adversarial_content
 
+    def test_play_includes_host_home_var(self, full_config: Config) -> None:
+        """Play includes clauded_host_home set to the host's home directory."""
+        vm = LimaVM(full_config)
+        provisioner = Provisioner(full_config, vm)
+        roles = provisioner._apply_distro_suffix(provisioner._get_base_roles())
+
+        playbook = provisioner._generate_playbook(roles)
+
+        assert playbook[0]["vars"]["clauded_host_home"] == str(Path.home())
+
 
 class TestProvisionerGenerateInventory:
     """Tests for Provisioner._generate_inventory()."""

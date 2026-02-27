@@ -368,6 +368,8 @@ class Provisioner:
                     "gitconfig_content": gitconfig_content,
                     # Centralized download metadata for integrity verification
                     "downloads": downloads,
+                    # Host home path for symlink compatibility with mounted configs
+                    "clauded_host_home": str(Path.home()),
                     # Playwright browsers (default all if playwright enabled)
                     "playwright_browsers": self.config.playwright_browsers
                     or (

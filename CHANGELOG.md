@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Plugin Path Resolution**: Create symlink from macOS home path (e.g. `/Users/<user>`) to VM home directory so that absolute host paths in mounted Claude Code plugin metadata resolve correctly
+
 ### Added
 
 - **OpenAI Codex Framework Support**: Added Codex as a default framework for Ubuntu and Alpine VMs
