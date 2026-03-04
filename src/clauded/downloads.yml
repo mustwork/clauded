@@ -40,6 +40,11 @@ kotlin:
     "2.0.0":
       url: "https://github.com/JetBrains/kotlin/releases/download/v2.0.0/kotlin-compiler-2.0.0.zip"
 
+# Claude Code CLI binary
+claude_code:
+  version: "2.1.62"
+  gcs_bucket: "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases"
+
 # UV - Python package manager
 uv:
   version: "0.5.24"

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Claude Code `posix_getdents` crash on Alpine**: Pin Claude Code binary to v2.1.62 to avoid musl libc incompatibility introduced in v2.1.63. Binary download now uses pinned version from `downloads.yml` instead of fetching `latest`, and re-downloads on reprovision to pick up version changes.
 - **Plugin Path Resolution**: Create symlink from macOS home path (e.g. `/Users/<user>`) to VM home directory so that absolute host paths in mounted Claude Code plugin metadata resolve correctly
 
 ### Added

@@ -34,19 +34,15 @@
   become: no
   shell: |
     set -e
-    GCS_BUCKET="https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases"
-    VERSION=$(curl -fsSL "$GCS_BUCKET/latest")
     ARCH=$(uname -m)
     case "$ARCH" in
       aarch64|arm64) PLATFORM="linux-arm64" ;;
       x86_64) PLATFORM="linux-x64" ;;
       *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
     esac
-    BINARY_URL="$GCS_BUCKET/$VERSION/$PLATFORM/claude"
+    BINARY_URL="{{ downloads.claude_code.gcs_bucket }}/{{ downloads.claude_code.version }}/$PLATFORM/claude"
     curl -fsSL "$BINARY_URL" -o ~/.local/bin/claude
     chmod +x ~/.local/bin/claude
-  args:
-    creates: "{{ claude_remote_home.stdout }}/.local/bin/claude"
 
 - name: Create Claude Code config file
   copy:
