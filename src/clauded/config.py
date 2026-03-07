@@ -237,6 +237,9 @@ class Config:
     # VM behavior
     keep_vm_running: bool = False
 
+    # Host environment variables to forward into the VM shell session
+    forward_env: list[str] = field(default_factory=list)
+
     @classmethod
     def from_wizard(cls, answers: dict[str, Any], project_path: Path) -> "Config":
         """Create a Config from wizard answers."""
@@ -269,6 +272,7 @@ class Config:
             ),
             ssh_host_key_checking=answers.get("ssh_host_key_checking", True),
             keep_vm_running=answers.get("keep_vm_running", False),
+            forward_env=answers.get("forward_env", []),
         )
 
     @contextmanager
@@ -423,6 +427,7 @@ class Config:
             ),
             ssh_host_key_checking=data.get("ssh", {}).get("host_key_checking", True),
             keep_vm_running=data.get("vm", {}).get("keep_running", False),
+            forward_env=data.get("vm", {}).get("forward_env") or [],
             previous_vm_name=previous_vm,
         )
 
@@ -441,6 +446,8 @@ class Config:
             vm_data["previous_name"] = self.previous_vm_name
         if self.keep_vm_running:
             vm_data["keep_running"] = self.keep_vm_running
+        if self.forward_env:
+            vm_data["forward_env"] = self.forward_env
 
         data = {
             "version": self.version,

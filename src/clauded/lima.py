@@ -2,6 +2,7 @@
 
 import getpass
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -224,6 +225,15 @@ class LimaVM:
             "--workdir",
             self.config.mount_guest,
         ]
+        # Forward allowlisted host environment variables into the VM session
+        env = None
+        if self.config.forward_env:
+            # Only forward vars that are actually set in the host environment
+            present_vars = [v for v in self.config.forward_env if v in os.environ]
+            if present_vars:
+                cmd.append("--preserve-env")
+                env = os.environ.copy()
+                env["LIMA_SHELLENV_ALLOW"] = ",".join(present_vars)
         # Force fresh SSH session to pick up group membership changes
         if reconnect:
             cmd.append("--reconnect")
@@ -235,7 +245,7 @@ class LimaVM:
                 full_cmd,
             ]
         )
-        subprocess.run(cmd)
+        subprocess.run(cmd, env=env)
 
     def _print_welcome(self) -> None:
         """Print welcome message with VM metadata."""

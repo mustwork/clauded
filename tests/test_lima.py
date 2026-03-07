@@ -354,7 +354,8 @@ class TestLimaVMCommands:
                 "bash",
                 "-lic",
                 "USE_BUILTIN_RIPGREP=0 claude --dangerously-skip-permissions",
-            ]
+            ],
+            env=None,
         )
 
     def test_shell_without_skip_permissions(self, sample_config: Config) -> None:
@@ -376,8 +377,72 @@ class TestLimaVMCommands:
                 "bash",
                 "-lic",
                 "USE_BUILTIN_RIPGREP=0 claude",
-            ]
+            ],
+            env=None,
         )
+
+    def test_shell_forwards_env_vars_when_configured(
+        self, sample_config: Config
+    ) -> None:
+        """shell() adds --preserve-env and LIMA_SHELLENV_ALLOW for forward_env."""
+        sample_config.forward_env = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"]
+        vm = LimaVM(sample_config)
+
+        fake_environ = {
+            "PATH": "/usr/bin",
+            "ANTHROPIC_API_KEY": "sk-ant-test",
+            "OPENAI_API_KEY": "sk-test",
+        }
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("clauded.lima.os.environ", fake_environ),
+        ):
+            vm.shell()
+
+        call_args = mock_run.call_args
+        cmd = call_args[0][0]
+        env = call_args[1]["env"]
+        assert "--preserve-env" in cmd
+        assert env["LIMA_SHELLENV_ALLOW"] == "ANTHROPIC_API_KEY,OPENAI_API_KEY"
+
+    def test_shell_skips_missing_env_vars(self, sample_config: Config) -> None:
+        """shell() only forwards env vars that are set on the host."""
+        sample_config.forward_env = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"]
+        vm = LimaVM(sample_config)
+
+        # Only ANTHROPIC_API_KEY is set
+        fake_environ = {"PATH": "/usr/bin", "ANTHROPIC_API_KEY": "sk-ant-test"}
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("clauded.lima.os.environ", fake_environ),
+        ):
+            vm.shell()
+
+        call_args = mock_run.call_args
+        cmd = call_args[0][0]
+        env = call_args[1]["env"]
+        assert "--preserve-env" in cmd
+        assert env["LIMA_SHELLENV_ALLOW"] == "ANTHROPIC_API_KEY"
+
+    def test_shell_no_preserve_env_when_no_vars_present(
+        self, sample_config: Config
+    ) -> None:
+        """shell() omits --preserve-env when no configured vars are set on host."""
+        sample_config.forward_env = ["OPENAI_API_KEY"]
+        vm = LimaVM(sample_config)
+
+        # OPENAI_API_KEY is not set
+        fake_environ = {"PATH": "/usr/bin"}
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("clauded.lima.os.environ", fake_environ),
+        ):
+            vm.shell()
+
+        call_args = mock_run.call_args
+        cmd = call_args[0][0]
+        assert "--preserve-env" not in cmd
+        assert call_args[1]["env"] is None
 
 
 class TestLimaVMCountActiveSessions:

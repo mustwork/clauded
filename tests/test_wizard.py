@@ -66,6 +66,7 @@ class TestWizardRunEdit:
             patch("clauded.wizard._menu_multi_select") as mock_multi_select,
             patch("clauded.wizard._menu_select") as mock_select,
             patch("clauded.wizard.click.confirm") as mock_confirm,
+            patch("clauded.wizard.click.prompt", return_value=""),
         ):
 
             def multi_select_side_effect(title, items):
@@ -99,6 +100,7 @@ class TestWizardRunEdit:
             patch("clauded.wizard._menu_multi_select") as mock_multi_select,
             patch("clauded.wizard._menu_select") as mock_select,
             patch("clauded.wizard.click.confirm") as mock_confirm,
+            patch("clauded.wizard.click.prompt", return_value=""),
         ):
 
             def multi_select_side_effect(title, items):
@@ -140,6 +142,7 @@ class TestWizardRunEdit:
             patch("clauded.wizard._menu_multi_select") as mock_multi_select,
             patch("clauded.wizard._menu_select") as mock_select,
             patch("clauded.wizard.click.confirm") as mock_confirm,
+            patch("clauded.wizard.click.prompt", return_value=""),
         ):
             language_items: list[tuple[str, str, bool]] = []
 
@@ -177,6 +180,7 @@ class TestWizardRunEditValidDefaults:
             patch("clauded.wizard._menu_multi_select") as mock_multi_select,
             patch("clauded.wizard._menu_select") as mock_select,
             patch("clauded.wizard.click.confirm") as mock_confirm,
+            patch("clauded.wizard.click.prompt", return_value=""),
         ):
 
             def multi_select_side_effect(title, items):
@@ -211,6 +215,7 @@ class TestWizardRunEditValidDefaults:
             patch("clauded.wizard._menu_multi_select") as mock_multi_select,
             patch("clauded.wizard._menu_select") as mock_select,
             patch("clauded.wizard.click.confirm") as mock_confirm,
+            patch("clauded.wizard.click.prompt", return_value=""),
         ):
 
             def multi_select_side_effect(title, items):

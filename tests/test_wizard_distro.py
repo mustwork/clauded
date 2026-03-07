@@ -13,7 +13,10 @@ class TestWizardDistroSelection:
         """Wizard shows distro selection as the first question."""
         with patch("clauded.wizard._menu_select") as mock_menu_select:
             with patch("clauded.wizard._menu_multi_select") as mock_multi_select:
-                with patch("clauded.wizard.click.confirm") as mock_confirm:
+                with (
+                    patch("clauded.wizard.click.confirm") as mock_confirm,
+                    patch("clauded.wizard.click.prompt", return_value=""),
+                ):
                     # Set up return values
                     mock_menu_select.side_effect = [
                         "alpine",  # Distro selection (FIRST)
@@ -24,6 +27,7 @@ class TestWizardDistroSelection:
                         [],  # Tools
                         [],  # Databases
                         [],  # Frameworks
+                        [],  # Forward env
                     ]
                     mock_confirm.side_effect = [
                         True,  # claude_dangerously_skip_permissions
@@ -45,7 +49,10 @@ class TestWizardDistroSelection:
         """Wizard defaults to Alpine Linux."""
         with patch("clauded.wizard._menu_select") as mock_menu_select:
             with patch("clauded.wizard._menu_multi_select") as mock_multi_select:
-                with patch("clauded.wizard.click.confirm") as mock_confirm:
+                with (
+                    patch("clauded.wizard.click.confirm") as mock_confirm,
+                    patch("clauded.wizard.click.prompt", return_value=""),
+                ):
                     mock_menu_select.side_effect = [
                         "alpine",  # Distro selection
                     ]
@@ -54,6 +61,7 @@ class TestWizardDistroSelection:
                         [],  # Tools
                         [],  # Databases
                         [],  # Frameworks
+                        [],  # Forward env
                     ]
                     mock_confirm.side_effect = [
                         True,  # claude_dangerously_skip_permissions
@@ -82,7 +90,10 @@ class TestWizardDistroSelection:
         """Wizard with distro_override='alpine' pre-selects alpine."""
         with patch("clauded.wizard._menu_select") as mock_menu_select:
             with patch("clauded.wizard._menu_multi_select") as mock_multi_select:
-                with patch("clauded.wizard.click.confirm") as mock_confirm:
+                with (
+                    patch("clauded.wizard.click.confirm") as mock_confirm,
+                    patch("clauded.wizard.click.prompt", return_value=""),
+                ):
                     # Distro should NOT be asked when override provided
                     mock_menu_select.side_effect = [
                         "3.12",  # Python version
@@ -92,6 +103,7 @@ class TestWizardDistroSelection:
                         [],  # Tools
                         [],  # Databases
                         [],  # Frameworks
+                        [],  # Forward env
                     ]
                     mock_confirm.side_effect = [
                         True,  # claude_dangerously_skip_permissions
@@ -112,13 +124,17 @@ class TestWizardDistroSelection:
         """Wizard with distro_override='ubuntu' pre-selects ubuntu."""
         with patch("clauded.wizard._menu_select") as mock_menu_select:
             with patch("clauded.wizard._menu_multi_select") as mock_multi_select:
-                with patch("clauded.wizard.click.confirm") as mock_confirm:
+                with (
+                    patch("clauded.wizard.click.confirm") as mock_confirm,
+                    patch("clauded.wizard.click.prompt", return_value=""),
+                ):
                     mock_menu_select.side_effect = []
                     mock_multi_select.side_effect = [
                         [],  # Languages
                         [],  # Tools
                         [],  # Databases
                         [],  # Frameworks
+                        [],  # Forward env
                     ]
                     mock_confirm.side_effect = [
                         True,  # claude_dangerously_skip_permissions
@@ -139,7 +155,10 @@ class TestWizardDistroSelection:
         """Wizard shows Alpine Linux and Ubuntu as distro options."""
         with patch("clauded.wizard._menu_select") as mock_menu_select:
             with patch("clauded.wizard._menu_multi_select") as mock_multi_select:
-                with patch("clauded.wizard.click.confirm") as mock_confirm:
+                with (
+                    patch("clauded.wizard.click.confirm") as mock_confirm,
+                    patch("clauded.wizard.click.prompt", return_value=""),
+                ):
                     mock_menu_select.side_effect = [
                         "ubuntu",  # User selects Ubuntu
                     ]
@@ -148,6 +167,7 @@ class TestWizardDistroSelection:
                         [],  # Tools
                         [],  # Databases
                         [],  # Frameworks
+                        [],  # Forward env
                     ]
                     mock_confirm.side_effect = [
                         True,  # claude_dangerously_skip_permissions
@@ -176,7 +196,10 @@ class TestWizardDistroSelection:
         """User can select Ubuntu in wizard."""
         with patch("clauded.wizard._menu_select") as mock_menu_select:
             with patch("clauded.wizard._menu_multi_select") as mock_multi_select:
-                with patch("clauded.wizard.click.confirm") as mock_confirm:
+                with (
+                    patch("clauded.wizard.click.confirm") as mock_confirm,
+                    patch("clauded.wizard.click.prompt", return_value=""),
+                ):
                     mock_menu_select.side_effect = [
                         "ubuntu",  # User selects Ubuntu
                     ]
@@ -185,6 +208,7 @@ class TestWizardDistroSelection:
                         [],  # Tools
                         [],  # Databases
                         [],  # Frameworks
+                        [],  # Forward env
                     ]
                     mock_confirm.side_effect = [
                         True,
@@ -209,9 +233,15 @@ class TestWizardDistroIntegration:
             with patch(
                 "clauded.detect.wizard_integration._menu_multi_select"
             ) as mock_multi_select:
-                with patch(
-                    "clauded.detect.wizard_integration.click.confirm"
-                ) as mock_confirm:
+                with (
+                    patch(
+                        "clauded.detect.wizard_integration.click.confirm"
+                    ) as mock_confirm,
+                    patch(
+                        "clauded.detect.wizard_integration.click.prompt",
+                        return_value="",
+                    ),
+                ):
                     with patch(
                         "clauded.detect.wizard_integration.detect"
                     ) as mock_detect:
@@ -230,6 +260,7 @@ class TestWizardDistroIntegration:
                             [],  # Tools
                             [],  # Databases
                             [],  # Frameworks
+                            [],  # Forward env
                         ]
                         mock_confirm.side_effect = [
                             True,
@@ -257,9 +288,15 @@ class TestWizardDistroIntegration:
             with patch(
                 "clauded.detect.wizard_integration._menu_multi_select"
             ) as mock_multi_select:
-                with patch(
-                    "clauded.detect.wizard_integration.click.confirm"
-                ) as mock_confirm:
+                with (
+                    patch(
+                        "clauded.detect.wizard_integration.click.confirm"
+                    ) as mock_confirm,
+                    patch(
+                        "clauded.detect.wizard_integration.click.prompt",
+                        return_value="",
+                    ),
+                ):
                     with patch(
                         "clauded.detect.wizard_integration.detect"
                     ) as mock_detect:
@@ -275,6 +312,7 @@ class TestWizardDistroIntegration:
                             [],  # Tools
                             [],  # Databases
                             [],  # Frameworks
+                            [],  # Forward env
                         ]
                         mock_confirm.side_effect = [
                             True,

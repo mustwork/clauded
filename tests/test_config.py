@@ -513,6 +513,84 @@ ssh:
 
         assert "image" not in data["vm"]
 
+    def test_save_includes_forward_env_when_set(self, tmp_path: Path) -> None:
+        """Saving config includes vm.forward_env when non-empty."""
+        config = Config(
+            vm_name="clauded-test",
+            cpus=4,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            forward_env=["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+        )
+        config_path = tmp_path / ".clauded.yaml"
+
+        config.save(config_path)
+
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+
+        assert data["vm"]["forward_env"] == ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"]
+
+    def test_save_omits_forward_env_when_empty(self, tmp_path: Path) -> None:
+        """Saving config omits vm.forward_env when empty."""
+        config = Config(
+            vm_name="clauded-test",
+            cpus=4,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+        )
+        config_path = tmp_path / ".clauded.yaml"
+
+        config.save(config_path)
+
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+
+        assert "forward_env" not in data["vm"]
+
+    def test_load_forward_env_round_trip(self, tmp_path: Path) -> None:
+        """forward_env survives a save/load cycle."""
+        config = Config(
+            vm_name="clauded-test",
+            cpus=4,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            forward_env=["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+        )
+        config_path = tmp_path / ".clauded.yaml"
+        config.save(config_path)
+
+        loaded = Config.load(config_path)
+
+        assert loaded.forward_env == ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"]
+
+    def test_load_without_forward_env_defaults_to_empty(self, tmp_path: Path) -> None:
+        """Loading a config without vm.forward_env defaults to empty list."""
+        config_data = {
+            "version": "1",
+            "vm": {
+                "name": "clauded-test",
+                "cpus": 4,
+                "memory": "8GiB",
+                "disk": "20GiB",
+            },
+            "mount": {"host": "/test", "guest": "/test"},
+            "environment": {},
+        }
+        config_path = tmp_path / ".clauded.yaml"
+        with open(config_path, "w") as f:
+            yaml.dump(config_data, f)
+
+        loaded = Config.load(config_path)
+
+        assert loaded.forward_env == []
+
 
 class TestConfigDefaults:
     """Tests for Config default values."""
@@ -531,6 +609,7 @@ class TestConfigDefaults:
         assert config.tools == []
         assert config.databases == []
         assert config.frameworks == []
+        assert config.forward_env == []
 
     def test_claude_dangerously_skip_permissions_defaults_to_true(self) -> None:
         """Claude Code permissions default to skip (auto-accept) for VM convenience."""

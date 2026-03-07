@@ -226,6 +226,33 @@ def run(project_path: Path, *, distro_override: str | None = None) -> Config:
     else:
         answers["playwright_browsers"] = []
 
+    # Host environment variables to forward into the VM
+    frameworks: list[str] = answers.get("frameworks", [])  # type: ignore[assignment]
+    forward_env_selections = _menu_multi_select(
+        "Forward host environment variables to VM:",
+        [
+            (
+                "ANTHROPIC_API_KEY",
+                "ANTHROPIC_API_KEY",
+                "claude-code" in frameworks,
+            ),
+            (
+                "OPENAI_API_KEY",
+                "OPENAI_API_KEY",
+                "codex" in frameworks,
+            ),
+        ],
+    )
+    # Allow additional custom env var names
+    extra = click.prompt(
+        "Additional env vars to forward (comma-separated, or empty)",
+        default="",
+    )
+    if extra:
+        extra_vars = [v.strip() for v in extra.split(",") if v.strip()]
+        forward_env_selections.extend(extra_vars)
+    answers["forward_env"] = forward_env_selections
+
     # Claude Code permissions - default is to skip (auto-accept all)
     answers["claude_dangerously_skip_permissions"] = click.confirm(
         "Auto-accept Claude Code permission prompts in VM?",
@@ -388,6 +415,35 @@ def run_edit(config: Config, project_path: Path) -> Config:
         answers["playwright_browsers"] = browser_selections
     else:
         answers["playwright_browsers"] = []
+
+    # Host environment variables to forward into the VM - pre-select current values
+    current_forward = config.forward_env or []
+    well_known = {"ANTHROPIC_API_KEY", "OPENAI_API_KEY"}
+    custom_vars = [v for v in current_forward if v not in well_known]
+    forward_env_selections = _menu_multi_select(
+        "Forward host environment variables to VM:",
+        [
+            (
+                "ANTHROPIC_API_KEY",
+                "ANTHROPIC_API_KEY",
+                "ANTHROPIC_API_KEY" in current_forward,
+            ),
+            (
+                "OPENAI_API_KEY",
+                "OPENAI_API_KEY",
+                "OPENAI_API_KEY" in current_forward,
+            ),
+        ],
+    )
+    # Allow additional custom env var names (pre-fill with existing custom vars)
+    extra = click.prompt(
+        "Additional env vars to forward (comma-separated, or empty)",
+        default=", ".join(custom_vars) if custom_vars else "",
+    )
+    if extra:
+        extra_vars = [v.strip() for v in extra.split(",") if v.strip()]
+        forward_env_selections.extend(extra_vars)
+    answers["forward_env"] = forward_env_selections
 
     # Claude Code permissions - pre-select current value
     answers["claude_dangerously_skip_permissions"] = click.confirm(

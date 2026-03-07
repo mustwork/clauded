@@ -48,7 +48,10 @@ class TestMCPConfigFileDetection:
                 )
             )
 
-            result = detect_mcp_requirements(project_path)
+            # Patch out user config to isolate test from host environment
+            nonexistent = Path(tmpdir) / "no-such-file.json"
+            with patch("clauded.detect.mcp.USER_CLAUDE_CONFIG", nonexistent):
+                result = detect_mcp_requirements(project_path)
 
             assert len(result.requirements) == 1
             assert result.requirements[0].server_name == "test-server"
@@ -70,7 +73,10 @@ class TestMCPConfigFileDetection:
                 json.dumps({"mcpServers": {"server-c": {"command": "docker"}}})
             )
 
-            result = detect_mcp_requirements(project_path)
+            # Patch out user config to isolate test from host environment
+            nonexistent = Path(tmpdir) / "no-such-file.json"
+            with patch("clauded.detect.mcp.USER_CLAUDE_CONFIG", nonexistent):
+                result = detect_mcp_requirements(project_path)
 
             # All servers should be detected
             server_names = {req.server_name for req in result.requirements}

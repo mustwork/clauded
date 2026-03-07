@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Host Environment Variable Forwarding**: Configurable allowlist of host environment variables forwarded into the VM shell session via Lima's `--preserve-env` mechanism
+  - New `vm.forward_env` config field in `.clauded.yaml`
+  - Wizard prompts with `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` pre-selected
+  - Only forwards variables that are actually set on the host
+  - Uses `LIMA_SHELLENV_ALLOW` for precise allowlisting (no full env leakage)
 - **OpenAI Codex Framework Support**: Added Codex as a default framework for Ubuntu and Alpine VMs
   - Installed via npm (`npm install -g @openai/codex`) alongside Claude Code
   - Automatically included in all new VM configurations
