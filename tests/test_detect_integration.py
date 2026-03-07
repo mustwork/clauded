@@ -621,6 +621,30 @@ class TestApplyDetectionToConfig:
 
         assert changes_made is False
 
+    def test_apply_detection_preserves_forward_env(self, tmp_path):
+        """apply_detection_to_config keeps vm.forward_env when config changes."""
+        from clauded.config import Config
+        from clauded.detect.wizard_integration import apply_detection_to_config
+
+        # Create MCP config file requiring uvx to force a config change
+        mcp_config = tmp_path / ".mcp.json"
+        mcp_config.write_text('{"mcpServers": {"test": {"command": "uvx"}}}')
+
+        config = Config(
+            vm_name="test-vm",
+            mount_host=str(tmp_path),
+            mount_guest=str(tmp_path),
+            python=None,
+            forward_env=["OPENAI_API_KEY"],
+        )
+
+        updated_config, changes_made = apply_detection_to_config(
+            config, tmp_path, debug=False
+        )
+
+        assert changes_made is True
+        assert updated_config.forward_env == ["OPENAI_API_KEY"]
+
 
 # ============================================================================
 # Property-Based Tests for normalize_version_for_choice

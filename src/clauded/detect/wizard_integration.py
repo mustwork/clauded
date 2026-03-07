@@ -487,6 +487,7 @@ def apply_detection_to_config(
         claude_dangerously_skip_permissions=config.claude_dangerously_skip_permissions,
         ssh_host_key_checking=config.ssh_host_key_checking,
         keep_vm_running=config.keep_vm_running,
+        forward_env=list(config.forward_env or []),
     )
 
     return new_config, True

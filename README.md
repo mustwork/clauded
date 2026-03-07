@@ -37,7 +37,7 @@ Isolated, per-project Lima VMs (MacOS) with automatic environment provisioning t
 - **Atomic Config Updates**: Automatic rollback on failure ensures config never references broken VMs
 - **Crash Recovery**: Detects and recovers from interrupted operations on startup
 - **Customizable Resources**: Configure CPU, memory, and disk allocation per project
-- **Workspace Mounting**: Your project and claude config directories are mounted at the same path in the VM
+- **Workspace Mounting**: Your project plus `~/.claude` and `~/.codex` config directories are mounted in the VM
 
 ## Supported Environments
 

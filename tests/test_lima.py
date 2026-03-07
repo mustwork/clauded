@@ -203,12 +203,14 @@ class TestLimaVMGenerateLimaConfig:
     def test_mounts_home_directories_when_exist(
         self, sample_config: Config, tmp_path: Path
     ) -> None:
-        """Mounts ~/.claude read-write when it exists."""
+        """Mounts ~/.claude and ~/.codex read-write when they exist."""
         vm = LimaVM(sample_config)
 
-        # Create test directory
+        # Create test directories
         claude_dir = tmp_path / ".claude"
+        codex_dir = tmp_path / ".codex"
         claude_dir.mkdir()
+        codex_dir.mkdir()
 
         with (
             patch("clauded.lima.Path.home", return_value=tmp_path),
@@ -216,7 +218,7 @@ class TestLimaVMGenerateLimaConfig:
         ):
             config = vm._generate_lima_config()
 
-        assert len(config["mounts"]) == 2
+        assert len(config["mounts"]) == 3
 
         # Check .claude mount
         claude_mount = config["mounts"][1]
@@ -224,14 +226,22 @@ class TestLimaVMGenerateLimaConfig:
         assert claude_mount["mountPoint"] == "/home/testuser.linux/.claude"
         assert claude_mount["writable"] is True
 
+        # Check .codex mount
+        codex_mount = config["mounts"][2]
+        assert codex_mount["location"] == str(codex_dir)
+        assert codex_mount["mountPoint"] == "/home/testuser.linux/.codex"
+        assert codex_mount["writable"] is True
+
     def test_creates_claude_dir_when_not_exist(
         self, sample_config: Config, tmp_path: Path
     ) -> None:
-        """Creates and mounts ~/.claude even when it doesn't exist on host."""
+        """Creates and mounts ~/.claude and ~/.codex when missing on host."""
         vm = LimaVM(sample_config)
         claude_dir = tmp_path / ".claude"
+        codex_dir = tmp_path / ".codex"
 
         assert not claude_dir.exists()
+        assert not codex_dir.exists()
 
         with (
             patch("clauded.lima.Path.home", return_value=tmp_path),
@@ -241,9 +251,11 @@ class TestLimaVMGenerateLimaConfig:
 
         # Should create the directory
         assert claude_dir.exists()
-        # Should mount it
-        assert len(config["mounts"]) == 2
+        assert codex_dir.exists()
+        # Should mount both
+        assert len(config["mounts"]) == 3
         assert config["mounts"][1]["location"] == str(claude_dir)
+        assert config["mounts"][2]["location"] == str(codex_dir)
 
     def test_mount_points_must_be_absolute_paths(
         self, sample_config: Config, tmp_path: Path
@@ -251,9 +263,11 @@ class TestLimaVMGenerateLimaConfig:
         """Lima requires mount points to be absolute paths, not starting with ~."""
         vm = LimaVM(sample_config)
 
-        # Create test directory
+        # Create test directories
         claude_dir = tmp_path / ".claude"
+        codex_dir = tmp_path / ".codex"
         claude_dir.mkdir()
+        codex_dir.mkdir()
 
         with (
             patch("clauded.lima.Path.home", return_value=tmp_path),

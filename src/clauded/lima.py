@@ -379,6 +379,18 @@ class LimaVM:
             }
         )
 
+        # Mount Codex config directory so OAuth login/session state persists
+        # across VM stop/start and can be reused inside the VM.
+        codex_dir = home / ".codex"
+        codex_dir.mkdir(exist_ok=True)
+        mounts.append(
+            {
+                "location": str(codex_dir),
+                "mountPoint": f"{guest_home}/.codex",
+                "writable": True,
+            }
+        )
+
         # No provision scripts - all configuration handled by Ansible.
         # Lima user provisions fail on Alpine due to home directory permissions
         # not being set up when cloud-init runs. Ansible runs after boot when
