@@ -1,0 +1,49 @@
+{
+  "epic_name": "dart-with-flutter",
+  "created_at": "2026-03-18T00:00:00Z",
+  "updated_at": "2026-03-18T00:25:00Z",
+  "total_stories": 1,
+  "stories": [
+    {
+      "id": "01",
+      "name": "flutter-installation",
+      "title": "Install Flutter SDK alongside Dart",
+      "description": "Extend the existing dart roles (dart-alpine, dart-ubuntu) to install the Flutter SDK after the Dart SDK. Add Flutter download metadata to downloads.yml. Update the wizard label to reflect Flutter is included.",
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "scope": {
+        "includes": [
+          "downloads.yml: add flutter section with ARM64 Linux download URLs for versions 3.7, 3.6, 3.5",
+          "dart-alpine/tasks/main.yml: add Flutter installation tasks",
+          "dart-ubuntu/tasks/main.yml: add Flutter installation tasks",
+          "dart/tasks/main.yml: add Flutter installation tasks (same as alpine)",
+          "constants.py: update dart label to 'Dart + Flutter (dart, flutter, pub)'",
+          "tests: update test for dart label, verify flutter path in profile.d"
+        ],
+        "excludes": [
+          "config.py changes (no new config field needed - Flutter is always bundled)",
+          "provisioner.py changes (dart role already included when dart selected)",
+          "wizard.py changes (label comes from constants.py)",
+          "new CLI flags or options"
+        ]
+      },
+      "complexity": "low",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": [],
+      "status": "done",
+      "notes": "Flutter is always installed with Dart \u2014 no opt-out. The dart role is the single point of change for installation. The provisioner passes dart_version which the role uses to look up the corresponding flutter download."
+    }
+  ],
+  "story_order": [
+    "01"
+  ],
+  "dependency_notes": "Single story. No dependencies.",
+  "mock_resolution_plan": "No mocks required."
+}

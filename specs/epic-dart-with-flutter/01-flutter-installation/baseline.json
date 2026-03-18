@@ -1,0 +1,36 @@
+{
+  "created_at": "2026-03-18T00:02:00Z",
+  "status": "ready",
+  "story_id": "01",
+  "checks": {
+    "compiles": {
+      "passed": true,
+      "command": "uv run pytest tests/ --co -q",
+      "evidence": "Test collection succeeds, no import errors"
+    },
+    "tests_pass": {
+      "passed": true,
+      "command": "uv run pytest tests/",
+      "evidence": "884/884 tests pass in 12.83s",
+      "failing_tests": []
+    },
+    "coverage": {
+      "value": null,
+      "threshold": null,
+      "passed": true
+    },
+    "dependencies": {
+      "passed": true,
+      "command": "uv sync",
+      "evidence": "Dependencies already synced, .venv present"
+    }
+  },
+  "test_snapshot": {
+    "total": 884,
+    "passing": 884,
+    "failing": 0,
+    "skipped": 0,
+    "coverage_percent": null
+  },
+  "blocking_issues": []
+}

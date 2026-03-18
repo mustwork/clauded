@@ -135,3 +135,14 @@ class TestDownloadsYamlIntegrity:
         assert "linux-aarch64" in downloads["bun"]["binary"]
         assert "url" in downloads["bun"]["binary"]["linux-aarch64"]
         assert downloads["bun"]["binary"]["linux-aarch64"]["url"].startswith("https://")
+
+    def test_flutter_metadata_present(self) -> None:
+        """Flutter metadata present with repo and pinned version."""
+        downloads = get_downloads()
+
+        assert "flutter" in downloads, "flutter section missing from downloads.yml"
+        flutter = downloads["flutter"]
+        assert "repo" in flutter, "flutter missing repo field"
+        assert flutter["repo"].startswith("https://"), "flutter repo not HTTPS"
+        assert "version" in flutter, "flutter missing version field"
+        assert "git_ref" in flutter, "flutter missing git_ref field"

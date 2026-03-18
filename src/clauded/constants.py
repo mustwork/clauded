@@ -52,7 +52,7 @@ LANGUAGE_CONFIG: dict[str, LanguageInfo] = {
     "dart": {
         "name": "Dart",
         "versions": ["3.7", "3.6", "3.5"],
-        "label": "Dart (dart, pub)",
+        "label": "Dart + Flutter (dart, flutter, pub)",
     },
     "c": {
         "name": "C/C++",

@@ -1,0 +1,56 @@
+{
+  "created_at": "2026-03-18T00:10:00Z",
+  "story_id": "01",
+  "questions": [
+    {
+      "id": "VQ-01-001",
+      "category": "correctness",
+      "question": "Does downloads.yml contain a 'flutter' section with entries for all three Dart versions (3.7, 3.6, 3.5), each with a 'version' and 'url' field pointing to ARM64 Linux Flutter SDK?",
+      "actionable_check": "Read src/clauded/downloads.yml and verify flutter section exists with versions 3.7, 3.6, 3.5 containing url and version fields; URLs must contain 'arm64' and 'flutter_infra_release'",
+      "evidence_required": ["contents of downloads.yml flutter section", "URL values for each dart version"],
+      "pass_criteria": "All three dart version keys present in flutter.versions with valid HTTPS ARM64 URLs"
+    },
+    {
+      "id": "VQ-01-002",
+      "category": "correctness",
+      "question": "Do all three dart role task files (dart/, dart-alpine/, dart-ubuntu/) contain Flutter installation tasks that download and extract the Flutter SDK?",
+      "actionable_check": "Read all three dart role main.yml files; verify each has set_fact for flutter_download, get_url for flutter tar.xz, unarchive task, and cleanup task",
+      "evidence_required": ["Flutter tasks present in dart/tasks/main.yml", "Flutter tasks present in dart-alpine/tasks/main.yml", "Flutter tasks present in dart-ubuntu/tasks/main.yml"],
+      "pass_criteria": "All three role files contain complete Flutter installation block after Dart installation"
+    },
+    {
+      "id": "VQ-01-003",
+      "category": "correctness",
+      "question": "Does /etc/profile.d/dart.sh in each role include /usr/local/flutter/bin in the PATH?",
+      "actionable_check": "Check the 'copy' task in each dart role that writes /etc/profile.d/dart.sh; verify /usr/local/flutter/bin is in the PATH content",
+      "evidence_required": ["PATH content in dart.sh across all three roles"],
+      "pass_criteria": "/usr/local/flutter/bin appears in PATH before DART_SDK/bin in all three role files"
+    },
+    {
+      "id": "VQ-01-004",
+      "category": "correctness",
+      "question": "Does constants.py have the updated Dart label that mentions Flutter?",
+      "actionable_check": "Read src/clauded/constants.py and verify LANGUAGE_CONFIG['dart']['label'] contains 'Flutter' and 'flutter'",
+      "evidence_required": ["dart label value from constants.py"],
+      "pass_criteria": "Label contains 'Flutter' and 'flutter' (e.g., 'Dart + Flutter (dart, flutter, pub)')"
+    },
+    {
+      "id": "VQ-01-005",
+      "category": "testing",
+      "question": "Do the tests verify the Flutter download metadata and updated dart label?",
+      "actionable_check": "Check test_downloads.py for flutter section tests and test_constants.py for updated dart label assertions",
+      "evidence_required": ["test_flutter_versions_present test in test_downloads.py", "flutter label assertions in test_constants.py"],
+      "pass_criteria": "At least one test for flutter section in downloads.yml and at least one test for Flutter in dart label; all tests pass"
+    }
+  ],
+  "mandatory_questions": [
+    {
+      "id": "VQ-01-M01",
+      "category": "regression",
+      "question": "Do all 885 tests pass (884 baseline + 1 new flutter test) with no failures?",
+      "actionable_check": "Run uv run pytest tests/ and verify exit code 0 with at least 885 passing tests",
+      "evidence_required": ["pytest output showing all tests pass", "test count >= 885"],
+      "pass_criteria": "Exit code 0, >= 885 tests passing, 0 failing"
+    }
+  ]
+}

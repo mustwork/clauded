@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dart + Flutter**: Dart language option now always installs the Flutter SDK alongside the Dart SDK on both Alpine and Ubuntu VMs. Flutter version is aligned to the selected Dart version (Dart 3.7→Flutter 3.29.2, 3.6→3.27.4, 3.5→3.24.5). The `flutter` command is available on the PATH in all new shell sessions.
 - **Host Environment Variable Forwarding**: Configurable allowlist of host environment variables forwarded into the VM shell session via Lima's `--preserve-env` mechanism
   - New `vm.forward_env` config field in `.clauded.yaml`
   - Wizard prompts with `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` pre-selected

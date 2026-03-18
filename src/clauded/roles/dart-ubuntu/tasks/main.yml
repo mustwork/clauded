@@ -1,11 +1,12 @@
 ---
 # Install Dart SDK on Ubuntu using official download
 
-- name: Install curl and unzip for Dart download
+- name: Install dependencies for Dart and Flutter
   apt:
     name:
       - curl
       - unzip
+      - git
     state: present
     update_cache: yes
 
@@ -38,12 +39,12 @@
     remote_src: yes
     creates: /usr/local/dart-sdk/bin/dart
 
-- name: Set Dart environment variables system-wide
+- name: Set Dart and Flutter environment variables system-wide
   copy:
     dest: /etc/profile.d/dart.sh
     content: |
       export DART_SDK=/usr/local/dart-sdk
-      export PATH=$DART_SDK/bin:$HOME/.pub-cache/bin:$PATH
+      export PATH=/usr/local/flutter/bin:$DART_SDK/bin:$HOME/.pub-cache/bin:$PATH
     mode: '0644'
 
 - name: Create symlinks for Dart binaries
@@ -67,3 +68,59 @@
 - name: Display Dart version
   debug:
     msg: "Dart version: {{ dart_version_output.stdout }}"
+
+# Flutter SDK — always installed alongside Dart (via git clone, no prebuilt ARM64 archive)
+- name: Remove existing Flutter installation
+  file:
+    path: /usr/local/flutter
+    state: absent
+
+- name: Clone Flutter SDK {{ downloads.flutter.version }}
+  git:
+    repo: "{{ downloads.flutter.repo }}"
+    dest: /usr/local/flutter
+    version: "{{ downloads.flutter.git_ref }}"
+    depth: 1
+
+- name: Mark Flutter directory as safe for git
+  command: git config --system --add safe.directory /usr/local/flutter
+  changed_when: false
+
+- name: Set up Flutter stable branch for upgrade support
+  shell: |
+    cd /usr/local/flutter
+    git checkout -b stable
+    git remote set-branches origin stable
+  changed_when: false
+
+- name: Bootstrap Flutter SDK
+  command: /usr/local/flutter/bin/flutter --version
+  register: flutter_version_output
+  changed_when: false
+  environment:
+    HOME: "{{ remote_home.stdout }}"
+
+- name: Configure Flutter (disable analytics)
+  command: /usr/local/flutter/bin/flutter config --no-analytics
+  changed_when: false
+  environment:
+    HOME: "{{ remote_home.stdout }}"
+
+- name: Set Flutter SDK ownership to VM user
+  file:
+    path: /usr/local/flutter
+    owner: "{{ remote_whoami.stdout }}"
+    group: "{{ remote_whoami.stdout }}"
+    recurse: yes
+
+- name: Ensure pub-cache directory exists with correct ownership
+  file:
+    path: "{{ remote_home.stdout }}/.pub-cache"
+    state: directory
+    owner: "{{ remote_whoami.stdout }}"
+    group: "{{ remote_whoami.stdout }}"
+    mode: '0755'
+
+- name: Display Flutter version
+  debug:
+    msg: "Flutter version: {{ flutter_version_output.stdout_lines[0] }}"

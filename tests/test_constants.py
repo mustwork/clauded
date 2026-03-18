@@ -47,9 +47,11 @@ class TestLanguageConfig:
         assert LANGUAGE_CONFIG["rust"]["name"] == "Rust"
         assert "stable" in LANGUAGE_CONFIG["rust"]["versions"]
 
-        # Dart
+        # Dart + Flutter
         assert LANGUAGE_CONFIG["dart"]["name"] == "Dart"
         assert "3.7" in LANGUAGE_CONFIG["dart"]["versions"]
+        assert "Flutter" in LANGUAGE_CONFIG["dart"]["label"]
+        assert "flutter" in LANGUAGE_CONFIG["dart"]["label"]
 
         # C/C++
         assert LANGUAGE_CONFIG["c"]["name"] == "C/C++"

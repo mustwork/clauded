@@ -91,6 +91,15 @@ dart:
       version: "3.5.4"
       url: "https://storage.googleapis.com/dart-archive/channels/stable/release/3.5.4/sdk/dartsdk-linux-arm64-release.zip"
 
+# Flutter SDK — always installed alongside Dart
+# No prebuilt ARM64 Linux archives exist; installed via git clone.
+# Version is independent of the standalone Dart SDK version — Flutter
+# bundles its own Dart SDK internally.
+flutter:
+  repo: "https://github.com/flutter/flutter.git"
+  version: "3.41.5"
+  git_ref: "3.41.5"
+
 # Node.js runtime (official binaries for ARM64)
 node:
   default_version: "22"

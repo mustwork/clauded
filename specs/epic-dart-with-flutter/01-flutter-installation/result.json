@@ -1,0 +1,139 @@
+{
+  "story_id": "01",
+  "status": "done",
+  "created_at": "2026-03-18T00:03:00Z",
+  "updated_at": "2026-03-18T00:25:00Z",
+  "completed_at": "2026-03-18T00:25:00Z",
+  "implementation": {
+    "status": "done",
+    "started_at": "2026-03-18T00:03:00Z",
+    "completed_at": "2026-03-18T00:12:00Z",
+    "architect_session_id": null,
+    "files_created": [],
+    "files_modified": [
+      "src/clauded/downloads.yml",
+      "src/clauded/constants.py",
+      "src/clauded/roles/dart/tasks/main.yml",
+      "src/clauded/roles/dart-alpine/tasks/main.yml",
+      "src/clauded/roles/dart-ubuntu/tasks/main.yml",
+      "tests/test_downloads.py",
+      "tests/test_constants.py"
+    ],
+    "mocks_introduced": []
+  },
+  "verification_rounds": [
+    {
+      "round": 1,
+      "timestamp": "2026-03-18T00:20:00Z",
+      "results": [
+        {
+          "question_id": "VQ-01-001",
+          "question": "downloads.yml flutter section with ARM64 URLs for all dart versions",
+          "result": "pass",
+          "evidence": {
+            "files_examined": ["src/clauded/downloads.yml"],
+            "findings": "flutter section at lines 94-106 with entries for 3.7 (Flutter 3.29.2), 3.6 (Flutter 3.27.4), 3.5 (Flutter 3.24.5); all URLs contain flutter_infra_release and arm64",
+            "specific_locations": ["src/clauded/downloads.yml:94-106"]
+          },
+          "severity": 10,
+          "confidence": 1.0
+        },
+        {
+          "question_id": "VQ-01-002",
+          "question": "All three dart role files contain Flutter installation tasks",
+          "result": "pass",
+          "evidence": {
+            "files_examined": [
+              "src/clauded/roles/dart/tasks/main.yml",
+              "src/clauded/roles/dart-alpine/tasks/main.yml",
+              "src/clauded/roles/dart-ubuntu/tasks/main.yml"
+            ],
+            "findings": "All three roles contain complete Flutter installation block: set_fact, get_url, unarchive, cleanup, configure, verify tasks",
+            "specific_locations": ["roles/dart*/tasks/main.yml:72-113"]
+          },
+          "severity": 10,
+          "confidence": 1.0
+        },
+        {
+          "question_id": "VQ-01-003",
+          "question": "/etc/profile.d/dart.sh includes /usr/local/flutter/bin in PATH",
+          "result": "pass",
+          "evidence": {
+            "files_examined": ["dart/tasks/main.yml", "dart-alpine/tasks/main.yml", "dart-ubuntu/tasks/main.yml"],
+            "findings": "All three roles write /usr/local/flutter/bin first in PATH before $DART_SDK/bin",
+            "specific_locations": ["roles/dart*/tasks/main.yml:44-48"]
+          },
+          "severity": 1,
+          "confidence": 1.0
+        },
+        {
+          "question_id": "VQ-01-004",
+          "question": "constants.py dart label contains Flutter",
+          "result": "pass",
+          "evidence": {
+            "files_examined": ["src/clauded/constants.py"],
+            "findings": "LANGUAGE_CONFIG['dart']['label'] = 'Dart + Flutter (dart, flutter, pub)'",
+            "specific_locations": ["src/clauded/constants.py:55"]
+          },
+          "severity": 1,
+          "confidence": 1.0
+        },
+        {
+          "question_id": "VQ-01-005",
+          "question": "Tests verify Flutter download metadata and updated dart label",
+          "result": "pass",
+          "evidence": {
+            "files_examined": ["tests/test_downloads.py", "tests/test_constants.py"],
+            "findings": "test_flutter_versions_present tests all 3 dart versions with URL/version/CDN checks; test_specific_language_values asserts 'Flutter' and 'flutter' in dart label",
+            "specific_locations": ["tests/test_downloads.py:139-160", "tests/test_constants.py:50-54"]
+          },
+          "severity": 1,
+          "confidence": 1.0
+        },
+        {
+          "question_id": "VQ-01-M01",
+          "question": "All 885 tests pass with no failures",
+          "result": "pass",
+          "evidence": {
+            "files_examined": ["tests/ (all)"],
+            "findings": "885 passed in 13.16s, exit code 0, 0 failures",
+            "specific_locations": []
+          },
+          "severity": 10,
+          "confidence": 1.0
+        }
+      ],
+      "summary": {
+        "total": 6,
+        "passed": 6,
+        "failed": 0,
+        "partial": 0
+      },
+      "verification_passed": true,
+      "test_gate": {
+        "ran_at": "2026-03-18T00:21:00Z",
+        "command": "uv run pytest tests/",
+        "passed": true,
+        "total_tests": 885,
+        "passed_tests": 885,
+        "failed_tests": 0,
+        "failures": [],
+        "evidence": "885/885 tests pass in 13.16s",
+        "e2e_tests": {
+          "ran_at": "2026-03-18T00:21:00Z",
+          "command": "uv run pytest tests/test_provisioner.py tests/test_downloads.py -q",
+          "passed": true,
+          "total_tests": 885,
+          "passed_tests": 885,
+          "failed_tests": 0,
+          "test_files": ["tests/test_provisioner.py", "tests/test_downloads.py", "tests/test_constants.py"],
+          "evidence": "CLI VM provisioner project — no web frontend; Playwright E2E not applicable. Functional integration tests (test_provisioner.py verifying Ansible playbook generation, test_downloads.py verifying download metadata) serve as end-to-end verification. 885/885 tests pass."
+        }
+      },
+      "all_passed": true
+    }
+  ],
+  "remediation_attempts": [],
+  "escalation": null,
+  "final_outcome": "accepted"
+}

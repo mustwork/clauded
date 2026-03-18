@@ -1,0 +1,41 @@
+{
+  "created_at": "2026-03-18T00:00:00Z",
+  "key_files": [
+    {"path": "src/clauded/downloads.yml", "lines": "80-93", "relevance": "Dart download metadata pattern to follow for Flutter", "source": "architecture"},
+    {"path": "src/clauded/roles/dart/tasks/main.yml", "lines": "1-68", "relevance": "Alpine Dart role — needs Flutter tasks added", "source": "similar-features"},
+    {"path": "src/clauded/roles/dart-ubuntu/tasks/main.yml", "lines": "1-70", "relevance": "Ubuntu Dart role — needs Flutter tasks added", "source": "similar-features"},
+    {"path": "src/clauded/roles/dart-alpine/tasks/main.yml", "lines": "1-68", "relevance": "Alpine-specific Dart role — needs Flutter tasks added", "source": "similar-features"},
+    {"path": "src/clauded/constants.py", "lines": "52-56", "relevance": "Dart label needs updating to mention Flutter", "source": "similar-features"},
+    {"path": "src/clauded/provisioner.py", "lines": "284-285,356", "relevance": "Dart role included when dart selected; dart_version var passed", "source": "architecture"},
+    {"path": "tests/test_provisioner.py", "lines": "178-194,719-727", "relevance": "Existing dart provisioner tests", "source": "testing-and-conventions"},
+    {"path": "tests/test_constants.py", "lines": "51-52", "relevance": "Test for dart label and versions", "source": "testing-and-conventions"}
+  ],
+  "patterns": [
+    {"name": "download-metadata", "description": "Downloads defined in downloads.yml, loaded in roles via 'downloads' variable, accessed as downloads.<lang>.versions[<ver>].url", "reference": "src/clauded/downloads.yml:80"},
+    {"name": "role-tasks", "description": "Ansible tasks: install deps, set_fact for download metadata, get_url, unarchive, copy profile.d env script, symlink, cleanup, verify", "reference": "src/clauded/roles/dart/tasks/main.yml:1"},
+    {"name": "distro-variants", "description": "Each language has generic (alpine), -ubuntu, and -alpine role variants. Generic role == alpine role content.", "reference": "src/clauded/provisioner.py:23"}
+  ],
+  "similar_features": [
+    {"feature": "Dart SDK installation", "reference": "src/clauded/roles/dart/tasks/main.yml", "notes": "Flutter follows same pattern: download zip/tar, extract to /usr/local/flutter, update PATH in profile.d"}
+  ],
+  "architecture": {
+    "role_selection": "Provisioner selects dart role when config.dart is set; appends to roles list",
+    "version_passing": "dart_version variable passed to playbook vars; role uses it to index downloads.dart.versions"
+  },
+  "extension_points": [
+    "Add 'flutter' section to downloads.yml with same version key structure as dart",
+    "Add Flutter tasks at end of dart role task files",
+    "Update /etc/profile.d/dart.sh to include /usr/local/flutter/bin in PATH"
+  ],
+  "testing": {
+    "framework": "pytest",
+    "test_files": ["tests/test_provisioner.py", "tests/test_constants.py"],
+    "pattern": "Unit tests for provisioner logic; role YAML files tested implicitly via provisioner"
+  },
+  "conventions": [
+    "Role tasks: install system deps → set_fact for download → download → extract → configure PATH → symlink → cleanup → verify",
+    "Profile.d script in /etc/profile.d/<lang>.sh for PATH",
+    "Install location: /usr/local/<tool>",
+    "Downloads use get_url with checksum where possible"
+  ]
+}
