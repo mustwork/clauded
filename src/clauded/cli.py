@@ -267,7 +267,7 @@ def _update_codex(vm: LimaVM, version_str: str) -> bool:
             "--",
             "bash",
             "-lc",
-            f"npm install -g @openai/codex@{version_str}",
+            f"sudo npm install -g @openai/codex@{version_str}",
         ],
         check=False,
     )
@@ -314,10 +314,23 @@ def _handle_version_change(vm: LimaVM) -> bool:
     return should_reprovision
 
 
+def _parse_version(v: str) -> tuple[int, ...]:
+    """Parse a semver string into a tuple of ints for comparison.
+
+    Args:
+        v: Version string like "2.1.62"
+
+    Returns:
+        Tuple of ints, e.g. (2, 1, 62)
+    """
+    return tuple(int(x) for x in v.split("."))
+
+
 def _check_library_updates(vm: LimaVM, config: Config) -> None:
     """Check for library updates and prompt user to install them.
 
     Only checks libraries that are actually installed based on config.frameworks.
+    Only offers updates when the target version is newer than installed.
 
     Version sources:
     - Claude Code: compared against the pinned version in downloads.yml
@@ -336,14 +349,14 @@ def _check_library_updates(vm: LimaVM, config: Config) -> None:
             # Compare against pinned version from downloads.yml
             downloads = get_downloads()
             pinned = downloads.get("claude_code", {}).get("version")
-            if pinned and pinned != installed:
+            if pinned and _parse_version(pinned) > _parse_version(installed):
                 updates.append(("Claude Code", installed, pinned, "claude-code"))
 
     if "codex" in config.frameworks:
         installed = _get_vm_tool_version(vm, "codex --version")
         if installed:
             latest = _get_npm_latest_version(vm, "@openai/codex")
-            if latest and latest != installed:
+            if latest and _parse_version(latest) > _parse_version(installed):
                 updates.append(("Codex", installed, latest, "codex"))
 
     if not updates:

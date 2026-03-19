@@ -656,6 +656,37 @@ environment:
                 mock_ver.assert_not_called()
                 mock_npm.assert_not_called()
 
+    def test_downgrade_not_offered(self, runner: CliRunner, config_yaml: str) -> None:
+        """Installed version newer than pinned → no update offered."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(config_yaml)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch("clauded.cli.__commit__", "abc1234"),
+                patch("clauded.cli.__version__", "0.1.0"),
+                patch(
+                    "clauded.cli._get_vm_tool_version",
+                    side_effect=lambda vm, cmd: (
+                        "2.1.76" if "claude" in cmd else "0.115.0"
+                    ),
+                ),
+                patch(
+                    "clauded.cli.get_downloads",
+                    return_value={"claude_code": {"version": "2.1.62"}},
+                ),
+                patch(
+                    "clauded.cli._get_npm_latest_version",
+                    return_value="0.111.0",
+                ),
+            ):
+                self._mock_vm_with_matching_commit(MockVM)
+
+                result = runner.invoke(main, [])
+
+                assert "Library updates available" not in result.output
+                assert "Update libraries?" not in result.output
+
     def test_update_failure_preserves_existing(
         self, runner: CliRunner, config_yaml: str
     ) -> None:

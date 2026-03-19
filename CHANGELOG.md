@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Codex update fails with EACCES**: Add `sudo` to `npm install -g` in the in-VM Codex update command (provisioning runs as root, but the update command ran as the regular user)
+- **Library update offers downgrades**: Version comparison now checks that the target version is actually newer than installed, preventing downgrade offers when the VM has a newer version than the pinned/latest target
 - **Maven 3.9.13 removed from Apache mirror**: Bump Maven to 3.9.14 (3.9.13 returns 404 on dlcdn.apache.org)
 - **Claude Code `posix_getdents` crash on Alpine**: Pin Claude Code binary to v2.1.62 to avoid musl libc incompatibility introduced in v2.1.63. Binary download now uses pinned version from `downloads.yml` instead of fetching `latest`, and re-downloads on reprovision to pick up version changes.
 - **Plugin Path Resolution**: Create symlink from macOS home path (e.g. `/Users/<user>`) to VM home directory so that absolute host paths in mounted Claude Code plugin metadata resolve correctly
