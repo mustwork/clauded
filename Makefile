@@ -52,9 +52,9 @@ help:
 # Installation
 # ----------------------------------------------------------------------------
 
-install: build
+install:
 	uv tool uninstall clauded 2>/dev/null || true
-	uv tool install dist/clauded-*.whl
+	uv tool install --force .
 
 # ----------------------------------------------------------------------------
 # Development
