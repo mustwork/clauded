@@ -268,6 +268,32 @@ class LimaVM:
             # Metadata not available (VM not provisioned, old version, or test env)
             pass
 
+    def get_vm_metadata(self) -> dict[str, str] | None:
+        """Read VM metadata from /etc/clauded.json.
+
+        Returns:
+            Parsed metadata dict, or None if unavailable.
+        """
+        if not self.is_running():
+            return None
+
+        try:
+            result = subprocess.run(
+                ["limactl", "shell", self.name, "cat", "/etc/clauded.json"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                return None
+
+            data: dict[str, str] = json.loads(result.stdout)
+            return data
+
+        except (json.JSONDecodeError, subprocess.SubprocessError):
+            return None
+
     def get_ssh_config_path(self) -> Path:
         """Get the path to Lima's SSH config for this VM."""
         return Path.home() / ".lima" / self.name / "ssh.config"

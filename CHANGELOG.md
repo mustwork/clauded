@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Update Check on VM Startup**: Automatic checks when connecting to an existing VM
+  - **clauded version check**: Detects when clauded has been updated since provisioning by comparing git commits; prompts to reprovision (default: No)
+  - **Library update check**: When clauded version matches, checks Claude Code (against pinned version in `downloads.yml`) and Codex (against npm latest) for available updates; prompts to update in-VM (default: No)
+  - Claude Code updates use atomic download (temp file + validate + move) to prevent corrupting the existing binary on network failures
+  - Library checks only run for frameworks listed in config; silently skipped on network/tool failures
+  - Both checks skipped when VM is newly created, recreated due to distro change, or `--reprovision` flag is used
+
 ### Fixed
 
 - **Maven 3.9.13 removed from Apache mirror**: Bump Maven to 3.9.14 (3.9.13 returns 404 on dlcdn.apache.org)

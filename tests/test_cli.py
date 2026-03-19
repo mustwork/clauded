@@ -639,6 +639,7 @@ class TestVmCleanupOnExit:
                 mock_vm.is_running.return_value = True
                 mock_vm.count_active_sessions.return_value = 0
                 mock_vm.name = "clauded-testcli1"
+                mock_vm.get_vm_metadata.return_value = None
                 MockVM.return_value = mock_vm
 
                 # Mock click.confirm to return True (user confirms stop)
@@ -798,6 +799,7 @@ class TestVmCleanupOnExit:
                 mock_vm.is_running.return_value = True
                 mock_vm.count_active_sessions.return_value = 0
                 mock_vm.name = "clauded-testcli1"
+                mock_vm.get_vm_metadata.return_value = None
                 MockVM.return_value = mock_vm
 
                 # Mock sys.stdin.isatty() to return False (non-interactive)

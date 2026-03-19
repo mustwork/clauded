@@ -172,6 +172,23 @@
 - Output: Interactive shell session at project directory
 - On exit: Check `keep_vm_running` config and active sessions; stop VM only if last session and `keep_vm_running` is false
 
+**Update Checks on Startup**
+
+When connecting to an existing, running VM (not newly created, not recreated, not `--reprovision`):
+
+1. **clauded version check**: Compare VM metadata commit with current clauded commit
+   - If mismatch: prompt to reprovision (default: No)
+   - If user confirms: run full provisioning (updates all VM packages and tools)
+   - Skipped when either commit is "unknown" or metadata unavailable
+
+2. **Library update check** (only if clauded version matched or reprovision was declined):
+   - Check installed vs target versions for each framework in config
+   - Claude Code: compare `claude --version` with pinned version in `downloads.yml`
+   - Codex: compare `codex --version` with npm registry latest
+   - If updates found: prompt to update (default: No)
+   - Claude Code update uses atomic download (temp file → validate → move) to avoid corrupting existing binary
+   - Gracefully skip individual libraries on network/tool failure
+
 ### 2. Configuration Management
 
 **Config Schema (.clauded.yaml)**

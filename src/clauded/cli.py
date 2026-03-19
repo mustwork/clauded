@@ -1,6 +1,7 @@
 """Main CLI entry point for clauded."""
 
 import logging
+import re
 import signal
 import subprocess
 import sys
@@ -9,7 +10,7 @@ from pathlib import Path
 
 import click
 
-from . import wizard
+from . import __version__, wizard
 from .config import Config
 from .detect import detect
 from .detect.cli_integration import display_detection_json
@@ -18,8 +19,9 @@ from .detect.wizard_integration import (
     run_edit_with_detection,
     run_with_detection,
 )
+from .downloads import get_downloads
 from .lima import LimaVM, destroy_vm_by_name
-from .provisioner import Provisioner
+from .provisioner import Provisioner, __commit__
 
 
 def _sigint_handler(signum: int, frame: object) -> None:
@@ -150,6 +152,228 @@ def _prompt_vm_deletion(vm_name: str) -> bool:
         return True
 
     return False
+
+
+def _get_vm_tool_version(vm: LimaVM, command: str) -> str | None:
+    """Run a version command in the VM and extract a semver string.
+
+    Args:
+        vm: LimaVM instance
+        command: Command to run (e.g. "claude --version")
+
+    Returns:
+        Extracted version string (e.g. "2.1.62") or None on failure.
+    """
+    try:
+        result = subprocess.run(
+            ["limactl", "shell", vm.name, "--", "bash", "-lc", command],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return None
+        match = re.search(r"\d+\.\d+\.\d+", result.stdout)
+        return match.group(0) if match else None
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+        return None
+
+
+def _get_npm_latest_version(vm: LimaVM, package: str) -> str | None:
+    """Query npm registry from inside VM for latest package version.
+
+    Args:
+        vm: LimaVM instance
+        package: npm package name (e.g. "@anthropic-ai/claude-code")
+
+    Returns:
+        Latest version string or None on failure.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "limactl",
+                "shell",
+                vm.name,
+                "--",
+                "bash",
+                "-lc",
+                f"npm view {package} version",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return None
+        match = re.search(r"\d+\.\d+\.\d+", result.stdout)
+        return match.group(0) if match else None
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+        return None
+
+
+def _update_claude_code(vm: LimaVM, config: Config, version_str: str) -> bool:
+    """Download Claude Code binary for the specific version.
+
+    Downloads to a temporary file first, validates the download succeeded,
+    then atomically moves into place. This prevents corrupting the existing
+    binary on network failures or bad URLs.
+
+    Args:
+        vm: LimaVM instance
+        config: Config with distro info
+        version_str: Version to download (e.g. "2.3.0")
+
+    Returns:
+        True if update succeeded, False on failure.
+    """
+    downloads = get_downloads()
+    gcs_bucket = downloads["claude_code"]["gcs_bucket"]
+    platform = "linux-arm64-musl" if config.vm_distro == "alpine" else "linux-arm64"
+    url = f"{gcs_bucket}/{version_str}/{platform}/claude"
+    # Download to temp file, validate, then atomically move into place
+    cmd = (
+        "set -e && "
+        "tmpfile=$(mktemp ~/.local/bin/.claude-update.XXXXXX) && "
+        'trap "rm -f $tmpfile" EXIT && '
+        f'curl -fsSL "{url}" -o "$tmpfile" && '
+        '[ -s "$tmpfile" ] && '
+        'chmod +x "$tmpfile" && '
+        'mv -f "$tmpfile" ~/.local/bin/claude && '
+        "trap - EXIT"
+    )
+    result = subprocess.run(
+        ["limactl", "shell", vm.name, "--", "bash", "-lc", cmd],
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _update_codex(vm: LimaVM, version_str: str) -> bool:
+    """Run npm install -g @openai/codex@version in VM.
+
+    Args:
+        vm: LimaVM instance
+        version_str: Version to install (e.g. "1.2.0")
+
+    Returns:
+        True if update succeeded, False on failure.
+    """
+    result = subprocess.run(
+        [
+            "limactl",
+            "shell",
+            vm.name,
+            "--",
+            "bash",
+            "-lc",
+            f"npm install -g @openai/codex@{version_str}",
+        ],
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _handle_version_change(vm: LimaVM) -> bool:
+    """Check if clauded has been updated since the VM was provisioned.
+
+    Compares the commit recorded in the VM's /etc/clauded.json with the
+    currently running clauded's commit. Prompts the user to reprovision
+    if they differ.
+
+    Args:
+        vm: LimaVM instance to check
+
+    Returns:
+        True if user chose to reprovision, False otherwise.
+    """
+    metadata = vm.get_vm_metadata()
+    if metadata is None:
+        return False
+
+    vm_commit = metadata.get("commit")
+    vm_version = metadata.get("version", "unknown")
+    if not vm_commit or vm_commit == "unknown" or __commit__ == "unknown":
+        return False
+
+    if vm_commit == __commit__:
+        return False
+
+    click.echo(
+        f"\nclauded has been updated since this VM was provisioned.\n\n"
+        f"  Provisioned with: v{vm_version} ({vm_commit})\n"
+        f"  Installed:        v{__version__} ({__commit__})\n\n"
+        f"Reprovisioning updates all VM packages and tools."
+    )
+
+    try:
+        should_reprovision = click.confirm("Reprovision now?", default=False)
+    except (click.Abort, EOFError, KeyboardInterrupt):
+        should_reprovision = False
+
+    return should_reprovision
+
+
+def _check_library_updates(vm: LimaVM, config: Config) -> None:
+    """Check for library updates and prompt user to install them.
+
+    Only checks libraries that are actually installed based on config.frameworks.
+
+    Version sources:
+    - Claude Code: compared against the pinned version in downloads.yml
+      (the version provisioning would install), not npm latest.
+    - Codex: compared against npm latest (provisioning also installs latest).
+
+    Args:
+        vm: LimaVM instance
+        config: Config with frameworks info
+    """
+    updates: list[tuple[str, str, str, str]] = []  # (name, installed, target, kind)
+
+    if "claude-code" in config.frameworks:
+        installed = _get_vm_tool_version(vm, "claude --version")
+        if installed:
+            # Compare against pinned version from downloads.yml
+            downloads = get_downloads()
+            pinned = downloads.get("claude_code", {}).get("version")
+            if pinned and pinned != installed:
+                updates.append(("Claude Code", installed, pinned, "claude-code"))
+
+    if "codex" in config.frameworks:
+        installed = _get_vm_tool_version(vm, "codex --version")
+        if installed:
+            latest = _get_npm_latest_version(vm, "@openai/codex")
+            if latest and latest != installed:
+                updates.append(("Codex", installed, latest, "codex"))
+
+    if not updates:
+        return
+
+    click.echo("\nLibrary updates available:\n")
+    for name, installed, target, _ in updates:
+        click.echo(f"  {name:<13s}{installed} → {target}")
+    click.echo()
+
+    try:
+        should_update = click.confirm("Update libraries?", default=False)
+    except (click.Abort, EOFError, KeyboardInterrupt):
+        should_update = False
+
+    if not should_update:
+        return
+
+    for name, _, target, kind in updates:
+        click.echo(f"Updating {name} to {target}...")
+        if kind == "claude-code":
+            ok = _update_claude_code(vm, config, target)
+        elif kind == "codex":
+            ok = _update_codex(vm, target)
+        else:
+            ok = False
+        if ok:
+            click.echo(f"  {name} updated successfully.")
+        else:
+            click.echo(f"  {name} update failed. Existing version preserved.", err=True)
 
 
 def _handle_distro_change(config: Config, vm: LimaVM, config_path: Path) -> bool:
@@ -573,6 +797,15 @@ def main(
                         _prompt_vm_deletion(old_vm_name)
                     except KeyboardInterrupt:
                         click.echo("\nSkipping VM cleanup.")
+
+        # Check for clauded version change and library updates
+        if not vm_recreated and not reprovision:
+            if _handle_version_change(vm):
+                provisioner = Provisioner(config, vm, debug=debug)
+                provisioner.run()
+                provisioned = True
+            else:
+                _check_library_updates(vm, config)
 
         # Re-run provisioning if requested (independent of start)
         if reprovision and not vm_recreated:
