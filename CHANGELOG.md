@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Version Bump Targets**: `make bump-major`, `make bump-minor`, `make bump-patch` to automate version bumps with changelog updates and tagged commits
+
+### Added
+
 - **Update Check on VM Startup**: Automatic checks when connecting to an existing VM
   - **clauded version check**: Detects when clauded has been updated since provisioning by comparing git commits; prompts to reprovision (default: No)
   - **Library update check**: When clauded version matches, checks Claude Code (against pinned version in `downloads.yml`) and Codex (against npm latest) for available updates; prompts to update in-VM (default: No)

@@ -15,8 +15,13 @@
 #   make check         Run all checks (lint, typecheck, test)
 #   make build         Build wheel
 #   make clean         Clean build artifacts
+#
+# Release:
+#   make bump-major    Bump major version (X.0.0)
+#   make bump-minor    Bump minor version (0.X.0)
+#   make bump-patch    Bump patch version (0.0.X)
 
-.PHONY: install sync dev test coverage lint format typecheck check build clean help hooks
+.PHONY: install sync dev test coverage lint format typecheck check build clean help hooks bump-major bump-minor bump-patch _bump
 
 # Default target
 help:
@@ -37,6 +42,11 @@ help:
 	@echo "  make check       Run all checks"
 	@echo "  make build       Build wheel"
 	@echo "  make clean       Clean build artifacts"
+	@echo ""
+	@echo "Release:"
+	@echo "  make bump-major  Bump major version (X.0.0)"
+	@echo "  make bump-minor  Bump minor version (0.X.0)"
+	@echo "  make bump-patch  Bump patch version (0.0.X)"
 
 # ----------------------------------------------------------------------------
 # Installation
@@ -88,3 +98,41 @@ build:
 clean:
 	rm -rf build/ dist/ *.egg-info/ htmlcov/ .coverage .pytest_cache/ .mypy_cache/ .ruff_cache/
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+
+# ----------------------------------------------------------------------------
+# Release
+# ----------------------------------------------------------------------------
+
+PYPROJECT := pyproject.toml
+INIT_FILE := src/clauded/__init__.py
+
+VERSION := $(shell sed -n 's/^version = "\([^"]*\)"/\1/p' $(PYPROJECT))
+MAJOR := $(word 1,$(subst ., ,$(VERSION)))
+MINOR := $(word 2,$(subst ., ,$(VERSION)))
+PATCH := $(word 3,$(subst ., ,$(VERSION)))
+
+bump-major:
+	$(eval NEW := $(shell echo $$(($(MAJOR)+1))).0.0)
+	@$(MAKE) _bump NEW_VERSION=$(NEW)
+
+bump-minor:
+	$(eval NEW := $(shell echo $(MAJOR).$$(($(MINOR)+1)).0))
+	@$(MAKE) _bump NEW_VERSION=$(NEW)
+
+bump-patch:
+	$(eval NEW := $(shell echo $(MAJOR).$(MINOR).$$(($(PATCH)+1))))
+	@$(MAKE) _bump NEW_VERSION=$(NEW)
+
+_bump:
+ifndef NEW_VERSION
+	$(error NEW_VERSION is not set)
+endif
+	@echo "Bumping version: $(VERSION) -> $(NEW_VERSION)"
+	@sed -i '' 's/^version = "$(VERSION)"/version = "$(NEW_VERSION)"/' $(PYPROJECT)
+	@sed -i '' 's/^__version__ = "$(VERSION)"/__version__ = "$(NEW_VERSION)"/' $(INIT_FILE)
+	@perl -i -pe 's/^## \[Unreleased\]\K/\n\n## [$(NEW_VERSION)] - $(shell date +%Y-%m-%d)/' CHANGELOG.md
+	@uv lock
+	@git add $(PYPROJECT) $(INIT_FILE) CHANGELOG.md uv.lock
+	@git commit -m "release: v$(NEW_VERSION)"
+	@git tag "v$(NEW_VERSION)"
+	@echo "Done: committed and tagged v$(NEW_VERSION)"
