@@ -228,6 +228,10 @@ class Config:
     frameworks: list[str] = field(default_factory=list)
     playwright_browsers: list[str] = field(default_factory=list)
 
+    # Framework version pins (None = "latest")
+    claude_code_version: str | None = None
+    codex_version: str | None = None
+
     # Claude Code settings
     claude_dangerously_skip_permissions: bool = True
 
@@ -394,6 +398,9 @@ class Config:
         dart_ver = _validate_runtime_version("dart", env.get("dart"))
         c_ver = _validate_runtime_version("c", env.get("c"))
 
+        # Parse version pins
+        versions = data.get("versions", {})
+
         # Validate VM names for security
         vm_name = _validate_vm_name(data["vm"]["name"])
         previous_vm = data.get("vm", {}).get("previous_name")
@@ -422,6 +429,8 @@ class Config:
             databases=env.get("databases") or [],
             frameworks=env.get("frameworks") or [],
             playwright_browsers=env.get("playwright_browsers") or [],
+            claude_code_version=versions.get("claude-code"),
+            codex_version=versions.get("codex"),
             claude_dangerously_skip_permissions=data.get("claude", {}).get(
                 "dangerously_skip_permissions", True
             ),
@@ -479,6 +488,15 @@ class Config:
                 "host_key_checking": self.ssh_host_key_checking,
             },
         }
+
+        # Only emit versions section when at least one version is pinned
+        versions: dict[str, str] = {}
+        if self.claude_code_version:
+            versions["claude-code"] = self.claude_code_version
+        if self.codex_version:
+            versions["codex"] = self.codex_version
+        if versions:
+            data["versions"] = versions
 
         with open(path, "w") as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)

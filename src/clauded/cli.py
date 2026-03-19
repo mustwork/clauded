@@ -314,68 +314,105 @@ def _handle_version_change(vm: LimaVM) -> bool:
     return should_reprovision
 
 
-def _parse_version(v: str) -> tuple[int, ...]:
-    """Parse a semver string into a tuple of ints for comparison.
-
-    Args:
-        v: Version string like "2.1.62"
+def _get_latest_claude_code_version() -> str | None:
+    """Resolve the latest Claude Code version from GCS on the host.
 
     Returns:
-        Tuple of ints, e.g. (2, 1, 62)
+        Latest version string (e.g. "2.3.0") or None on failure.
     """
-    return tuple(int(x) for x in v.split("."))
+    downloads = get_downloads()
+    gcs_bucket = downloads["claude_code"]["gcs_bucket"]
+    try:
+        result = subprocess.run(
+            ["curl", "-fsSL", f"{gcs_bucket}/latest"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return None
+        match = re.search(r"\d+\.\d+\.\d+", result.stdout)
+        return match.group(0) if match else None
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+        return None
+
+
+def _resolve_framework_versions(config: Config, vm: LimaVM) -> dict[str, str | None]:
+    """Resolve desired versions for each framework.
+
+    For each framework in config.frameworks:
+    - If the user pinned a version in .clauded.yaml → use it
+    - Otherwise resolve "latest" (GCS for claude-code, npm for codex)
+
+    Args:
+        config: Config with frameworks and version pins
+        vm: LimaVM instance (needed for npm queries inside VM)
+
+    Returns:
+        Dict mapping framework name to resolved version string (or None on failure).
+    """
+    resolved: dict[str, str | None] = {}
+
+    if "claude-code" in config.frameworks:
+        if config.claude_code_version:
+            resolved["claude-code"] = config.claude_code_version
+        else:
+            resolved["claude-code"] = _get_latest_claude_code_version()
+
+    if "codex" in config.frameworks:
+        if config.codex_version:
+            resolved["codex"] = config.codex_version
+        else:
+            resolved["codex"] = _get_npm_latest_version(vm, "@openai/codex")
+
+    return resolved
 
 
 def _check_library_updates(vm: LimaVM, config: Config) -> None:
-    """Check for library updates and prompt user to install them.
+    """Check for framework version mismatches and prompt user to apply changes.
 
-    Only checks libraries that are actually installed based on config.frameworks.
-    Only offers updates when the target version is newer than installed.
-
-    Version sources:
-    - Claude Code: compared against the pinned version in downloads.yml
-      (the version provisioning would install), not npm latest.
-    - Codex: compared against npm latest (provisioning also installs latest).
+    Performs bidirectional version comparison (upgrades AND downgrades).
+    Version sources are determined by _resolve_framework_versions():
+    - User-pinned versions from .clauded.yaml take precedence
+    - Otherwise resolves "latest" (GCS for Claude Code, npm for Codex)
 
     Args:
         vm: LimaVM instance
-        config: Config with frameworks info
+        config: Config with frameworks and version pins
     """
-    updates: list[tuple[str, str, str, str]] = []  # (name, installed, target, kind)
+    desired = _resolve_framework_versions(config, vm)
+    # (name, installed, target, kind)
+    changes: list[tuple[str, str, str, str]] = []
 
-    if "claude-code" in config.frameworks:
+    if "claude-code" in desired and desired["claude-code"]:
         installed = _get_vm_tool_version(vm, "claude --version")
-        if installed:
-            # Compare against pinned version from downloads.yml
-            downloads = get_downloads()
-            pinned = downloads.get("claude_code", {}).get("version")
-            if pinned and _parse_version(pinned) > _parse_version(installed):
-                updates.append(("Claude Code", installed, pinned, "claude-code"))
+        target = desired["claude-code"]
+        if installed and target and installed != target:
+            changes.append(("Claude Code", installed, target, "claude-code"))
 
-    if "codex" in config.frameworks:
+    if "codex" in desired and desired["codex"]:
         installed = _get_vm_tool_version(vm, "codex --version")
-        if installed:
-            latest = _get_npm_latest_version(vm, "@openai/codex")
-            if latest and _parse_version(latest) > _parse_version(installed):
-                updates.append(("Codex", installed, latest, "codex"))
+        target = desired["codex"]
+        if installed and target and installed != target:
+            changes.append(("Codex", installed, target, "codex"))
 
-    if not updates:
+    if not changes:
         return
 
-    click.echo("\nLibrary updates available:\n")
-    for name, installed, target, _ in updates:
+    click.echo("\nFramework version changes available:\n")
+    for name, installed, target, _ in changes:
         click.echo(f"  {name:<13s}{installed} → {target}")
     click.echo()
 
     try:
-        should_update = click.confirm("Update libraries?", default=False)
+        should_update = click.confirm("Apply version changes?", default=False)
     except (click.Abort, EOFError, KeyboardInterrupt):
         should_update = False
 
     if not should_update:
         return
 
-    for name, _, target, kind in updates:
+    for name, _, target, kind in changes:
         click.echo(f"Updating {name} to {target}...")
         if kind == "claude-code":
             ok = _update_claude_code(vm, config, target)

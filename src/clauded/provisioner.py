@@ -370,6 +370,9 @@ class Provisioner:
                     "downloads": downloads,
                     # Host home path for symlink compatibility with mounted configs
                     "clauded_host_home": str(Path.home()),
+                    # Framework version pins ("latest" if not pinned)
+                    "claude_code_version": self.config.claude_code_version or "latest",
+                    "codex_version": self.config.codex_version or "latest",
                     # Playwright browsers (default all if playwright enabled)
                     "playwright_browsers": self.config.playwright_browsers
                     or (

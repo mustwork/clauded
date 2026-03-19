@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **User-Configurable Framework Versions**: New `versions` section in `.clauded.yaml` for pinning Claude Code and Codex versions
+  - Pin specific versions: `versions: { claude-code: "2.1.62", codex: "1.2.0" }`
+  - Omitting a key defaults to "latest" (resolved at provision/check time)
+  - Claude Code "latest" resolved via GCS on the host; Codex "latest" resolved via npm in the VM
+  - Bidirectional version check at startup: detects both upgrades and downgrades
+  - Version pins respected during both provisioning and in-VM update checks
+  - Claude Code version no longer hardcoded in `downloads.yml`; user controls via config
+
+### Removed
+
+- **Dead `claude_code` base role**: Removed the unused base role (`roles/claude_code/`) that fetched "latest" dynamically and used an Ansible `creates:` guard preventing updates on reprovision. All provisioning already uses the distro-specific variants (`claude_code-alpine`, `claude_code-ubuntu`) which correctly use the pinned version from `downloads.yml`.
+
 ## [0.2.0] - 2026-03-19
 
 ### Added

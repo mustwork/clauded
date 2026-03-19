@@ -30,6 +30,18 @@
     group: "{{ claude_remote_user.stdout }}"
     mode: '0755'
 
+- name: Resolve Claude Code version
+  become: no
+  shell: |
+    set -e
+    if [ "{{ claude_code_version }}" = "latest" ]; then
+      curl -fsSL "{{ downloads.claude_code.gcs_bucket }}/latest" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'
+    else
+      echo "{{ claude_code_version }}"
+    fi
+  register: resolved_claude_code_version
+  changed_when: false
+
 - name: Download Claude Code binary directly
   become: no
   shell: |
@@ -40,7 +52,7 @@
       x86_64) PLATFORM="linux-x64-musl" ;;
       *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
     esac
-    BINARY_URL="{{ downloads.claude_code.gcs_bucket }}/{{ downloads.claude_code.version }}/$PLATFORM/claude"
+    BINARY_URL="{{ downloads.claude_code.gcs_bucket }}/{{ resolved_claude_code_version.stdout }}/$PLATFORM/claude"
     curl -fsSL "$BINARY_URL" -o ~/.local/bin/claude
     chmod +x ~/.local/bin/claude
 
@@ -72,4 +84,4 @@
 
 - name: Display Claude Code installation status
   debug:
-    msg: "Claude Code binary installed: {{ claude_binary.stat.exists | default(false) }}"
+    msg: "Claude Code {{ resolved_claude_code_version.stdout }} installed: {{ claude_binary.stat.exists | default(false) }}"

@@ -2,15 +2,17 @@
 # Install OpenAI Codex CLI globally via npm on Alpine
 
 - name: Install Codex globally via npm
-  command: npm install -g @openai/codex
+  command: >
+    npm install -g
+    {% if codex_version != 'latest' %}@openai/codex@{{ codex_version }}{% else %}@openai/codex{% endif %}
   register: codex_npm_install
   changed_when: "'added' in codex_npm_install.stdout or 'up to date' not in codex_npm_install.stdout"
 
 - name: Verify Codex installation
   command: codex --version
-  register: codex_version
+  register: codex_installed_version
   changed_when: false
 
 - name: Display Codex version
   debug:
-    msg: "Codex version: {{ codex_version.stdout }}"
+    msg: "Codex version: {{ codex_installed_version.stdout }}"

@@ -40,6 +40,32 @@ environment:
 """
 
 
+@pytest.fixture
+def config_yaml_pinned() -> str:
+    """Provide config YAML with pinned framework versions."""
+    return """version: "1"
+vm:
+  name: clauded-testcli1-abc123
+  distro: alpine
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test/project
+  guest: /test/project
+environment:
+  python: "3.12"
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+versions:
+  claude-code: "2.1.62"
+  codex: "1.2.0"
+"""
+
+
 # ---------------------------------------------------------------------------
 # LimaVM.get_vm_metadata() tests
 # ---------------------------------------------------------------------------
@@ -435,7 +461,7 @@ class TestLibraryUpdateCheck:
     def test_claude_code_update_detected(
         self, runner: CliRunner, config_yaml: str
     ) -> None:
-        """Claude Code pinned version mismatch shown to user."""
+        """Claude Code version mismatch shown to user (upgrade)."""
         with runner.isolated_filesystem():
             Path(".clauded.yaml").write_text(config_yaml)
 
@@ -450,12 +476,12 @@ class TestLibraryUpdateCheck:
                     ),
                 ),
                 patch(
-                    "clauded.cli.get_downloads",
-                    return_value={"claude_code": {"version": "2.1.62"}},
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.1.62",
                 ),
                 patch(
                     "clauded.cli._get_npm_latest_version",
-                    return_value="1.0.5",  # Codex matches → no update
+                    return_value="1.0.5",  # Codex matches → no change
                 ),
             ):
                 self._mock_vm_with_matching_commit(MockVM)
@@ -483,8 +509,8 @@ class TestLibraryUpdateCheck:
                     ),
                 ),
                 patch(
-                    "clauded.cli.get_downloads",
-                    return_value={"claude_code": {"version": "2.1.62"}},
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.1.62",
                 ),
                 patch(
                     "clauded.cli._get_npm_latest_version",
@@ -515,8 +541,8 @@ class TestLibraryUpdateCheck:
                     ),
                 ),
                 patch(
-                    "clauded.cli.get_downloads",
-                    return_value={"claude_code": {"version": "2.1.62"}},
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.1.62",
                 ),
                 patch(
                     "clauded.cli._get_npm_latest_version",
@@ -527,8 +553,8 @@ class TestLibraryUpdateCheck:
 
                 result = runner.invoke(main, [])
 
-                assert "Library updates available" not in result.output
-                assert "Update libraries?" not in result.output
+                assert "Framework version changes available" not in result.output
+                assert "Apply version changes?" not in result.output
 
     def test_update_confirmed_runs_commands(
         self, runner: CliRunner, config_yaml: str
@@ -548,8 +574,8 @@ class TestLibraryUpdateCheck:
                     ),
                 ),
                 patch(
-                    "clauded.cli.get_downloads",
-                    return_value={"claude_code": {"version": "2.1.62"}},
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.1.62",
                 ),
                 patch(
                     "clauded.cli._get_npm_latest_version",
@@ -590,8 +616,8 @@ class TestLibraryUpdateCheck:
                     ),
                 ),
                 patch(
-                    "clauded.cli.get_downloads",
-                    return_value={"claude_code": {"version": "2.1.62"}},
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.1.62",
                 ),
                 patch(
                     "clauded.cli._get_npm_latest_version",
@@ -603,12 +629,14 @@ class TestLibraryUpdateCheck:
                 # "n" for update prompt, "y" for stop
                 result = runner.invoke(main, [], input="n\ny\n")
 
-                # Claude Code still shown (uses pinned version, not npm)
-                updates_section = result.output.split("Library updates available")[-1]
+                # Claude Code still shown
+                updates_section = result.output.split(
+                    "Framework version changes available"
+                )[-1]
                 assert "Claude Code" in updates_section
                 assert "2.1.62" in updates_section
-                # Codex skipped (npm failed)
-                assert "Codex" not in updates_section.split("Update libraries?")[0]
+                # Codex skipped (npm failed → no desired version → no mismatch)
+                assert "Codex" not in updates_section.split("Apply version changes?")[0]
 
     def test_skipped_when_framework_not_installed(self, runner: CliRunner) -> None:
         """No claude-code in config → skip CC check."""
@@ -637,6 +665,7 @@ environment:
                 patch("clauded.cli.__version__", "0.1.0"),
                 patch("clauded.cli._get_vm_tool_version") as mock_ver,
                 patch("clauded.cli._get_npm_latest_version") as mock_npm,
+                patch("clauded.cli._get_latest_claude_code_version") as mock_gcs,
             ):
                 mock_vm = MagicMock()
                 mock_vm.exists.return_value = True
@@ -655,9 +684,42 @@ environment:
                 # No version checks should happen
                 mock_ver.assert_not_called()
                 mock_npm.assert_not_called()
+                mock_gcs.assert_not_called()
 
-    def test_downgrade_not_offered(self, runner: CliRunner, config_yaml: str) -> None:
-        """Installed version newer than pinned → no update offered."""
+    def test_downgrade_offered_with_bidirectional_check(
+        self, runner: CliRunner, config_yaml_pinned: str
+    ) -> None:
+        """Installed version newer than pinned → downgrade offered (bidirectional)."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(config_yaml_pinned)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch("clauded.cli.__commit__", "abc1234"),
+                patch("clauded.cli.__version__", "0.1.0"),
+                patch(
+                    "clauded.cli._get_vm_tool_version",
+                    side_effect=lambda vm, cmd: (
+                        "2.1.76" if "claude" in cmd else "1.5.0"
+                    ),
+                ),
+            ):
+                self._mock_vm_with_matching_commit(MockVM)
+
+                # "n" for version changes, "y" for stop
+                result = runner.invoke(main, [], input="n\ny\n")
+
+                # Bidirectional: downgrades ARE offered
+                assert "Framework version changes available" in result.output
+                assert "2.1.76" in result.output  # installed
+                assert "2.1.62" in result.output  # pinned target
+                assert "1.5.0" in result.output  # installed codex
+                assert "1.2.0" in result.output  # pinned target
+
+    def test_no_change_when_versions_match_latest(
+        self, runner: CliRunner, config_yaml: str
+    ) -> None:
+        """Unpinned config with matching latest → no prompt."""
         with runner.isolated_filesystem():
             Path(".clauded.yaml").write_text(config_yaml)
 
@@ -668,24 +730,23 @@ environment:
                 patch(
                     "clauded.cli._get_vm_tool_version",
                     side_effect=lambda vm, cmd: (
-                        "2.1.76" if "claude" in cmd else "0.115.0"
+                        "2.3.0" if "claude" in cmd else "1.5.0"
                     ),
                 ),
                 patch(
-                    "clauded.cli.get_downloads",
-                    return_value={"claude_code": {"version": "2.1.62"}},
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.3.0",
                 ),
                 patch(
                     "clauded.cli._get_npm_latest_version",
-                    return_value="0.111.0",
+                    return_value="1.5.0",
                 ),
             ):
                 self._mock_vm_with_matching_commit(MockVM)
 
                 result = runner.invoke(main, [])
 
-                assert "Library updates available" not in result.output
-                assert "Update libraries?" not in result.output
+                assert "Framework version changes available" not in result.output
 
     def test_update_failure_preserves_existing(
         self, runner: CliRunner, config_yaml: str
@@ -705,8 +766,8 @@ environment:
                     ),
                 ),
                 patch(
-                    "clauded.cli.get_downloads",
-                    return_value={"claude_code": {"version": "2.1.62"}},
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.1.62",
                 ),
                 patch("clauded.cli._get_npm_latest_version", return_value="1.0.5"),
                 patch("clauded.cli._update_claude_code", return_value=False),
@@ -718,3 +779,105 @@ environment:
 
                 assert "update failed" in result.output
                 assert "Existing version preserved" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Config versions round-trip tests
+# ---------------------------------------------------------------------------
+
+
+class TestConfigVersionsPersistence:
+    """Tests for versions section in config load/save."""
+
+    def test_load_with_versions(self, config_yaml_pinned: str) -> None:
+        """Config with versions section loads version pins correctly."""
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(config_yaml_pinned)
+            f.flush()
+            config = Config.load(Path(f.name))
+
+        assert config.claude_code_version == "2.1.62"
+        assert config.codex_version == "1.2.0"
+
+    def test_load_without_versions(self, config_yaml: str) -> None:
+        """Config without versions section defaults to None."""
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(config_yaml)
+            f.flush()
+            config = Config.load(Path(f.name))
+
+        assert config.claude_code_version is None
+        assert config.codex_version is None
+
+    def test_save_with_versions_roundtrip(self) -> None:
+        """Saving and reloading config preserves version pins."""
+        import tempfile
+
+        config = Config(
+            vm_name="test-vm",
+            vm_distro="alpine",
+            mount_host="/test",
+            mount_guest="/test",
+            claude_code_version="2.1.62",
+            codex_version="1.2.0",
+        )
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            path = Path(f.name)
+
+        config.save(path)
+        reloaded = Config.load(path)
+
+        assert reloaded.claude_code_version == "2.1.62"
+        assert reloaded.codex_version == "1.2.0"
+
+    def test_save_without_versions_no_section(self) -> None:
+        """Saving config without version pins omits versions section."""
+        import tempfile
+
+        import yaml
+
+        config = Config(
+            vm_name="test-vm",
+            vm_distro="alpine",
+            mount_host="/test",
+            mount_guest="/test",
+        )
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            path = Path(f.name)
+
+        config.save(path)
+
+        with open(path) as f:
+            data = yaml.safe_load(f)
+
+        assert "versions" not in data
+
+    def test_save_partial_versions(self) -> None:
+        """Saving config with only one version pin includes versions section."""
+        import tempfile
+
+        import yaml
+
+        config = Config(
+            vm_name="test-vm",
+            vm_distro="alpine",
+            mount_host="/test",
+            mount_guest="/test",
+            claude_code_version="2.1.62",
+        )
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            path = Path(f.name)
+
+        config.save(path)
+
+        with open(path) as f:
+            data = yaml.safe_load(f)
+
+        assert data["versions"] == {"claude-code": "2.1.62"}
