@@ -134,6 +134,50 @@ def _validate_vm_name(vm_name: str) -> str:
     return vm_name
 
 
+# Strict pattern: digits and dots only (e.g. "2.1.62", "1.2.0", "20")
+_VERSION_PIN_RE = re.compile(r"^[0-9]+(\.[0-9]+)*$")
+
+
+def _validate_version_pin(key: str, value: str | None) -> str | None:
+    """Validate a framework version pin for safety and consistency.
+
+    Accepts None (meaning "latest"), or a concrete version string consisting
+    only of digits and dots (e.g. "2.1.62").  The sentinel string "latest"
+    is normalized to None so that downstream code has exactly one
+    representation of "resolve at runtime".
+
+    Args:
+        key: Config key name (for error messages, e.g. "claude-code")
+        value: Version string, "latest", or None
+
+    Returns:
+        Validated version string, or None for "latest"
+
+    Raises:
+        ConfigValidationError: If value is not a safe version string
+    """
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        raise ConfigValidationError(
+            f"Invalid version pin for '{key}': expected a version string, "
+            f"got {type(value).__name__}"
+        )
+
+    # Normalize "latest" to None (means "resolve at runtime")
+    if value == "latest":
+        return None
+
+    if not _VERSION_PIN_RE.match(value):
+        raise ConfigValidationError(
+            f"Invalid version pin for '{key}': '{value}'. "
+            "Version pins must contain only digits and dots (e.g. '2.1.62')."
+        )
+
+    return value
+
+
 def _validate_version(version: str | None) -> str:
     """Validate config version and return normalized version string.
 
@@ -398,8 +442,18 @@ class Config:
         dart_ver = _validate_runtime_version("dart", env.get("dart"))
         c_ver = _validate_runtime_version("c", env.get("c"))
 
-        # Parse version pins
-        versions = data.get("versions", {})
+        # Parse and validate version pins
+        raw_versions = data.get("versions", {})
+        if raw_versions is None:
+            raw_versions = {}
+        if not isinstance(raw_versions, dict):
+            raise ConfigValidationError(
+                f"'versions' must be a mapping, got {type(raw_versions).__name__}"
+            )
+        claude_code_pin = _validate_version_pin(
+            "claude-code", raw_versions.get("claude-code")
+        )
+        codex_pin = _validate_version_pin("codex", raw_versions.get("codex"))
 
         # Validate VM names for security
         vm_name = _validate_vm_name(data["vm"]["name"])
@@ -429,8 +483,8 @@ class Config:
             databases=env.get("databases") or [],
             frameworks=env.get("frameworks") or [],
             playwright_browsers=env.get("playwright_browsers") or [],
-            claude_code_version=versions.get("claude-code"),
-            codex_version=versions.get("codex"),
+            claude_code_version=claude_code_pin,
+            codex_version=codex_pin,
             claude_dangerously_skip_permissions=data.get("claude", {}).get(
                 "dangerously_skip_permissions", True
             ),

@@ -14,6 +14,7 @@ from clauded.config import (
     _migrate_config,
     _validate_runtime_version,
     _validate_version,
+    _validate_version_pin,
 )
 
 
@@ -1023,3 +1024,232 @@ environment:
         assert config.kotlin == "2.0"
         assert config.rust == "stable"
         assert config.go == "1.23.5"
+
+
+class TestVersionPinValidation:
+    """Tests for framework version pin validation."""
+
+    def test_none_returns_none(self) -> None:
+        """None means 'latest' and passes through."""
+        assert _validate_version_pin("claude-code", None) is None
+
+    def test_latest_normalized_to_none(self) -> None:
+        """The string 'latest' is normalized to None."""
+        assert _validate_version_pin("claude-code", "latest") is None
+        assert _validate_version_pin("codex", "latest") is None
+
+    def test_valid_semver(self) -> None:
+        """Standard semver-like pins are accepted."""
+        assert _validate_version_pin("claude-code", "2.1.62") == "2.1.62"
+        assert _validate_version_pin("codex", "1.2.0") == "1.2.0"
+
+    def test_simple_numeric(self) -> None:
+        """Single number version is accepted."""
+        assert _validate_version_pin("codex", "20") == "20"
+
+    def test_two_part_version(self) -> None:
+        """Two-part version is accepted."""
+        assert _validate_version_pin("claude-code", "2.1") == "2.1"
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "1.2.3; touch /tmp/pwn",
+            '1.2.3" && echo pwned',
+            "1.2.3$(whoami)",
+            "1.2.3`id`",
+            "1.2.3|cat /etc/passwd",
+            "abc",
+            "v1.2.3",
+            "1.2.3-beta",
+            "1.2.3+build",
+            "",
+        ],
+    )
+    def test_rejects_unsafe_versions(self, value: str) -> None:
+        """Version pins with shell metacharacters are rejected."""
+        with pytest.raises(ConfigValidationError, match="Invalid version pin"):
+            _validate_version_pin("claude-code", value)
+
+    def test_rejects_non_string_type(self) -> None:
+        """Non-string types are rejected with a clear error."""
+        with pytest.raises(ConfigValidationError, match="expected a version string"):
+            _validate_version_pin("codex", 123)  # type: ignore[arg-type]
+
+        with pytest.raises(ConfigValidationError, match="expected a version string"):
+            _validate_version_pin("codex", ["1.2.3"])  # type: ignore[arg-type]
+
+
+class TestVersionPinConfigLoad:
+    """Tests for version pin validation during Config.load()."""
+
+    def test_load_with_valid_version_pins(self, tmp_path: Path) -> None:
+        """Valid version pins are loaded correctly."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+versions:
+  claude-code: "2.1.62"
+  codex: "1.2.0"
+""")
+
+        config = Config.load(config_path)
+
+        assert config.claude_code_version == "2.1.62"
+        assert config.codex_version == "1.2.0"
+
+    def test_load_latest_normalized_to_none(self, tmp_path: Path) -> None:
+        """'latest' version pins are normalized to None during load."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+versions:
+  claude-code: "latest"
+""")
+
+        config = Config.load(config_path)
+
+        assert config.claude_code_version is None
+
+    def test_load_rejects_command_injection_in_version(self, tmp_path: Path) -> None:
+        """Version pins with shell metacharacters are rejected at load time."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks:
+    - codex
+versions:
+  codex: "1.2.3; touch /tmp/pwn"
+""")
+
+        with pytest.raises(ConfigValidationError, match="Invalid version pin"):
+            Config.load(config_path)
+
+    def test_load_rejects_non_mapping_versions(self, tmp_path: Path) -> None:
+        """Non-mapping 'versions' value raises ConfigValidationError."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+versions: latest
+""")
+
+        with pytest.raises(ConfigValidationError, match="must be a mapping"):
+            Config.load(config_path)
+
+    def test_load_rejects_list_versions(self, tmp_path: Path) -> None:
+        """List 'versions' value raises ConfigValidationError."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+versions:
+  - claude-code
+""")
+
+        with pytest.raises(ConfigValidationError, match="must be a mapping"):
+            Config.load(config_path)
+
+    def test_load_without_versions_section(self, tmp_path: Path) -> None:
+        """Missing versions section defaults to None for both pins."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 4
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks: []
+""")
+
+        config = Config.load(config_path)
+
+        assert config.claude_code_version is None
+        assert config.codex_version is None
+
+    def test_roundtrip_preserves_version_pins(self, tmp_path: Path) -> None:
+        """Version pins survive a save/load cycle."""
+        config = Config(
+            vm_name="clauded-test",
+            cpus=4,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            claude_code_version="2.1.62",
+            codex_version="1.2.0",
+        )
+        config_path = tmp_path / ".clauded.yaml"
+        config.save(config_path)
+
+        loaded = Config.load(config_path)
+
+        assert loaded.claude_code_version == "2.1.62"
+        assert loaded.codex_version == "1.2.0"

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Security: validate version pins at config load time** — version pins from `.clauded.yaml` are now strictly validated (digits and dots only), preventing shell command injection via crafted version strings
+- **Malformed `versions` config produces clear error** — non-mapping `versions` values (e.g. `versions: latest`) now raise `ConfigValidationError` instead of crashing with `AttributeError`
+- **Consistent `"latest"` handling** — the `"latest"` sentinel in version pins is now normalized to `None` during config load, ensuring identical behavior across provisioning and startup update paths
+
 ### Added
 
 - **User-Configurable Framework Versions**: New `versions` section in `.clauded.yaml` for pinning Claude Code and Codex versions
