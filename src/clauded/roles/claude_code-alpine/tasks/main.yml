@@ -65,10 +65,35 @@
     mode: '0600'
     force: no
 
+# Alpine 3.21 ships musl 1.2.5 which lacks posix_getdents (added in 1.2.6).
+# Build a shim .so that provides the symbol via getdents64 syscall.
+# TODO: Remove when Alpine base image ships musl >= 1.2.6 (expected Alpine 3.22).
+- name: Check if system musl already provides posix_getdents
+  shell: grep -q posix_getdents /lib/ld-musl-*.so.1 2>/dev/null
+  register: musl_has_posix_getdents
+  failed_when: false
+  changed_when: false
+
+- name: Copy posix_getdents shim source
+  copy:
+    src: posix_getdents_shim.c
+    dest: /tmp/posix_getdents_shim.c
+  when: musl_has_posix_getdents.rc != 0
+
+- name: Compile posix_getdents shim
+  command: gcc -shared -fPIC -o /usr/lib/posix_getdents_shim.so /tmp/posix_getdents_shim.c
+  when: musl_has_posix_getdents.rc != 0
+
+- name: Remove shim source
+  file:
+    path: /tmp/posix_getdents_shim.c
+    state: absent
+
 - name: Configure Claude Code environment for Alpine
   copy:
     dest: /etc/profile.d/claude.sh
     content: |
+      [ -f /usr/lib/posix_getdents_shim.so ] && export LD_PRELOAD=/usr/lib/posix_getdents_shim.so
       export USE_BUILTIN_RIPGREP=0
       export PATH="$HOME/.local/bin:$PATH"
       {% if claude_dangerously_skip_permissions | default(false) %}

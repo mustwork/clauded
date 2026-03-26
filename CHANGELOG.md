@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **CARGO_HOME writable by non-root users** — The Rust roles now set `CARGO_HOME=$HOME/.cargo` in the shell profile instead of `/usr/local/cargo`, so `cargo build` works without root permissions
+- **Claude Code crashes on Alpine with `posix_getdents: symbol not found`** — Alpine 3.21 ships musl 1.2.5 which lacks `posix_getdents` (added in musl 1.2.6). The claude_code-alpine role now compiles a small LD_PRELOAD shim that provides the symbol via the getdents64 syscall
 
 ## [0.2.1] - 2026-03-19
 
