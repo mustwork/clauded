@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CARGO_HOME writable by non-root users** — The Rust roles now set `CARGO_HOME=$HOME/.cargo` in the shell profile instead of `/usr/local/cargo`, so `cargo build` works without root permissions
+
 ## [0.2.1] - 2026-03-19
 
 ### Fixed

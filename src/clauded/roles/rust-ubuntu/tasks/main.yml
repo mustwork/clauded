@@ -37,8 +37,8 @@
     dest: /etc/profile.d/rust.sh
     content: |
       export RUSTUP_HOME=/usr/local/rustup
-      export CARGO_HOME=/usr/local/cargo
-      export PATH=/usr/local/cargo/bin:$PATH
+      export CARGO_HOME="$HOME/.cargo"
+      export PATH="$HOME/.cargo/bin:/usr/local/cargo/bin:$PATH"
     mode: '0644'
 
 - name: Create symlinks for Rust binaries
