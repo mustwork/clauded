@@ -16,7 +16,7 @@ def sample_config() -> Config:
     """Create a sample config for testing."""
     return Config(
         vm_name="clauded-test1234",
-        cpus=4,
+        cpus=1,
         memory="8GiB",
         disk="20GiB",
         mount_host="/path/to/project",
@@ -144,7 +144,7 @@ class TestLimaVMGenerateLimaConfig:
 
         config = vm._generate_lima_config()
 
-        assert config["cpus"] == 4
+        assert config["cpus"] == 1
         assert config["memory"] == "8GiB"
         assert config["disk"] == "20GiB"
 

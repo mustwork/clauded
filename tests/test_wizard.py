@@ -14,7 +14,7 @@ def sample_config() -> Config:
     """Create a sample config with current valid values."""
     return Config(
         vm_name="test-vm",
-        cpus=4,
+        cpus=1,
         memory="8GiB",
         disk="20GiB",
         mount_host="/test/project",
@@ -37,7 +37,7 @@ def outdated_config() -> Config:
     """Create a config with outdated version values that are no longer in choices."""
     return Config(
         vm_name="test-vm",
-        cpus=4,
+        cpus=1,
         memory="8GiB",
         disk="20GiB",
         mount_host="/test/project",

@@ -332,7 +332,7 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
         defaults["frameworks"] = frameworks
 
         # Add default VM resources
-        defaults["cpus"] = "4"
+        defaults["cpus"] = "1"
         defaults["memory"] = "8GiB"
         defaults["disk"] = "20GiB"
         defaults["playwright_browsers"] = ["chromium", "firefox", "webkit"]
@@ -355,7 +355,7 @@ def create_wizard_defaults(result: DetectionResult) -> dict[str, str | list[str]
             "tools": [],
             "databases": [],
             "frameworks": ["claude-code", "codex"],
-            "cpus": "4",
+            "cpus": "1",
             "memory": "8GiB",
             "disk": "20GiB",
             "playwright_browsers": ["chromium", "firefox", "webkit"],

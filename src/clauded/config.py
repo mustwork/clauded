@@ -239,7 +239,7 @@ class Config:
     # VM settings
     vm_name: str = ""
     vm_distro: str = "alpine"  # Distribution: alpine or ubuntu
-    cpus: int = 4
+    cpus: int = 1
     memory: str = "8GiB"
     disk: str = "20GiB"
     vm_image: str | None = None
@@ -298,7 +298,7 @@ class Config:
         return cls(
             vm_name=vm_name,
             vm_distro=answers.get("distro", "alpine"),
-            cpus=int(answers.get("cpus", 4)),
+            cpus=int(answers.get("cpus", 1)),
             memory=answers.get("memory", "8GiB"),
             disk=answers.get("disk", "20GiB"),
             mount_host=str(project_path),

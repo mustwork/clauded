@@ -278,7 +278,7 @@ def run(project_path: Path, *, distro_override: str | None = None) -> Config:
         raise KeyboardInterrupt()
 
     if customize_resources:
-        cpus = click.prompt("CPUs", default="4")
+        cpus = click.prompt("CPUs", default="1")
         if cpus is None:
             raise KeyboardInterrupt()
         answers["cpus"] = cpus
@@ -293,7 +293,7 @@ def run(project_path: Path, *, distro_override: str | None = None) -> Config:
             raise KeyboardInterrupt()
         answers["disk"] = disk
     else:
-        answers["cpus"] = "4"
+        answers["cpus"] = "1"
         answers["memory"] = "8GiB"
         answers["disk"] = "20GiB"
 

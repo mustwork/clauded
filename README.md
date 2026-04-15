@@ -238,7 +238,7 @@ version: "1"
 vm:
   name: clauded-a1b2c3d4  # Auto-generated from project path
   distro: alpine         # Distribution: alpine (default) or ubuntu
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
   keep_running: false    # Keep VM running after shell exit (see below)

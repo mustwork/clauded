@@ -18,7 +18,7 @@ def test_edit_workflow_preserves_sqlite(tmp_path: Path) -> None:
         "version": "1",
         "vm": {
             "name": "clauded-test",
-            "cpus": 4,
+            "cpus": 1,
             "memory": "8GiB",
             "disk": "20GiB",
         },
@@ -52,7 +52,7 @@ def test_edit_workflow_preserves_sqlite(tmp_path: Path) -> None:
         "tools": [],
         "databases": ["postgresql", "sqlite"],  # User keeps both
         "frameworks": ["claude-code"],
-        "cpus": "4",
+        "cpus": "1",
         "memory": "8GiB",
         "disk": "20GiB",
     }
@@ -71,7 +71,7 @@ def test_edit_workflow_removes_sqlite(tmp_path: Path) -> None:
         "version": "1",
         "vm": {
             "name": "clauded-test",
-            "cpus": 4,
+            "cpus": 1,
             "memory": "8GiB",
             "disk": "20GiB",
         },
@@ -102,7 +102,7 @@ def test_edit_workflow_removes_sqlite(tmp_path: Path) -> None:
         "tools": [],
         "databases": [],  # User removes all databases
         "frameworks": ["claude-code"],
-        "cpus": "4",
+        "cpus": "1",
         "memory": "8GiB",
         "disk": "20GiB",
     }
@@ -120,7 +120,7 @@ def test_edit_workflow_adds_sqlite(tmp_path: Path) -> None:
         "version": "1",
         "vm": {
             "name": "clauded-test",
-            "cpus": 4,
+            "cpus": 1,
             "memory": "8GiB",
             "disk": "20GiB",
         },
@@ -151,7 +151,7 @@ def test_edit_workflow_adds_sqlite(tmp_path: Path) -> None:
         "tools": [],
         "databases": ["postgresql", "sqlite"],  # User adds sqlite
         "frameworks": ["claude-code"],
-        "cpus": "4",
+        "cpus": "1",
         "memory": "8GiB",
         "disk": "20GiB",
     }

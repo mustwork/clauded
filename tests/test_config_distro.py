@@ -100,7 +100,7 @@ class TestConfigLoadDistro:
                 "vm": {
                     "name": "test-vm",
                     "distro": "alpine",
-                    "cpus": 4,
+                    "cpus": 1,
                     "memory": "8GiB",
                     "disk": "20GiB",
                 },
@@ -125,7 +125,7 @@ class TestConfigLoadDistro:
                 "vm": {
                     "name": "test-vm",
                     "distro": "ubuntu",
-                    "cpus": 4,
+                    "cpus": 1,
                     "memory": "8GiB",
                     "disk": "20GiB",
                 },
@@ -150,7 +150,7 @@ class TestConfigLoadDistro:
                 "version": "1",
                 "vm": {
                     "name": "test-vm",
-                    "cpus": 4,
+                    "cpus": 1,
                     "memory": "8GiB",
                     "disk": "20GiB",
                 },
@@ -175,7 +175,7 @@ class TestConfigLoadDistro:
                 "vm": {
                     "name": "test-vm",
                     "distro": "fedora",  # Invalid
-                    "cpus": 4,
+                    "cpus": 1,
                     "memory": "8GiB",
                     "disk": "20GiB",
                 },
@@ -199,7 +199,7 @@ class TestConfigLoadDistro:
                 "vm": {
                     "name": "test-vm",
                     "distro": "invalid",
-                    "cpus": 4,
+                    "cpus": 1,
                     "memory": "8GiB",
                     "disk": "20GiB",
                 },

@@ -22,7 +22,7 @@ def sample_config_yaml() -> str:
     return """version: "1"
 vm:
   name: clauded-testcli1
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:

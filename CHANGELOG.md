@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Default vCPUs reduced from 4 to 1** — idle VMs with 4 vCPUs caused high CPU load on the host; 1 vCPU is sufficient for most workloads and can be increased in `.clauded.yaml` when needed
+
 ### Fixed
 
 - **CARGO_HOME writable by non-root users** — The Rust roles now set `CARGO_HOME=$HOME/.cargo` in the shell profile instead of `/usr/local/cargo`, so `cargo build` works without root permissions

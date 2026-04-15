@@ -57,7 +57,7 @@ class TestConfigFromWizard:
 
     def test_generates_unique_vm_name_from_path(self, tmp_path: Path) -> None:
         """VM name includes project name and path hash."""
-        answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -69,7 +69,7 @@ class TestConfigFromWizard:
 
     def test_different_paths_produce_different_vm_names(self) -> None:
         """Different project paths produce different VM names."""
-        answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config1 = Config.from_wizard(answers, Path("/project/a"))
         config2 = Config.from_wizard(answers, Path("/project/b"))
@@ -78,7 +78,7 @@ class TestConfigFromWizard:
 
     def test_same_path_produces_same_vm_name(self, tmp_path: Path) -> None:
         """Same project path always produces same VM name."""
-        answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config1 = Config.from_wizard(answers, tmp_path)
         config2 = Config.from_wizard(answers, tmp_path)
@@ -87,7 +87,7 @@ class TestConfigFromWizard:
 
     def test_none_python_is_stored_as_none(self, tmp_path: Path) -> None:
         """When Python is 'None', it's stored as None."""
-        answers = {"python": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"python": "None", "cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -95,7 +95,7 @@ class TestConfigFromWizard:
 
     def test_none_node_is_stored_as_none(self, tmp_path: Path) -> None:
         """When Node is 'None', it's stored as None."""
-        answers = {"node": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"node": "None", "cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -103,7 +103,7 @@ class TestConfigFromWizard:
 
     def test_none_java_is_stored_as_none(self, tmp_path: Path) -> None:
         """When Java is 'None', it's stored as None."""
-        answers = {"java": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"java": "None", "cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -111,7 +111,7 @@ class TestConfigFromWizard:
 
     def test_none_kotlin_is_stored_as_none(self, tmp_path: Path) -> None:
         """When Kotlin is 'None', it's stored as None."""
-        answers = {"kotlin": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"kotlin": "None", "cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -119,7 +119,7 @@ class TestConfigFromWizard:
 
     def test_none_rust_is_stored_as_none(self, tmp_path: Path) -> None:
         """When Rust is 'None', it's stored as None."""
-        answers = {"rust": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"rust": "None", "cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -127,7 +127,7 @@ class TestConfigFromWizard:
 
     def test_none_go_is_stored_as_none(self, tmp_path: Path) -> None:
         """When Go is 'None', it's stored as None."""
-        answers = {"go": "None", "cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"go": "None", "cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -135,7 +135,7 @@ class TestConfigFromWizard:
 
     def test_empty_selections_default_to_empty_lists(self, tmp_path: Path) -> None:
         """Missing selections default to empty lists."""
-        answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -145,7 +145,7 @@ class TestConfigFromWizard:
 
     def test_claude_permissions_defaults_to_true(self, tmp_path: Path) -> None:
         """Missing claude_dangerously_skip_permissions defaults to True."""
-        answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -154,7 +154,7 @@ class TestConfigFromWizard:
     def test_claude_permissions_explicit_false(self, tmp_path: Path) -> None:
         """Explicit False for claude_dangerously_skip_permissions is honored."""
         answers = {
-            "cpus": "4",
+            "cpus": "1",
             "memory": "8GiB",
             "disk": "20GiB",
             "claude_dangerously_skip_permissions": False,
@@ -166,7 +166,7 @@ class TestConfigFromWizard:
 
     def test_ssh_host_key_checking_defaults_to_true(self, tmp_path: Path) -> None:
         """Missing ssh_host_key_checking defaults to True (secure default)."""
-        answers = {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}
+        answers = {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
@@ -175,7 +175,7 @@ class TestConfigFromWizard:
     def test_ssh_host_key_checking_explicit_false(self, tmp_path: Path) -> None:
         """Explicit False for ssh_host_key_checking is honored (opt-out)."""
         answers = {
-            "cpus": "4",
+            "cpus": "1",
             "memory": "8GiB",
             "disk": "20GiB",
             "ssh_host_key_checking": False,
@@ -194,7 +194,7 @@ class TestConfigSaveAndLoad:
         original = Config(
             version="1",
             vm_name="clauded-test123",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             mount_host="/path/to/project",
@@ -235,7 +235,7 @@ class TestConfigSaveAndLoad:
         """Saved file is valid YAML with expected structure."""
         config = Config(
             vm_name="clauded-abc12345",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             mount_host="/test/path",
@@ -259,7 +259,7 @@ class TestConfigSaveAndLoad:
 
         assert data["version"] == "1"
         assert data["vm"]["name"] == "clauded-abc12345"
-        assert data["vm"]["cpus"] == 4
+        assert data["vm"]["cpus"] == 1
         assert data["vm"]["memory"] == "8GiB"
         assert data["vm"]["disk"] == "20GiB"
         assert data["mount"]["host"] == "/test/path"
@@ -281,7 +281,7 @@ class TestConfigSaveAndLoad:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -315,7 +315,7 @@ environment:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
   image: https://example.com/custom-alpine.qcow2
@@ -339,7 +339,7 @@ environment:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -364,7 +364,7 @@ environment:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -387,7 +387,7 @@ environment:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -414,7 +414,7 @@ claude:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -437,7 +437,7 @@ environment:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -459,7 +459,7 @@ ssh:
         """Saving config includes ssh.host_key_checking field."""
         config = Config(
             vm_name="clauded-test",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             mount_host="/test",
@@ -479,7 +479,7 @@ ssh:
         """Saving config includes vm.image when set."""
         config = Config(
             vm_name="clauded-test",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             vm_image="https://example.com/custom.qcow2",
@@ -499,7 +499,7 @@ ssh:
         """Saving config omits vm.image when not set."""
         config = Config(
             vm_name="clauded-test",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             mount_host="/test",
@@ -518,7 +518,7 @@ ssh:
         """Saving config includes vm.forward_env when non-empty."""
         config = Config(
             vm_name="clauded-test",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             mount_host="/test",
@@ -538,7 +538,7 @@ ssh:
         """Saving config omits vm.forward_env when empty."""
         config = Config(
             vm_name="clauded-test",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             mount_host="/test",
@@ -557,7 +557,7 @@ ssh:
         """forward_env survives a save/load cycle."""
         config = Config(
             vm_name="clauded-test",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             mount_host="/test",
@@ -577,7 +577,7 @@ ssh:
             "version": "1",
             "vm": {
                 "name": "clauded-test",
-                "cpus": 4,
+                "cpus": 1,
                 "memory": "8GiB",
                 "disk": "20GiB",
             },
@@ -601,7 +601,7 @@ class TestConfigDefaults:
         config = Config()
 
         assert config.version == "1"
-        assert config.cpus == 4
+        assert config.cpus == 1
         assert config.memory == "8GiB"
         assert config.disk == "20GiB"
         assert config.vm_image is None
@@ -636,7 +636,7 @@ class TestSQLiteBackwardCompatibility:
             "version": "1",
             "vm": {
                 "name": "clauded-test",
-                "cpus": 4,
+                "cpus": 1,
                 "memory": "8GiB",
                 "disk": "20GiB",
             },
@@ -665,7 +665,7 @@ class TestSQLiteBackwardCompatibility:
             "version": "1",
             "vm": {
                 "name": "clauded-test",
-                "cpus": 4,
+                "cpus": 1,
                 "memory": "8GiB",
                 "disk": "20GiB",
             },
@@ -698,7 +698,7 @@ class TestSQLiteBackwardCompatibility:
             "tools": [],
             "databases": ["postgresql"],
             "frameworks": ["claude-code"],
-            "cpus": "4",
+            "cpus": "1",
             "memory": "8GiB",
             "disk": "20GiB",
         }
@@ -752,7 +752,7 @@ class TestConfigVersionValidation:
 version: "99"
 vm:
   name: clauded-test
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -776,7 +776,7 @@ environment:
         config_path.write_text("""
 vm:
   name: clauded-test
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -806,7 +806,7 @@ class TestMountPathValidation:
 version: "1"
 vm:
   name: clauded-test
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -832,7 +832,7 @@ environment:
 version: "1"
 vm:
   name: clauded-test
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -860,7 +860,7 @@ class TestMigrateConfig:
         """Migrating v1 config returns unchanged data."""
         data = {
             "version": "1",
-            "vm": {"name": "test", "cpus": 4, "memory": "8GiB", "disk": "20GiB"},
+            "vm": {"name": "test", "cpus": 1, "memory": "8GiB", "disk": "20GiB"},
             "mount": {"host": "/test", "guest": "/test"},
             "environment": {"tools": [], "databases": [], "frameworks": []},
         }
@@ -923,7 +923,7 @@ class TestRuntimeVersionValidation:
 version: "1"
 vm:
   name: clauded-test
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -948,7 +948,7 @@ environment:
 version: "1"
 vm:
   name: clauded-test
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -973,7 +973,7 @@ environment:
 version: "1"
 vm:
   name: clauded-test
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -998,7 +998,7 @@ environment:
 version: "1"
 vm:
   name: clauded-test
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -1090,7 +1090,7 @@ class TestVersionPinConfigLoad:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -1119,7 +1119,7 @@ versions:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -1145,7 +1145,7 @@ versions:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -1170,7 +1170,7 @@ versions:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -1193,7 +1193,7 @@ versions: latest
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -1217,7 +1217,7 @@ versions:
 version: "1"
 vm:
   name: clauded-test1234
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -1238,7 +1238,7 @@ environment:
         """Version pins survive a save/load cycle."""
         config = Config(
             vm_name="clauded-test",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             mount_host="/test",

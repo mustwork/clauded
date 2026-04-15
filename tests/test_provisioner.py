@@ -17,7 +17,7 @@ def full_config() -> Config:
     """Create a config with all options enabled."""
     return Config(
         vm_name="clauded-full1234",
-        cpus=4,
+        cpus=1,
         memory="8GiB",
         disk="20GiB",
         mount_host="/path/to/project",
@@ -895,7 +895,7 @@ class TestProvisionerGenerateAnsibleCfg:
         """Ansible config disables host key checking when explicitly opted out."""
         config = Config(
             vm_name="clauded-test1234",
-            cpus=4,
+            cpus=1,
             memory="8GiB",
             disk="20GiB",
             mount_host="/path/to/project",
@@ -963,7 +963,7 @@ def test_provisioner_without_sqlite_config() -> None:
     """Provisioner handles configs without SQLite correctly."""
     config = Config(
         vm_name="test-vm",
-        cpus=4,
+        cpus=1,
         memory="8GiB",
         disk="20GiB",
         mount_host="/tmp/test",
@@ -986,7 +986,7 @@ def test_provisioner_with_sqlite_config() -> None:
     """Provisioner includes SQLite role when configured."""
     config = Config(
         vm_name="test-vm",
-        cpus=4,
+        cpus=1,
         memory="8GiB",
         disk="20GiB",
         mount_host="/tmp/test",

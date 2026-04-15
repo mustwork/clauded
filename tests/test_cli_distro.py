@@ -22,7 +22,7 @@ def sample_config_yaml() -> str:
 vm:
   name: clauded-testcli1-abc123
   distro: alpine
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -45,7 +45,7 @@ def ubuntu_config_yaml() -> str:
 vm:
   name: clauded-testcli1-abc123
   distro: ubuntu
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -194,7 +194,7 @@ class TestDistroFlag:
         legacy_config = """version: "1"
 vm:
   name: clauded-testcli1-abc123
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:

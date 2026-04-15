@@ -21,7 +21,7 @@ class TestAtomicUpdateContextManager:
 
         # Create initial config
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         old_vm_name = config.vm_name
         config.save(config_path)
@@ -53,7 +53,7 @@ class TestAtomicUpdateContextManager:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         old_vm_name = config.vm_name
         config.save(config_path)
@@ -82,7 +82,7 @@ class TestAtomicUpdateContextManager:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         # Clear vm_name to simulate first-time setup
         config.vm_name = ""
@@ -104,7 +104,7 @@ class TestAtomicUpdateContextManager:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         vm_name = config.vm_name
         config.save(config_path)
@@ -124,7 +124,7 @@ class TestAtomicUpdateContextManager:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         original_name = config.vm_name
         config.save(config_path)
@@ -154,7 +154,7 @@ class TestConfigLoadSaveWithPreviousVmName:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = "old-vm-name"
         config.save(config_path)
@@ -170,7 +170,7 @@ class TestConfigLoadSaveWithPreviousVmName:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = None
         config.save(config_path)
@@ -187,7 +187,7 @@ class TestConfigLoadSaveWithPreviousVmName:
 
         # Write config with previous_vm_name
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = "old-vm"
         config.save(config_path)
@@ -202,7 +202,7 @@ class TestConfigLoadSaveWithPreviousVmName:
 
         # Write config without previous_vm_name
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.save(config_path)
 
@@ -222,7 +222,7 @@ class TestCrashRecoveryIntegration:
 
         # Create config with previous_vm_name set (crash scenario)
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = "old-crashed-vm"
         config.save(config_path)
@@ -261,7 +261,7 @@ class TestCrashRecoveryIntegration:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = "old-vm-to-delete"
         config.save(config_path)
@@ -295,7 +295,7 @@ class TestCrashRecoveryIntegration:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = "interrupted-vm"
         config.save(config_path)
@@ -326,7 +326,7 @@ class TestCrashRecoveryIntegration:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = None
         config.save(config_path)
@@ -378,14 +378,14 @@ class TestEndToEndScenarios:
 
         # Initial config
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB", "python": "3.11"},
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB", "python": "3.11"},
             tmp_path,
         )
         config.save(config_path)
 
         # Simulate edit flow: new config with different python version
         new_config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB", "python": "3.12"},
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB", "python": "3.12"},
             tmp_path,
         )
         new_vm_name = new_config.vm_name
@@ -415,7 +415,7 @@ class TestEndToEndScenarios:
 
         # Simulate interrupted update: config has previous_vm_name set
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = "old-vm-before-crash"
         config.save(config_path)
@@ -458,7 +458,7 @@ class TestBlockerIssues:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         original_name = config.vm_name
         config.save(config_path)
@@ -485,7 +485,7 @@ class TestBlockerIssues:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         original_name = config.vm_name
         config.save(config_path)
@@ -508,7 +508,7 @@ class TestBlockerIssues:
         malicious_yaml = """version: "1"
 vm:
   name: "../../../etc/passwd"
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -533,7 +533,7 @@ environment:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.save(config_path)
 
@@ -547,7 +547,7 @@ environment:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.save(config_path)
 
@@ -563,7 +563,7 @@ environment:
 vm:
   name: "safe-name"
   previous_name: "../../../etc/passwd"
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -589,7 +589,7 @@ environment:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = "old-vm-that-exists"
         config.vm_name = "new-vm-that-doesnt-exist"
@@ -624,7 +624,7 @@ environment:
         config_path = tmp_path / ".clauded.yaml"
 
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         config.previous_vm_name = "old-vm"
         config.vm_name = "new-vm"
@@ -664,7 +664,7 @@ environment:
 
             # Create initial config
             config = Config.from_wizard(
-                {"cpus": "4", "memory": "8GiB", "disk": "20GiB", "python": "3.12"},
+                {"cpus": "1", "memory": "8GiB", "disk": "20GiB", "python": "3.12"},
                 Path.cwd(),
             )
             config.save(config_path)
@@ -685,7 +685,7 @@ environment:
                             # Mock run_edit_with_detection to return new config
                             new_config = Config.from_wizard(
                                 {
-                                    "cpus": "4",
+                                    "cpus": "1",
                                     "memory": "8GiB",
                                     "disk": "20GiB",
                                     "python": "3.11",
@@ -722,7 +722,7 @@ environment:
 
         # Start atomic update but don't complete it (simulate crash)
         config = Config.from_wizard(
-            {"cpus": "4", "memory": "8GiB", "disk": "20GiB"}, tmp_path
+            {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}, tmp_path
         )
         original_vm = config.vm_name
         config.save(config_path)

@@ -22,7 +22,7 @@ The configuration file must be named `.clauded.yaml` and located at the project 
 version: "1"
 vm:
   name: clauded-a1b2c3d4
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -85,19 +85,19 @@ vm:
 
 **Type**: Integer
 **Required**: Yes
-**Default**: `4`
+**Default**: `1`
 **Range**: 1-16 (depending on host CPU)
 
 Number of CPU cores allocated to the VM.
 
 ```yaml
 vm:
-  cpus: 4
+  cpus: 1
 ```
 
 **Recommendations**:
-- **Light workloads** (simple scripts): 2 CPUs
-- **Standard development** (web apps, APIs): 4 CPUs
+- **Light workloads** (simple scripts): 1 CPU
+- **Standard development** (web apps, APIs): 2-4 CPUs
 - **Heavy workloads** (compilation, builds): 6-8 CPUs
 
 ---
@@ -655,7 +655,7 @@ The smallest valid configuration (wizard defaults):
 version: "1"
 vm:
   name: clauded-12345678
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -681,7 +681,7 @@ This creates a bare Alpine VM with only base packages (from the `common` role).
 version: "1"
 vm:
   name: clauded-webapp01
-  cpus: 4
+  cpus: 2
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -709,7 +709,7 @@ environment:
 version: "1"
 vm:
   name: clauded-nodeapi
-  cpus: 4
+  cpus: 2
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -856,7 +856,7 @@ environment:
 ```yaml
 version: "1"
 vm:
-  cpus: 4
+  cpus: 1
   # ❌ Missing name, memory, disk
 ```
 
@@ -976,7 +976,7 @@ vm:
 |-------|------|----------|---------|----------------|
 | `version` | string | Yes | - | `"1"` |
 | `vm.name` | string | Yes | auto-generated | `clauded-{hash}` |
-| `vm.cpus` | int | Yes | 4 | 1-16 |
+| `vm.cpus` | int | Yes | 1 | 1-16 |
 | `vm.memory` | string | Yes | `"8GiB"` | `<N>GiB` |
 | `vm.disk` | string | Yes | `"20GiB"` | `<N>GiB` |
 | `mount.host` | string | Yes | auto-generated | absolute path |

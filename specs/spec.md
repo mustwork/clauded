@@ -235,7 +235,7 @@ ssh:
 **Config Generation**
 - Wizard prompts or programmatic creation
 - VM name: SHA256(project_path)[:6] prefixed with "clauded-{sanitized_project_name}-"
-- Defaults: 4 CPUs, 8GiB memory, 20GiB disk
+- Defaults: 1 CPU, 8GiB memory, 20GiB disk
 - Host mount: absolute path to current project directory
 - Guest mount: same as host mount (ensures unique Claude Code sessions per project)
 

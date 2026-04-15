@@ -58,10 +58,10 @@ Per-project isolated Linux VMs with creation, start/stop, and destruction capabi
 
 #### [Implemented] Story: Use Sensible Defaults
 
-**As a** Solo Developer, **I want** sensible defaults (4 CPU, 8GB RAM, 20GB disk), **so that** I can start immediately without configuration complexity.
+**As a** Solo Developer, **I want** sensible defaults (1 CPU, 8GB RAM, 20GB disk), **so that** I can start immediately without configuration complexity.
 
 **Acceptance Criteria**:
-- [ ] Default VM config uses 4 CPUs
+- [ ] Default VM config uses 1 CPU
 - [ ] Default VM config uses 8GiB memory
 - [ ] Default VM config uses 20GiB disk
 - [ ] Defaults can be accepted without customization in wizard

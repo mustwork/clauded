@@ -24,7 +24,7 @@ def config_yaml() -> str:
 vm:
   name: clauded-testcli1-abc123
   distro: alpine
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -47,7 +47,7 @@ def config_yaml_pinned() -> str:
 vm:
   name: clauded-testcli1-abc123
   distro: alpine
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:
@@ -644,7 +644,7 @@ class TestLibraryUpdateCheck:
 vm:
   name: clauded-testcli1-abc123
   distro: alpine
-  cpus: 4
+  cpus: 1
   memory: 8GiB
   disk: 20GiB
 mount:

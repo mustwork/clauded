@@ -84,7 +84,7 @@ def run_with_detection(
             "tools": [],
             "databases": [],
             "frameworks": ["claude-code", "codex"],
-            "cpus": "4",
+            "cpus": "1",
             "memory": "8GiB",
             "disk": "20GiB",
             "playwright_browsers": ["chromium", "firefox", "webkit"],
@@ -260,7 +260,7 @@ def run_with_detection(
         raise KeyboardInterrupt()
 
     if customize_resources:
-        cpus = click.prompt("CPUs", default=str(defaults.get("cpus", "4")))
+        cpus = click.prompt("CPUs", default=str(defaults.get("cpus", "1")))
         if cpus is None:
             raise KeyboardInterrupt()
         answers["cpus"] = cpus
@@ -275,7 +275,7 @@ def run_with_detection(
             raise KeyboardInterrupt()
         answers["disk"] = disk
     else:
-        answers["cpus"] = str(defaults.get("cpus", "4"))
+        answers["cpus"] = str(defaults.get("cpus", "1"))
         answers["memory"] = str(defaults.get("memory", "8GiB"))
         answers["disk"] = str(defaults.get("disk", "20GiB"))
 
