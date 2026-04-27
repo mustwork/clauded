@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Ubuntu provisioning fails with `No package matching 'unzip' is available`** — common-ubuntu role now waits for `cloud-init status --wait` before the first apt run and drops `cache_valid_time` so a partial apt cache is always refreshed on retry, instead of being treated as still-valid for an hour
+
 ## [0.2.2] - 2026-04-27
 
 ### Changed
