@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-04-27
+
+### Fixed
+
+- **Ubuntu provisioning fails with `No package matching '<pkg>' is available`** — `apt-get update` can return success while individual source fetches silently fail, leaving a partial package index. The common package install task now refreshes the cache and retries up to 5 times.
+
 ## [0.2.4] - 2026-04-27
 
 ### Fixed
