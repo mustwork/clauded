@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Maven 3.9.14 removed from Apache mirror**: Bump Maven to 3.9.15 (3.9.14 returns 404 on dlcdn.apache.org)
 - **CARGO_HOME writable by non-root users** — The Rust roles now set `CARGO_HOME=$HOME/.cargo` in the shell profile instead of `/usr/local/cargo`, so `cargo build` works without root permissions
 - **Claude Code crashes on Alpine with `posix_getdents: symbol not found`** — Alpine 3.21 ships musl 1.2.5 which lacks `posix_getdents` (added in musl 1.2.6). The claude_code-alpine role now compiles a small LD_PRELOAD shim that provides the symbol via the getdents64 syscall
 
