@@ -1,11 +1,35 @@
 ---
 - name: Wait for cloud-init to finish
   command: cloud-init status --wait
+  register: cloud_init_status
   changed_when: false
+  failed_when: cloud_init_status.rc not in [0, 2]
+
+# cloud-init / apt-daily can leave /var/lib/apt/lists with partial Packages
+# files. A subsequent `apt-get update` will incrementally refresh them with
+# pdiffs and report success even though the resulting cache is still missing
+# entries (observed: strace, unzip "not available" against a fully-correct
+# sources.list). Wipe the lists to force a full, clean fetch on first use.
+- name: Force clean apt lists to avoid partial cache from cloud-init
+  file:
+    path: /var/lib/apt/lists
+    state: absent
+
+- name: Recreate apt lists directory
+  file:
+    path: /var/lib/apt/lists
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
 
 - name: Update apt cache
   apt:
     update_cache: yes
+  register: apt_update
+  retries: 5
+  delay: 5
+  until: apt_update is succeeded
 
 - name: Increase system-wide file descriptor limit
   sysctl:
@@ -111,6 +135,11 @@
       # Credential storage
       - gnome-keyring
     state: present
+    update_cache: yes
+  register: apt_install
+  retries: 5
+  delay: 5
+  until: apt_install is succeeded
 
 - name: Set bash as default shell for {{ ansible_user }}
   user:

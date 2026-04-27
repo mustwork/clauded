@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Ubuntu provisioning fails with `No package matching 'strace'/'unzip' is available` despite correct sources** — cloud-init/apt-daily can leave `/var/lib/apt/lists` with partial `Packages` files; subsequent `apt-get update` runs use pdiffs and report success against a still-broken cache. The common-ubuntu role now wipes `/var/lib/apt/lists` before the first cache refresh to force a clean, full fetch.
+
 ## [0.2.5] - 2026-04-27
 
 ### Fixed
