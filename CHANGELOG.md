@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-04-27
+
+### Fixed
+
+- **Ubuntu provisioning fails when cloud-init reports recoverable warnings** — `cloud-init status --wait` exits 2 on recoverable errors even though `status: done`; the wait task now accepts rc 0 and 2 and only fails on rc 1 (unrecoverable)
+
 ## [0.2.3] - 2026-04-27
 
 ### Fixed
