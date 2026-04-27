@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-04-27
+
 ### Changed
 
 - **Default vCPUs reduced from 4 to 1** — idle VMs with 4 vCPUs caused high CPU load on the host; 1 vCPU is sufficient for most workloads and can be increased in `.clauded.yaml` when needed
