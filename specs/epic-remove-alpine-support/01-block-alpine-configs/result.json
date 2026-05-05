@@ -1,0 +1,79 @@
+{
+  "story_id": "01",
+  "story_name": "block-alpine-configs",
+  "status": "complete",
+  "files_created": [
+    "docs/migration-from-alpine.md",
+    "specs/epic-remove-alpine-support/01-block-alpine-configs/baseline.json",
+    "specs/epic-remove-alpine-support/01-block-alpine-configs/architecture.json",
+    "specs/epic-remove-alpine-support/01-block-alpine-configs/verification.json",
+    "specs/epic-remove-alpine-support/01-block-alpine-configs/result.json"
+  ],
+  "files_modified": [
+    "src/clauded/config.py",
+    "tests/test_config.py",
+    "tests/test_cli_distro.py",
+    "tests/test_config_distro.py",
+    "tests/test_distro_change.py",
+    "tests/test_lima.py",
+    "tests/test_provisioner.py",
+    "tests/test_version_check.py",
+    "CHANGELOG.md"
+  ],
+  "files_deleted": [],
+  "implementation_summary": [
+    "_validate_distro() in config.py raises ConfigValidationError with FR5 multi-line migration message when distro == 'alpine'.",
+    "Config.vm_distro dataclass default changed from 'alpine' to 'ubuntu'; from_wizard() fallback and _validate_distro(None) also changed to 'ubuntu'.",
+    "docs/migration-from-alpine.md created with AI-agent-readable migration steps.",
+    "TestAlpineConfigRejection class (5 tests) added to tests/test_config.py.",
+    "CHANGELOG.md [Unreleased] Removed section updated.",
+    "Category A: test_version_check.py fixtures changed from distro: alpine to ubuntu; all get_vm_distro mock returns changed to 'ubuntu' to avoid spurious distro-mismatch prompts; test_distro_change::test_distro_change_not_checked_if_no_metadata switched to ubuntu_config_yaml fixture.",
+    "Category B: 14 tests marked @pytest.mark.skip with explicit story-deletion references (Story 02, 03, 04, 05)."
+  ],
+  "deviations_from_spec": [
+    {
+      "deviation": "Config.vm_distro dataclass default changed from 'alpine' to 'ubuntu' in Story 01",
+      "reason": "The existing default of 'alpine' caused any default-constructed Config to write distro: alpine on save, triggering the new FR5 guard on reload. Changing the default is a necessary consequence of the guard; the field is removed entirely in Story 03.",
+      "impact": "Transitional for ~2 stories."
+    },
+    {
+      "deviation": "Test fixtures updated in Story 01 (Category A: vm_distro='alpine' -> 'ubuntu')",
+      "reason": "The Alpine config rejection guard broke tests that used alpine as an incidental fixture value not testing Alpine behavior. Per team-lead: fixture updates belong in Story 01.",
+      "impact": "No test assertions changed — same behavior, different incidental fixture value."
+    },
+    {
+      "deviation": "14 Category B tests marked @pytest.mark.skip in Story 01",
+      "reason": "Tests directly asserting Alpine code paths cannot pass once the guard is in place. They are scheduled for deletion in Stories 02-05. Explicit skip is preferred over xfail to avoid masking future regressions.",
+      "impact": "14 skipped tests with explicit story-deletion references. No assertions loosened."
+    }
+  ],
+  "seams_produced": ["alpine_config_rejection"],
+  "test_counts": {
+    "passed": 1042,
+    "failed": 0,
+    "skipped": 14,
+    "skipped_note": "All 14 skips are Category B Alpine-behavior tests marked for deletion in Stories 02-05.",
+    "new_tests": 5
+  },
+  "tooling_gates": {
+    "lint": "pass",
+    "format": "pass",
+    "typecheck": "pass"
+  },
+  "verification_rounds": [
+    {
+      "round": 1,
+      "outcome": "rejected",
+      "reason": "31 test failures (alpine-fixture tests). Team-lead reversed acceptance — zero-tolerance test gate.",
+      "timestamp": "2026-05-05T13:00:00Z"
+    },
+    {
+      "round": 2,
+      "outcome": "accepted",
+      "changes": "Fixed all 31 failures: Category A fixture updates, Category B skip markers. Test gate is now green: 1042 passed, 14 skipped, 0 failed.",
+      "timestamp": "2026-05-05T14:30:00Z"
+    }
+  ],
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-05T14:30:00Z"
+}

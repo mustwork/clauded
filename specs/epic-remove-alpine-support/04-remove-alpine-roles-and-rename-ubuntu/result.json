@@ -1,0 +1,46 @@
+{
+  "story_id": "04",
+  "story_name": "remove-alpine-roles-and-rename-ubuntu",
+  "status": "complete",
+  "files_created": [],
+  "files_modified": [
+    "src/clauded/provisioner.py",
+    "tests/test_provisioner.py",
+    "CHANGELOG.md"
+  ],
+  "files_deleted": [
+    "src/clauded/roles/ (19 stale bare dirs + 24 *-alpine dirs)",
+    "src/clauded/roles/ (25 *-ubuntu dirs renamed to bare names)"
+  ],
+  "implementation_summary": [
+    "git rm -r 19 stale bare role dirs (aws_cli, c, dart, docker, gh, go, gradle, java, kotlin, maven, mongodb, mysql, playwright, poetry, postgresql, redis, rust, sqlite, uv).",
+    "git rm -r 24 *-alpine role dirs.",
+    "git mv 25 *-ubuntu role dirs to bare names (opencode-ubuntu -> opencode).",
+    "provisioner.py: Removed _ROLES_WITH_VARIANTS frozenset and _apply_distro_suffix() method. Updated run() to use _get_base_roles() directly with bare names.",
+    "test_provisioner.py: Removed _ROLES_WITH_VARIANTS from imports. Deleted TestProvisionerApplyDistroSuffix class entirely (Story 04 skips honored). Deleted test_opencode_alpine_raises (Story 04 skip honored). Deleted test_play_includes_roles (Story 04 skip honored). Deleted test_opencode_added_to_roles_with_variants. Fixed validate_roles_exist tests to use bare names. Fixed test_common_role_exists to use bare 'common'. Replaced all 24 remaining _apply_distro_suffix() calls with _get_base_roles() directly.",
+    "Verified wheel build: 25 bare role dirs in artifact, no suffixed dirs."
+  ],
+  "seams_produced": ["bare_role_names"],
+  "seams_consumed": ["alpine_config_rejection", "config_no_vm_distro"],
+  "test_counts": {
+    "passed": 1005,
+    "failed": 0,
+    "skipped": 1,
+    "skipped_note": "1x Story 05 (test_lima.py::test_sets_default_alpine_image)"
+  },
+  "tooling_gates": {
+    "lint": "pass",
+    "format": "pass",
+    "typecheck": "pass",
+    "wheel_build": "pass — 25 bare role dirs confirmed"
+  },
+  "verification_rounds": [
+    {
+      "round": 1,
+      "outcome": "accepted",
+      "timestamp": "2026-05-05T16:00:00Z"
+    }
+  ],
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-05T16:00:00Z"
+}

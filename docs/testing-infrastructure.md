@@ -121,7 +121,7 @@ If integration test automation becomes priority:
 
 **When to Keep Manual Testing**:
 - One-time feature additions following established patterns
-- Environment-specific configurations (Alpine vs Ubuntu)
+- Environment-specific configurations (host differences, VM image variants)
 - Exploratory testing for new tools/versions
 - Acceptance testing for user-facing workflows
 

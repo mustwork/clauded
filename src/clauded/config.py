@@ -13,7 +13,6 @@ from typing import Any, Literal
 import yaml
 
 from .constants import LANGUAGE_CONFIG
-from .distro import SUPPORTED_DISTROS
 
 logger = logging.getLogger(__name__)
 
@@ -40,31 +39,6 @@ class ConfigValidationError(Exception):
     """Raised when config values are invalid."""
 
     pass
-
-
-def _validate_distro(distro: str | None) -> str:
-    """Validate distribution name.
-
-    Args:
-        distro: Distribution name from config, or None for default
-
-    Returns:
-        Validated distro name ('alpine' if None for backward compatibility)
-
-    Raises:
-        ConfigValidationError: If distro is not in SUPPORTED_DISTROS
-    """
-    if distro is None:
-        # Backward compatibility: missing distro defaults to alpine
-        return "alpine"
-
-    if distro not in SUPPORTED_DISTROS:
-        raise ConfigValidationError(
-            f"Unsupported distro '{distro}'. "
-            f"Supported distros: {', '.join(SUPPORTED_DISTROS)}"
-        )
-
-    return distro
 
 
 def _validate_runtime_version(
@@ -290,7 +264,6 @@ class Config:
 
     # VM settings
     vm_name: str = ""
-    vm_distro: str = "alpine"  # Distribution: alpine or ubuntu
     cpus: int = 1
     memory: str = "8GiB"
     disk: str = "20GiB"
@@ -354,7 +327,6 @@ class Config:
 
         return cls(
             vm_name=vm_name,
-            vm_distro=answers.get("distro", "alpine"),
             cpus=int(answers.get("cpus", 1)),
             memory=answers.get("memory", "8GiB"),
             disk=answers.get("disk", "20GiB"),
@@ -456,7 +428,7 @@ class Config:
             raise
 
     @classmethod
-    def load(cls, path: Path) -> "Config":
+    def load(cls, path: Path, *, allow_alpine_legacy: bool = False) -> "Config":
         """Load config from a .clauded.yaml file.
 
         Performs validation and migration:
@@ -464,8 +436,15 @@ class Config:
         - Migrates older config formats
         - Ensures mount_guest matches mount_host (auto-corrects if different)
 
+        When ``allow_alpine_legacy`` is True, configs with ``vm.distro: alpine``
+        load without raising. The CLI uses this for ``--destroy``/``--stop`` so
+        the FR5 migration message (which directs users to ``clauded --destroy``)
+        is actually executable on a legacy Alpine project.
+
         Raises:
             ConfigVersionError: If config version is incompatible
+            ConfigValidationError: If ``vm.distro: alpine`` and
+                ``allow_alpine_legacy`` is False (FR5 migration error).
         """
         with open(path) as f:
             data = yaml.safe_load(f)
@@ -486,8 +465,46 @@ class Config:
             )
             mount_guest = mount_host
 
-        # Validate distro (defaults to alpine if missing for backward compatibility)
-        vm_distro = _validate_distro(data.get("vm", {}).get("distro"))
+        # Handle legacy vm.distro field. The field is no longer part of the
+        # schema; only "ubuntu" (silently discarded) and "alpine" (FR5
+        # migration error, or legacy bypass for --destroy/--stop) are
+        # recognized legacy values. Anything else — typos, deprecated distros,
+        # malformed configs — is rejected, matching the pre-epic strictness of
+        # the removed _validate_distro() helper.
+        _distro = data.get("vm", {}).get("distro")
+        if _distro is not None:
+            if _distro == "alpine":
+                if not allow_alpine_legacy:
+                    raise ConfigValidationError(
+                        "Alpine Linux is no longer supported. This project's\n"
+                        ".clauded.yaml is configured for Alpine, and your"
+                        " existing VM is Alpine-based.\n"
+                        "\n"
+                        "To migrate to Ubuntu (the only supported distro):\n"
+                        "\n"
+                        "  1. Destroy the existing VM:    clauded --destroy\n"
+                        "     (Project files are safe — they live on the"
+                        " host filesystem.)\n"
+                        "  2. Remove the line `distro: alpine` from"
+                        " .clauded.yaml.\n"
+                        "  3. Run `clauded` to provision a fresh Ubuntu VM.\n"
+                        "\n"
+                        "See CHANGELOG.md and docs/migration-from-alpine.md"
+                        " for details."
+                    )
+                # alpine + allow_alpine_legacy: fall through silently for
+                # --destroy/--stop on a legacy Alpine project.
+            elif _distro == "ubuntu":
+                logger.info(
+                    "vm.distro is no longer used; you can remove it from .clauded.yaml"
+                )
+            else:
+                raise ConfigValidationError(
+                    f"Unknown vm.distro value {_distro!r} in .clauded.yaml. "
+                    "The vm.distro field is no longer used and should be "
+                    "removed; only the legacy value 'ubuntu' is accepted for "
+                    "backward compatibility."
+                )
 
         # Validate runtime versions (strict validation for supported versions)
         env = data.get("environment", {})
@@ -528,7 +545,6 @@ class Config:
         return cls(
             version=version,
             vm_name=vm_name,
-            vm_distro=vm_distro,
             cpus=data["vm"]["cpus"],
             memory=data["vm"]["memory"],
             disk=data["vm"]["disk"],
@@ -564,7 +580,6 @@ class Config:
         """Save config to a .clauded.yaml file."""
         vm_data: dict[str, Any] = {
             "name": self.vm_name,
-            "distro": self.vm_distro,
             "cpus": self.cpus,
             "memory": self.memory,
             "disk": self.disk,

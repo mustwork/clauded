@@ -1,0 +1,36 @@
+{
+  "story_id": "06",
+  "pre_impl_questions": [
+    {
+      "category": "SPEC",
+      "ac_id": "AC9",
+      "question": "Are docs/alpine-architecture.md and docs/claude-code-alpine-troubleshooting.md deleted?",
+      "answer": "Yes — both deleted."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC9",
+      "question": "Do the amended docs (architecture.md, configuration.md, supply-chain-security.md, testing-infrastructure.md, README.md, user-stories.md, specs/spec.md) contain no live Alpine references?",
+      "answer": "Yes — all alpine references updated to Ubuntu equivalents (image URLs, package manager references, distro selector wizard step removed from README, etc.)."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC10",
+      "question": "Does CHANGELOG [Unreleased] have a Removed block listing Alpine support, --distro flag, vm.distro config field, *-alpine Ansible roles, distro selection wizard step?",
+      "answer": "Yes — consolidated Removed section with all 5 NFR5 items plus the Changed line 'Ubuntu 24.04 LTS is now the sole supported guest OS'."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC12",
+      "question": "Does the AC12 grep check pass?",
+      "answer": "Yes — all non-allowed alpine hits are: FR5 error message in config.py (allowed), migration guide (allowed), test fixtures testing the FR5 rejection (allowed), incidental strings like 'redis:7-alpine' docker image and 'custom-alpine.qcow2' test URL (allowed). No live production code paths branch on Alpine."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "category": "QUALITY",
+      "question": "Do all tooling gates pass?",
+      "answer": "Yes — lint, format, typecheck all pass. 968 passed, 0 skipped, 0 failed."
+    }
+  ]
+}

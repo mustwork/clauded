@@ -1,6 +1,8 @@
 ---
+# Install Maven on Ubuntu
+
 - name: Install required packages for Maven installation
-  apk:
+  apt:
     name: curl
     state: present
     update_cache: yes

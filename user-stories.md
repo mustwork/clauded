@@ -336,7 +336,7 @@ Ansible-based installation of tools, databases, and frameworks.
 - [x] rustup installer script downloads via HTTPS without checksum verification
 - [x] Binary downloads (Go, Kotlin, Maven, Gradle, Node, bun binary) retain SHA256 verification
 - [x] Documentation explains security model (HTTPS for mutable scripts, checksums for immutable binaries)
-- [x] Follows same pattern as Alpine Linux cloud images
+- [x] Follows same pattern as Ubuntu cloud images
 - [x] No Ansible warnings about missing checksum variables
 - [x] Provisioning succeeds even when upstream updates installer scripts
 
@@ -640,12 +640,12 @@ Extended detection system support for additional manifest formats and databases.
 - [x] MongoDB detection from docker-compose services (already implemented)
 - [x] MongoDB detection from .env MONGODB_URI variables (already implemented)
 - [x] MongoDB detection from pymongo/mongoose/motor dependencies (already implemented)
-- [x] Ansible role provisions mongodb-tools package via apk
+- [x] Ansible role provisions mongodb-tools package
 - [x] CLI tools (mongodump, mongorestore, mongoexport, mongoimport) are available
 - [x] No service management (tools only, not MongoDB server)
 - [x] mongodump --version verification confirms installation
 
-**Note**: This installs MongoDB CLI utilities for working with remote MongoDB instances. Full MongoDB server is not available in Alpine Linux repositories (discontinued after version 3.9 due to licensing changes).
+**Note**: This installs MongoDB CLI utilities for working with remote MongoDB instances. Full MongoDB server is not included.
 
 **Links to**: `specs/mongodb-spec.md`
 
@@ -658,4 +658,4 @@ Extended detection system support for additional manifest formats and databases.
 - **In Progress**: 0
 - **Planned**: 0
 
-All core features are implemented. MongoDB CLI tools support provides database utilities for working with remote MongoDB instances (full MongoDB server is not available in Alpine Linux).
+All core features are implemented. MongoDB CLI tools support provides database utilities for working with remote MongoDB instances (full MongoDB server is not included).

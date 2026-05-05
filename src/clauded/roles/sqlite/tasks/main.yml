@@ -1,9 +1,13 @@
 ---
+# Install SQLite on Ubuntu
+
 - name: Install SQLite
-  apk:
+  apt:
     name:
-      - sqlite
+      - sqlite3
+      - libsqlite3-dev
     state: present
+    update_cache: yes
 
 - name: Verify SQLite installation
   command: sqlite3 --version

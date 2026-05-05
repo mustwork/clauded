@@ -1,0 +1,39 @@
+{
+  "story_id": "04",
+  "pre_impl_questions": [
+    {
+      "category": "SPEC",
+      "ac_id": "AC5",
+      "question": "Does src/clauded/roles/ contain exactly 25 bare dirs?",
+      "answer": "Yes — verified by ls and wheel inspection: aws_cli, c, claude_code, codex, common, dart, docker, gh, go, gradle, java, kotlin, maven, mongodb, mysql, node, opencode, playwright, poetry, postgresql, python, redis, rust, sqlite, uv."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC5",
+      "question": "Are _apply_distro_suffix and _ROLES_WITH_VARIANTS removed from provisioner.py?",
+      "answer": "Yes — both removed. run() calls _get_base_roles() directly and passes bare names to _generate_playbook() and _validate_roles_exist()."
+    },
+    {
+      "category": "ARCHITECTURE",
+      "question": "Does the wheel build include exactly the 25 bare role dirs?",
+      "answer": "Yes — uv build + wheel inspection confirmed 25 dirs, no -alpine or -ubuntu suffixes."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "category": "QUALITY",
+      "question": "Do all tooling gates pass?",
+      "answer": "Yes — lint, format, typecheck all pass. 1005 passed, 1 skipped, 0 failed."
+    },
+    {
+      "category": "TEST",
+      "question": "Were all 4 Story 04 skip markers honored?",
+      "answer": "Yes — test_opencode_alpine_raises, test_applies_alpine_suffix_to_variant_roles, test_all_real_roles_get_suffix, test_play_includes_roles all deleted. TestProvisionerApplyDistroSuffix class deleted entirely."
+    },
+    {
+      "category": "QUALITY",
+      "question": "What is the remaining skip count?",
+      "answer": "1 — test_lima.py::test_sets_default_alpine_image (Story 05)."
+    }
+  ]
+}

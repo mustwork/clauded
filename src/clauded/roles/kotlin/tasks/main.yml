@@ -1,6 +1,9 @@
 ---
+# Install Kotlin on Ubuntu
+# Kotlin requires Java to be installed first (handled by java-ubuntu role)
+
 - name: Install required packages for Kotlin installation
-  apk:
+  apt:
     name:
       - curl
       - unzip

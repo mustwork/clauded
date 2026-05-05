@@ -226,8 +226,8 @@ class LimaVM:
         """Count active SSH sessions in the VM.
 
         Counts pseudo-terminal (pts) devices which correspond to SSH sessions.
-        The 'who' command doesn't work reliably on Alpine Linux because SSH
-        sessions don't always create utmp entries.
+        Uses /dev/pts entries rather than utmp because SSH sessions don't
+        always create utmp entries reliably.
 
         Note: Non-interactive limactl shell commands (with capture_output) don't
         allocate a pts, so this count reflects only interactive sessions.
@@ -357,55 +357,6 @@ class LimaVM:
         """Get the path to Lima's SSH config for this VM."""
         return Path.home() / ".lima" / self.name / "ssh.config"
 
-    def get_vm_distro(self) -> str | None:
-        """Read the actual distro running in the VM via SSH.
-
-        CONTRACT:
-          Inputs:
-            - None (reads from /etc/clauded.json in VM)
-
-          Outputs:
-            - distro: string distro identifier ("alpine", "ubuntu")
-              or None if unavailable
-
-          Invariants:
-            - VM must be running
-            - /etc/clauded.json must exist (created during provisioning)
-
-          Properties:
-            - Returns None if VM not provisioned yet (file doesn't exist)
-            - Returns None if SSH command fails
-
-          Algorithm:
-            1. Use limactl shell to read /etc/clauded.json via SSH
-            2. Parse JSON and extract "distro" field
-            3. Return distro value or None on error
-
-        Returns:
-            The distro identifier from the VM, or None if unavailable
-        """
-        if not self.is_running():
-            return None
-
-        try:
-            result = subprocess.run(
-                ["limactl", "shell", self.name, "cat", "/etc/clauded.json"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            if result.returncode != 0:
-                # File doesn't exist yet (VM not provisioned) or other error
-                return None
-
-            metadata = json.loads(result.stdout)
-            distro = metadata.get("distro")
-            return str(distro) if distro is not None else None
-
-        except (json.JSONDecodeError, subprocess.SubprocessError):
-            return None
-
     def _get_image_config(self) -> dict[str, str]:
         """Get the Lima image configuration with integrity verification.
 
@@ -421,11 +372,10 @@ class LimaVM:
                 "arch": "aarch64",
             }
 
-        # Get distro-specific cloud image
-        from .distro import get_distro_provider
+        # Get Ubuntu cloud image
+        from .downloads import get_cloud_image
 
-        provider = get_distro_provider(self.config.vm_distro)
-        image_data = provider.get_cloud_image()
+        image_data = get_cloud_image()
 
         config = {
             "location": image_data["url"],
@@ -499,9 +449,8 @@ class LimaVM:
             )
 
         # No provision scripts - all configuration handled by Ansible.
-        # Lima user provisions fail on Alpine due to home directory permissions
-        # not being set up when cloud-init runs. Ansible runs after boot when
-        # permissions are correct.
+        # Running Ansible after boot (not via cloud-init provision scripts)
+        # ensures home directories and permissions are fully initialized.
 
         return {
             "vmType": "vz",

@@ -10,12 +10,6 @@
 # Hash verification is not used because upstream providers frequently
 # update artifacts in-place without changing version numbers.
 
-# Alpine Linux cloud image for Lima VMs
-alpine_image:
-  version: "3.21.0"
-  arch: "aarch64"
-  url: "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2"
-
 # Ubuntu cloud image for Lima VMs (24.04 LTS Noble)
 ubuntu_image:
   version: "24.04"

@@ -1,0 +1,26 @@
+{
+  "epic_name": "remove-alpine-support",
+  "status": "complete",
+  "phase": "STORY_07_COMPLETE",
+  "created_at": "2026-05-05T00:00:00Z",
+  "updated_at": "2026-05-05T14:05:00Z",
+  "current_story": null,
+  "completed_stories": ["01", "02", "03", "04", "05", "06", "07"],
+  "blocked_stories": [],
+  "escalated_stories": [],
+  "test_baseline_after_completed_stories": {"passed": 968, "skipped": 0, "failed": 0},
+  "final_gate_results": {"lint": "PASS", "typecheck": "PASS", "coverage_pct": 85.84, "test_counts": {"passed": 968, "failed": 0, "skipped": 0}, "wheel_roles": 25, "nfr3_grep": "PASS"},
+  "phase_history": [
+    {"phase": "SPEC_VALIDATED", "timestamp": "2026-05-05T00:00:00Z", "trigger": "validation_passed"},
+    {"phase": "EXPLORATION_COMPLETE", "timestamp": "2026-05-05T00:03:00Z", "trigger": "code_explorer_agents_returned"},
+    {"phase": "ARCHITECTURE_PRODUCED", "timestamp": "2026-05-05T00:05:00Z", "trigger": "architecture_md_written"},
+    {"phase": "STORIES_DEFINED", "timestamp": "2026-05-05T00:42:00Z", "trigger": "planner_completed"},
+    {"phase": "STORY_01_COMPLETE", "timestamp": "2026-05-05T13:02:00Z", "trigger": "story_verification_passed_round_2", "notes": "Round 1 reversed by team-lead due to 31 red tests; Round 2 accepted with 0 failures, 14 deferred-deletion skips."},
+    {"phase": "STORY_02_COMPLETE", "timestamp": "2026-05-05T13:12:30Z", "trigger": "story_verification_passed_round_1", "notes": "1018 pass, 8 skip, 0 fail. 6 Story-02 skip markers honored (deleted)."},
+    {"phase": "STORY_03_COMPLETE", "timestamp": "2026-05-05T13:21:30Z", "trigger": "story_verification_passed_round_1", "notes": "1008 pass, 5 skip, 0 fail. Architect pulled forward Story 05 cli.py/lima.py simplifications and removed the opencode-alpine guard — Story 04/05 scopes accordingly reduced."},
+    {"phase": "STORY_04_COMPLETE", "timestamp": "2026-05-05T13:30:00Z", "trigger": "story_verification_passed_round_1", "notes": "1005 pass, 1 skip, 0 fail. 43 dir operations: 19 stale bare deleted + 24 alpine deleted + 25 ubuntu renamed to bare (incl. opencode). Wheel build verified."},
+    {"phase": "STORY_05_COMPLETE", "timestamp": "2026-05-05T13:37:00Z", "trigger": "story_verification_passed_round_1", "notes": "968 pass, 0 skip, 0 fail. distro.py deleted, downloads.py/.yml cleaned, lima.get_vm_distro removed. First zero-skip story — code surface is now Alpine-free. Docs/spec/changelog remain."},
+    {"phase": "STORY_06_COMPLETE", "timestamp": "2026-05-05T13:49:30Z", "trigger": "story_verification_passed_round_1", "notes": "968 pass, 0 skip, 0 fail. 2 Alpine docs deleted, 7 docs/spec files amended, CHANGELOG Removed/Changed sections per NFR5. AC12 grep check PASS."},
+    {"phase": "STORY_07_COMPLETE", "timestamp": "2026-05-05T14:05:00Z", "trigger": "story_verification_passed_round_1", "notes": "968 pass, 0 skip, 0 fail. Coverage 85.84%. All 5 gates green. NFR3 grep PASS after 3 stale fixture cleanups. 25 bare roles in wheel. AC13 manual. Release-ready: user to run make bump-minor, make release, tag v0.3.0."}
+  ]
+}

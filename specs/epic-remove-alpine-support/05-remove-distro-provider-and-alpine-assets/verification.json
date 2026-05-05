@@ -1,0 +1,46 @@
+{
+  "story_id": "05",
+  "pre_impl_questions": [
+    {
+      "category": "SPEC",
+      "ac_id": "AC6",
+      "question": "Is src/clauded/distro.py deleted?",
+      "answer": "Yes — git rm'd. mypy now reports 21 source files (was 22)."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC8",
+      "question": "Is get_alpine_image() removed and get_cloud_image() simplified to no-arg ubuntu-only?",
+      "answer": "Yes — get_alpine_image() deleted, get_cloud_image() now takes no args and returns ubuntu_image from downloads.yml."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC7",
+      "question": "Is LimaVM.get_vm_distro() removed?",
+      "answer": "Yes — method body deleted from lima.py."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC8",
+      "question": "Is the alpine_image block removed from downloads.yml?",
+      "answer": "Yes — 5 lines deleted."
+    },
+    {
+      "category": "TEST",
+      "question": "Is the Story 05 skip marker (test_sets_default_alpine_image) honored?",
+      "answer": "Yes — test deleted. test_distro.py and test_downloads_distro.py deleted entirely."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "category": "QUALITY",
+      "question": "Do all tooling gates pass?",
+      "answer": "Yes — lint, format, typecheck all pass. 968 passed, 0 skipped, 0 failed."
+    },
+    {
+      "category": "QUALITY",
+      "question": "Are there any remaining distro.py imports or alpine asset references in src/?",
+      "answer": "None — grep confirms no imports from clauded.distro and no get_alpine_image references in src/."
+    }
+  ]
+}

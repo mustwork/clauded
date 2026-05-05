@@ -1,6 +1,8 @@
 ---
+# Install Go on Ubuntu using official tarball
+
 - name: Install curl for Go download
-  apk:
+  apt:
     name: curl
     state: present
     update_cache: yes

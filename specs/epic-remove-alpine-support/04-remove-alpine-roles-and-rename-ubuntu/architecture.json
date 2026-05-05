@@ -1,0 +1,37 @@
+{
+  "story_id": "04",
+  "story_name": "remove-alpine-roles-and-rename-ubuntu",
+  "owning_modules": ["src/clauded/roles/", "src/clauded/provisioner.py"],
+  "interfaces_touched": [
+    {
+      "module": "src/clauded/roles/",
+      "changes": [
+        "git rm -r 19 stale bare dirs: aws_cli, c, dart, docker, gh, go, gradle, java, kotlin, maven, mongodb, mysql, playwright, poetry, postgresql, redis, rust, sqlite, uv",
+        "git rm -r 24 *-alpine dirs: aws_cli-alpine, c-alpine, claude_code-alpine, codex-alpine, common-alpine, dart-alpine, docker-alpine, gh-alpine, go-alpine, gradle-alpine, java-alpine, kotlin-alpine, maven-alpine, mongodb-alpine, mysql-alpine, node-alpine, playwright-alpine, poetry-alpine, postgresql-alpine, python-alpine, redis-alpine, rust-alpine, sqlite-alpine, uv-alpine",
+        "git mv 25 *-ubuntu to bare: aws_cli-ubuntu->aws_cli, c-ubuntu->c, claude_code-ubuntu->claude_code, codex-ubuntu->codex, common-ubuntu->common, dart-ubuntu->dart, docker-ubuntu->docker, gh-ubuntu->gh, go-ubuntu->go, gradle-ubuntu->gradle, java-ubuntu->java, kotlin-ubuntu->kotlin, maven-ubuntu->maven, mongodb-ubuntu->mongodb, mysql-ubuntu->mysql, node-ubuntu->node, opencode-ubuntu->opencode, playwright-ubuntu->playwright, poetry-ubuntu->poetry, postgresql-ubuntu->postgresql, python-ubuntu->python, redis-ubuntu->redis, rust-ubuntu->rust, sqlite-ubuntu->sqlite, uv-ubuntu->uv"
+      ]
+    },
+    {
+      "module": "src/clauded/provisioner.py",
+      "changes": [
+        "Remove _ROLES_WITH_VARIANTS frozenset",
+        "Remove _apply_distro_suffix() method",
+        "Update run() to call _get_base_roles() directly (no suffix application)",
+        "opencode-alpine guard already removed in Story 03"
+      ]
+    }
+  ],
+  "public_api_changes": [
+    "provisioner.py no longer exports _ROLES_WITH_VARIANTS or _apply_distro_suffix",
+    "Provisioning logs now emit bare role names: 'Roles: common, python, docker, ...'"
+  ],
+  "files_deleted": [],
+  "files_modified": [
+    "src/clauded/provisioner.py",
+    "tests/test_provisioner.py",
+    "CHANGELOG.md"
+  ],
+  "seams_produced": ["bare_role_names"],
+  "seams_consumed": ["alpine_config_rejection", "config_no_vm_distro"],
+  "cross_story_notes": "After this story, roles/ has exactly 25 bare dirs. test_provisioner.py Story 04 skips (4) are deleted. Story 05 skip (test_lima.py) still outstanding."
+}

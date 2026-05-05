@@ -1,0 +1,32 @@
+{
+  "story_id": "01",
+  "story_name": "block-alpine-configs",
+  "owning_module": "src/clauded/config.py",
+  "interfaces_touched": [
+    {
+      "module": "src/clauded/config.py",
+      "function": "_validate_distro",
+      "change": "Add alpine == 'alpine' branch that raises ConfigValidationError with FR5 multi-line message BEFORE the existing unsupported-distro raise. Do NOT include version placeholder."
+    }
+  ],
+  "public_api_changes": [
+    "Config.load() now raises ConfigValidationError when vm.distro: alpine is encountered — this is the alpine_config_rejection seam contract."
+  ],
+  "files_created": [
+    "docs/migration-from-alpine.md"
+  ],
+  "files_modified": [
+    "src/clauded/config.py",
+    "tests/test_config.py",
+    "CHANGELOG.md"
+  ],
+  "files_deleted": [],
+  "seams_produced": [
+    {
+      "name": "alpine_config_rejection",
+      "contract": "Config.load() raises ConfigValidationError with message containing 'Alpine Linux is no longer supported' for vm.distro: alpine"
+    }
+  ],
+  "seams_consumed": [],
+  "cross_story_notes": "Stories 02-07 all load configs in tests — any existing alpine fixture used in tests will trigger this error. Those test fixtures must be cleaned up in Stories 02/03 as planned."
+}

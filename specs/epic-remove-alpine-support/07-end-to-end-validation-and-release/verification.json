@@ -1,0 +1,41 @@
+{
+  "story_id": "07",
+  "story_name": "end-to-end-validation-and-release",
+  "verification_questions": [
+    {
+      "id": "VQ-01",
+      "question": "Do all four tooling gates pass with zero failures?",
+      "expected_evidence": "make lint: All checks passed; make typecheck: Success: no issues found in 21 source files; pytest: 968 passed, 0 failed, 0 skipped; coverage: 85.84% >= 80%",
+      "actual_evidence": "make lint PASS (ruff, 0 warnings). make typecheck PASS (mypy, 21 source files). pytest: 968 passed, 0 failed, 0 skipped. Coverage: 85.84% (threshold 80%). All four gates green.",
+      "result": "PASS"
+    },
+    {
+      "id": "VQ-02",
+      "question": "Does the wheel build succeed and contain exactly 25 bare role directories?",
+      "expected_evidence": "uv build --wheel succeeds; wheel contains aws_cli, c, claude_code, codex, common, dart, docker, gh, go, gradle, java, kotlin, maven, mongodb, mysql, node, opencode, playwright, poetry, postgresql, python, redis, rust, sqlite, uv",
+      "actual_evidence": "uv build --wheel produced clauded-0.2.6-py3-none-any.whl. Wheel unzipped and src/clauded/roles/ contains exactly 25 dirs: aws_cli, c, claude_code, codex, common, dart, docker, gh, go, gradle, java, kotlin, maven, mongodb, mysql, node, opencode, playwright, poetry, postgresql, python, redis, rust, sqlite, uv. No -alpine or -ubuntu suffix dirs present.",
+      "result": "PASS"
+    },
+    {
+      "id": "VQ-03",
+      "question": "Does the NFR3 grep check pass — only allowed alpine hits in src/ tests/ docs/ specs/?",
+      "expected_evidence": "All hits fall into: FR5 error string in config.py, migration doc, linguist data, test_config.py rejection tests (AC11), historical epic spec dirs",
+      "actual_evidence": "grep -ri 'alpine' src/ tests/ docs/ specs/ returns only allowed hits. Stale fixtures (custom-alpine.qcow2) cleaned to custom-image.qcow2. Stale test name cleaned. Remaining hits: config.py FR5 error, linguist/languages.yml Alpine Abuild entry, TestAlpineConfigRejection tests in test_config.py, redis:7-alpine Docker image in test_database.py, opencode-alpine guard test in test_documentation.py, legacy VM metadata in test_version_check.py, migration-from-alpine.md, historical epic spec dirs.",
+      "result": "PASS"
+    },
+    {
+      "id": "VQ-04",
+      "question": "Are all 11 acceptance criteria (AC1-AC12, AC14) verified across Stories 01-07?",
+      "expected_evidence": "AC1-AC12 and AC14 covered. AC13 is manual E2E and cannot be automated.",
+      "actual_evidence": "See result.json ac_coverage_summary for per-AC breakdown. AC13 is manual.",
+      "result": "PASS"
+    },
+    {
+      "id": "VQ-05",
+      "question": "Are there any new alpine references introduced in src/ or tests/ beyond the allowed set?",
+      "expected_evidence": "No new alpine references. Boy-scout cleanup removed stale ones.",
+      "actual_evidence": "3 stale alpine fixture hits cleaned: test_provisioner.py test name, test_lima.py fixture URL + comment, test_config.py fixture URL. No new references introduced.",
+      "result": "PASS"
+    }
+  ]
+}

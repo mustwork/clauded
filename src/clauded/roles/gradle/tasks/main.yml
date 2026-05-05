@@ -1,6 +1,8 @@
 ---
+# Install Gradle on Ubuntu
+
 - name: Install required packages for Gradle installation
-  apk:
+  apt:
     name:
       - curl
       - unzip

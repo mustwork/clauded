@@ -205,10 +205,9 @@ environment:
 ```
 
 **Installation Details**:
-- Installed via Alpine apk
+- Installed via deadsnakes PPA (apt)
 - Set as system default (`python3` command)
 - Includes `pip` and `venv`
-- Installed packages: `python3`, `python3-dev`, `py3-pip`
 
 **Version Selection**:
 - `"3.12"`: Latest stable (recommended for new projects)
@@ -233,7 +232,7 @@ environment:
 ```
 
 **Installation Details**:
-- Installed via Alpine apk from edge/community repository
+- Installed via NodeSource apt repository
 - Includes `npm`, `npx`, and `corepack` (enables yarn/pnpm)
 - System-wide installation
 
@@ -260,7 +259,7 @@ environment:
 ```
 
 **Installation Details**:
-- Installed via Alpine apk (OpenJDK packages)
+- Installed via apt (OpenJDK packages)
 - Maven and Gradle auto-bundled when Java is selected
 - System-wide installation
 
@@ -392,7 +391,7 @@ environment:
 ```
 
 **Installation Details**:
-- GCC or Clang compiler installed via Alpine apk
+- GCC or Clang compiler installed via apt
 - Includes build tools: make, cmake, gdb, valgrind
 - CC and CXX environment variables set appropriately
 - System-wide installation
@@ -447,7 +446,7 @@ environment:
 
 #### `gh`
 - **Package**: GitHub CLI
-- **Repository**: Alpine apk (github-cli package)
+- **Repository**: Official GitHub CLI apt repository
 - **What it does**: GitHub workflow automation
 - **Use cases**: PR creation, issue management, GitHub Actions
 
@@ -532,7 +531,7 @@ environment:
 - **Command**: `claude`
 - **What it does**: AI-assisted development CLI
 - **Use cases**: Code generation, refactoring, debugging with Claude AI
-- **Alpine deps**: `libgcc`, `libstdc++`, `ripgrep`
+- **Dependencies**: `ripgrep`
 - **Auto-accept**: See [Claude Code Permissions](#claude-code-permissions) below
 
 #### `codex`
@@ -543,7 +542,7 @@ environment:
 - **Selectable as harness**: pick `codex` as your active harness to launch the codex TUI on `clauded`
 
 #### `opencode`
-- **Installation**: Official install script (`https://opencode.ai/install`), Ubuntu only (Alpine is rejected at config-load time)
+- **Installation**: Official install script (`https://opencode.ai/install`)
 - **Binary**: `~/.local/bin/opencode`
 - **Command**: `opencode`
 - **What it does**: Provider-agnostic AI coding harness with a TUI
@@ -690,7 +689,7 @@ versions:
 | `codex` | `codex` | `--dangerously-bypass-approvals-and-sandbox` (when `claude.dangerously_skip_permissions: true`) | Reuses the same `claude.dangerously_skip_permissions` setting. |
 | `opencode` | `opencode` | none | The opencode TUI does not accept `--dangerously-*` flags; the permission setting is ignored for this harness regardless of value. |
 
-No env-var prefixes are injected ahead of the launched binary; the previous Alpine/musl ripgrep workaround was removed when the launch dispatcher was introduced (see CHANGELOG.md).
+No env-var prefixes are injected ahead of the launched binary.
 
 ### Selecting a harness
 
@@ -750,7 +749,7 @@ environment:
   frameworks: []
 ```
 
-This creates a bare Alpine VM with only base packages (from the `common` role).
+This creates a bare Ubuntu VM with only base packages (from the `common` role).
 
 ---
 

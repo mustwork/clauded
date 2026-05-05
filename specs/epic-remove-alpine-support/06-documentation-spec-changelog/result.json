@@ -1,0 +1,55 @@
+{
+  "story_id": "06",
+  "story_name": "documentation-spec-changelog",
+  "status": "complete",
+  "files_created": [],
+  "files_modified": [
+    "src/clauded/lima.py",
+    "docs/architecture.md",
+    "docs/configuration.md",
+    "docs/supply-chain-security.md",
+    "docs/testing-infrastructure.md",
+    "README.md",
+    "user-stories.md",
+    "specs/spec.md",
+    "CHANGELOG.md"
+  ],
+  "files_deleted": [
+    "docs/alpine-architecture.md",
+    "docs/claude-code-alpine-troubleshooting.md"
+  ],
+  "implementation_summary": [
+    "lima.py: Replaced two Alpine-referencing comments with Ubuntu-appropriate text (AC7).",
+    "docs/alpine-architecture.md: Deleted.",
+    "docs/claude-code-alpine-troubleshooting.md: Deleted.",
+    "docs/architecture.md: Updated ASCII diagram (Alpine→Ubuntu), image URL, APK→APT reference, performance section (Alpine→Ubuntu image times).",
+    "docs/configuration.md: Updated all 'Installed via Alpine apk' → apt/NodeSource/etc.; removed opencode Alpine rejection note; removed Alpine/musl ripgrep workaround mention; 'bare Alpine VM' → 'bare Ubuntu VM'; removed --distro flag section.",
+    "docs/supply-chain-security.md: Removed Alpine image hash-mismatch rationale line; updated downloads table (Alpine→Ubuntu image).",
+    "docs/testing-infrastructure.md: Replaced 'Alpine vs Ubuntu' with 'host differences, VM image variants'.",
+    "README.md: Removed 'Alpine Linux (default)' from Supported Distributions; removed distro wizard step from example; removed §7 'Change Distribution' section; removed distro: line from config example; updated Python boot note.",
+    "user-stories.md: Fixed three alpine-specific lines (apk, MongoDB Alpine note x2).",
+    "specs/spec.md: Updated Base OS, image URL reference, opencode clause, Ansible roles table (apk→apt/systemd), performance timing, constraint, External Dependencies.",
+    "CHANGELOG.md: Consolidated Removed section per NFR5 (Alpine support, --distro flag, vm.distro field, *-alpine roles, wizard step). Added Changed line 'Ubuntu 24.04 LTS is now the sole supported guest OS'. Removed duplicate wizard step entry. Cleaned opencode Added entry."
+  ],
+  "ac12_result": "PASS",
+  "seams_produced": [],
+  "test_counts": {
+    "passed": 968,
+    "failed": 0,
+    "skipped": 0
+  },
+  "tooling_gates": {
+    "lint": "pass",
+    "format": "pass",
+    "typecheck": "pass"
+  },
+  "verification_rounds": [
+    {
+      "round": 1,
+      "outcome": "accepted",
+      "timestamp": "2026-05-05T17:00:00Z"
+    }
+  ],
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-05T17:00:00Z"
+}

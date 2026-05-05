@@ -1,0 +1,50 @@
+{
+  "story_id": "01",
+  "pre_impl_questions": [
+    {
+      "category": "SPEC",
+      "ac_id": "AC1",
+      "question": "Does Config.load() raise ConfigValidationError when vm.distro: alpine is encountered?",
+      "answer": "Yes — _validate_distro() raises ConfigValidationError with the FR5 multi-line message when distro == 'alpine'."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC1",
+      "question": "Does the error message contain the three migration steps, the migration doc reference, and no version placeholder?",
+      "answer": "Yes — message contains 'clauded --destroy', 'distro: alpine', 'docs/migration-from-alpine.md', and no 'vX.Y' placeholder."
+    },
+    {
+      "category": "ARCHITECTURE",
+      "question": "Is config.py the single Alpine-detection point (NFR2)?",
+      "answer": "Yes — the check lives exclusively in _validate_distro(), called from Config.load(). Every CLI workflow inherits the rejection by loading config first."
+    },
+    {
+      "category": "QUALITY",
+      "question": "Are non-Alpine config loads unaffected?",
+      "answer": "Yes — distro: ubuntu and missing distro field both load successfully. The default was changed from 'alpine' to 'ubuntu' to avoid triggering the guard on default Config instances."
+    },
+    {
+      "category": "TEST",
+      "ac_id": "AC11",
+      "question": "Is a unit test added to tests/test_config.py for the Alpine-config rejection path?",
+      "answer": "Yes — TestAlpineConfigRejection class with 5 tests covering: error type, message content (migration steps + doc reference), no version placeholder, ubuntu loads ok, no-distro-field loads ok."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "category": "QUALITY",
+      "question": "Do lint, format, and typecheck all pass after Story 01?",
+      "answer": "Yes — ruff check, ruff format, and mypy all pass with no errors."
+    },
+    {
+      "category": "QUALITY",
+      "question": "What is the test count after Story 01?",
+      "answer": "1025 passed, 31 failed. The 31 failures are all Alpine-fixture tests (test_config_distro, test_cli_distro, test_distro_change, test_version_check, test_provisioner, test_lima) that are explicitly planned for removal in Stories 02-05."
+    },
+    {
+      "category": "ARCHITECTURE",
+      "question": "Was the Config.vm_distro default changed from 'alpine' to 'ubuntu'?",
+      "answer": "Yes — necessary side-effect: the previous default 'alpine' would cause any default-constructed Config to trigger the guard on save/reload. Changed in dataclass default, from_wizard fallback, and _validate_distro None-case."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "passed": 1005,
+  "failed": 0,
+  "skipped": 1,
+  "total": 1006,
+  "command": "uv run pytest tests/",
+  "timestamp": "2026-05-05T00:00:00Z"
+}

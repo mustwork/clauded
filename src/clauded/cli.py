@@ -251,7 +251,7 @@ def _update_claude_code(vm: LimaVM, config: Config, version_str: str) -> bool:
     """
     downloads = get_downloads()
     gcs_bucket = downloads["claude_code"]["gcs_bucket"]
-    platform = "linux-arm64-musl" if config.vm_distro == "alpine" else "linux-arm64"
+    platform = "linux-arm64"
     url = f"{gcs_bucket}/{version_str}/{platform}/claude"
     # Download to temp file, validate, then atomically move into place
     cmd = (
@@ -528,84 +528,6 @@ def _check_library_updates(vm: LimaVM, config: Config) -> None:
             click.echo(f"  {name} update failed. Existing version preserved.", err=True)
 
 
-def _handle_distro_change(config: Config, vm: LimaVM, config_path: Path) -> bool:
-    """Detect and handle VM distro changes requiring recreation.
-
-    CONTRACT:
-      Inputs:
-        - config: Config with vm_distro field
-        - vm: LimaVM instance to check
-        - config_path: Path to .clauded.yaml
-
-      Outputs:
-        - bool: True if VM was recreated, False if no action taken
-
-      Invariants:
-        - Only checks if VM is running
-        - Only prompts if distro mismatch detected
-        - VM is destroyed and recreated on user confirmation
-
-      Properties:
-        - User controlled: requires explicit y/N confirmation
-        - Safe: defaults to no action (default=False)
-
-      Algorithm:
-        1. Check if VM is running (skip if not)
-        2. Read actual distro from VM via SSH
-        3. Compare with config.vm_distro
-        4. If mismatch: prompt user with clear warning
-        5. If user confirms: destroy and recreate VM
-        6. If user cancels: exit without changes
-
-    Args:
-        config: Current configuration
-        vm: VM instance to check
-        config_path: Path to config file
-
-    Returns:
-        True if VM was recreated, False otherwise
-
-    Raises:
-        SystemExit: If user cancels the distro change
-    """
-    if not vm.is_running():
-        return False
-
-    vm_distro = vm.get_vm_distro()
-
-    # No distro metadata yet (VM not provisioned or method returns non-string)
-    if not isinstance(vm_distro, str):
-        return False
-
-    # Distros match - no action needed
-    if vm_distro == config.vm_distro:
-        return False
-
-    # Distro mismatch detected - warn user
-    click.echo(
-        f"\n⚠️  Distribution mismatch detected!\n\n"
-        f"  Current VM distro: {vm_distro}\n"
-        f"  Config distro:     {config.vm_distro}\n\n"
-        f"Changing distribution requires recreating the VM.\n"
-        f"This will destroy all data in the VM.\n",
-        err=True,
-    )
-
-    should_recreate = click.confirm(
-        f"Destroy VM and recreate with {config.vm_distro}?",
-        default=False,
-    )
-
-    if not should_recreate:
-        click.echo("\nDistro change cancelled. Exiting without changes.")
-        raise SystemExit(0)
-
-    # User confirmed - destroy and recreate
-    click.echo(f"\nDestroying VM '{vm.name}'...")
-    vm.destroy()
-    return True
-
-
 def _handle_crash_recovery(config: Config, config_path: Path) -> None:
     """Handle incomplete VM update detected on startup.
 
@@ -709,12 +631,6 @@ def _handle_crash_recovery(config: Config, config_path: Path) -> None:
     help="Enable verbose output for detection, VM creation, and provisioning",
 )
 @click.option(
-    "--distro",
-    type=str,
-    default=None,
-    help="Linux distribution to use (alpine or ubuntu)",
-)
-@click.option(
     "--harness",
     type=click.Choice(list(HARNESS_NAMES)),
     default=None,
@@ -733,7 +649,6 @@ def main(
     detect_only: bool = False,
     no_detect: bool = False,
     debug: bool = False,
-    distro: str | None = None,
     harness: str | None = None,
 ) -> None:
     """clauded - Isolated, per-project Lima VMs.
@@ -750,34 +665,8 @@ def main(
             format="[DEBUG] %(name)s: %(message)s",
         )
 
-    # Validate --distro flag if provided
-    if distro is not None:
-        from .distro import SUPPORTED_DISTROS
-
-        if distro not in SUPPORTED_DISTROS:
-            click.echo(
-                f"Error: Unsupported distro '{distro}'. "
-                f"Supported distros: {', '.join(SUPPORTED_DISTROS)}",
-                err=True,
-            )
-            raise SystemExit(1)
-
     config_path = Path.cwd() / ".clauded.yaml"
     project_path = Path.cwd().resolve()
-
-    # Check for --distro conflicts with existing config
-    if distro is not None and config_path.exists():
-        config = Config.load(config_path)
-        if config.vm_distro != distro:
-            click.echo(
-                f"Error: --distro {distro} conflicts with existing config "
-                f"(configured distro: {config.vm_distro}).\n"
-                f"To change distro, either:\n"
-                f"  1. Delete the VM and config with: clauded --destroy\n"
-                f"  2. Remove --distro flag to use existing config",
-                err=True,
-            )
-            raise SystemExit(1)
 
     # Handle --detect alone (detection-only mode, outputs JSON)
     # Note: --detect with --reprovision is handled separately below
@@ -792,7 +681,10 @@ def main(
             click.echo("No .clauded.yaml found in current directory.")
             raise SystemExit(1)
 
-        config = Config.load(config_path)
+        # Tolerate legacy vm.distro: alpine so users following the FR5
+        # migration message (step 1: clauded --destroy) can actually destroy
+        # their existing Alpine VM.
+        config = Config.load(config_path, allow_alpine_legacy=True)
         vm = LimaVM(config, harness_override=harness)
 
         if vm.exists():
@@ -810,7 +702,9 @@ def main(
             click.echo("No .clauded.yaml found in current directory.")
             raise SystemExit(1)
 
-        config = Config.load(config_path)
+        # Stopping a legacy Alpine VM should not require pre-emptive config
+        # editing — same rationale as --destroy above.
+        config = Config.load(config_path, allow_alpine_legacy=True)
         vm = LimaVM(config, harness_override=harness)
 
         if not vm.exists() or not vm.is_running():
@@ -914,12 +808,10 @@ def main(
         try:
             if no_detect:
                 # Skip detection, use default wizard
-                config = wizard.run(project_path, distro_override=distro)
+                config = wizard.run(project_path)
             else:
                 # Run wizard with detection-based defaults
-                config = run_with_detection(
-                    project_path, debug=debug, distro_override=distro
-                )
+                config = run_with_detection(project_path, debug=debug)
             config.save(config_path)
             click.echo("\nCreated .clauded.yaml")
         except KeyboardInterrupt:
@@ -962,25 +854,8 @@ def main(
         if not vm.is_running():
             vm.start(debug=debug)
 
-        # Check for distro changes (requires VM recreation)
-        vm_recreated = _handle_distro_change(config, vm, config_path)
-        if vm_recreated:
-            # VM was destroyed and needs recreation
-            # Treat like first-time creation
-            with config.atomic_update(config.vm_name, config_path) as old_vm_name:
-                vm.create(debug=debug)
-                provisioner = Provisioner(config, vm, debug=debug)
-                provisioner.run()
-                provisioned = True
-
-                if old_vm_name and old_vm_name != config.vm_name:
-                    try:
-                        _prompt_vm_deletion(old_vm_name)
-                    except KeyboardInterrupt:
-                        click.echo("\nSkipping VM cleanup.")
-
         # Check for clauded version change and library updates
-        if not vm_recreated and not reprovision:
+        if not reprovision:
             if _handle_version_change(vm):
                 provisioner = Provisioner(config, vm, debug=debug)
                 provisioner.run()
@@ -989,7 +864,7 @@ def main(
                 _check_library_updates(vm, config)
 
         # Re-run provisioning if requested (independent of start)
-        if reprovision and not vm_recreated:
+        if reprovision:
             # If --detect flag also provided, run detection and merge with config
             if detect_only:
                 updated_config, changes_made = apply_detection_to_config(

@@ -1,0 +1,52 @@
+{
+  "story_id": "03",
+  "story_name": "drop-vm-distro-from-schema",
+  "owning_module": "src/clauded/config.py",
+  "interfaces_touched": [
+    {
+      "module": "src/clauded/config.py",
+      "changes": [
+        "Remove SUPPORTED_DISTROS import from .distro",
+        "Remove _validate_distro() function entirely",
+        "Remove vm_distro field from Config dataclass",
+        "Config.load(): read and discard vm.distro field (ubuntu -> INFO log, alpine -> existing FR5 guard handled differently now that the field is gone; alpine still raises via inline check)",
+        "Config.from_wizard(): remove vm_distro=answers.get('distro', 'ubuntu') line",
+        "Config.save(): remove 'distro': self.vm_distro from vm_data"
+      ]
+    },
+    {
+      "module": "src/clauded/provisioner.py",
+      "changes": [
+        "Remove vm_distro Ansible variable (~line 381)"
+      ]
+    },
+    {
+      "module": "src/clauded/detect/wizard_integration.py",
+      "changes": [
+        "Remove vm_distro=config.vm_distro from apply_detection_to_config (~line 483)"
+      ]
+    }
+  ],
+  "public_api_changes": [
+    "Config dataclass no longer has vm_distro attribute",
+    "Config.save() no longer emits distro key under vm",
+    "Config.load() silently discards distro: ubuntu with INFO log; distro: alpine still raises ConfigValidationError"
+  ],
+  "files_deleted": [
+    "tests/test_config_distro.py"
+  ],
+  "files_modified": [
+    "src/clauded/config.py",
+    "src/clauded/provisioner.py",
+    "src/clauded/detect/wizard_integration.py",
+    "tests/test_config.py",
+    "tests/test_version_check.py",
+    "tests/test_provisioner.py",
+    "tests/test_detect_integration.py",
+    "tests/test_lima.py",
+    "CHANGELOG.md"
+  ],
+  "seams_produced": ["config_no_vm_distro"],
+  "seams_consumed": ["alpine_config_rejection"],
+  "cross_story_notes": "After this story, Config has no vm_distro. cli.py line 254 and lima.py line 427 still reference it — those are Story 05 scope. Those files still compile because the field is accessed at runtime, not import time."
+}

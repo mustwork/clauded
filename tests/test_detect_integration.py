@@ -1229,10 +1229,6 @@ class TestWizardIntegrationFrameworkOptions:
             patch("clauded.detect.wizard_integration._menu_multi_select") as mock_multi,
             patch("clauded.detect.wizard_integration._menu_select") as mock_select,
             patch(
-                "clauded.detect.wizard_integration._select_distro",
-                return_value="ubuntu",
-            ),
-            patch(
                 "clauded.detect.wizard_integration.click.confirm",
                 side_effect=self._fake_confirm,
             ),
@@ -1325,10 +1321,6 @@ class TestWizardIntegrationFrameworkOptions:
             patch("clauded.detect.wizard_integration._menu_multi_select") as mock_multi,
             patch("clauded.detect.wizard_integration._menu_select") as mock_select,
             patch(
-                "clauded.detect.wizard_integration._select_distro",
-                return_value="ubuntu",
-            ),
-            patch(
                 "clauded.detect.wizard_integration.click.confirm",
                 side_effect=self._fake_confirm,
             ),
@@ -1367,7 +1359,6 @@ class TestWizardIntegrationFrameworkOptions:
             disk="20GiB",
             mount_host="/test/project",
             mount_guest="/workspace",
-            vm_distro="ubuntu",
             python="3.12",
             node="20",
             frameworks=["claude-code", "codex", "opencode"],
@@ -1439,10 +1430,6 @@ class TestWizardIntegrationHarnessStep:
         with (
             patch("clauded.detect.wizard_integration._menu_multi_select") as mock_multi,
             patch("clauded.detect.wizard_integration._menu_select") as mock_select,
-            patch(
-                "clauded.detect.wizard_integration._select_distro",
-                return_value="ubuntu",
-            ),
             patch(
                 "clauded.detect.wizard_integration.click.confirm",
                 side_effect=self._fake_confirm,

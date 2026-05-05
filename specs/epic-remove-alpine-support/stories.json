@@ -1,0 +1,318 @@
+{
+  "epic_name": "remove-alpine-support",
+  "created_at": "2026-05-05T00:10:00Z",
+  "story_order": [
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07"
+  ],
+  "seams": {
+    "alpine_config_rejection": {
+      "owner": "01",
+      "type": "error-contract",
+      "contract": "Config.load() raises ConfigValidationError with message containing 'Alpine Linux is no longer supported' for `vm.distro: alpine`",
+      "consumers": [
+        "02",
+        "03",
+        "04",
+        "05",
+        "06",
+        "07"
+      ]
+    },
+    "bare_role_names": {
+      "owner": "04",
+      "type": "data-contract",
+      "contract": "provisioner._get_base_roles returns role names without -alpine/-ubuntu suffix; e.g. 'common', 'python', 'docker'",
+      "consumers": [
+        "05",
+        "06",
+        "07"
+      ]
+    },
+    "config_no_vm_distro": {
+      "owner": "03",
+      "type": "schema-contract",
+      "contract": "Config dataclass has no `vm_distro` attribute; Config.save emits no `distro` key under `vm`",
+      "consumers": [
+        "04",
+        "05",
+        "06",
+        "07"
+      ]
+    }
+  },
+  "stories": [
+    {
+      "id": "01",
+      "name": "block-alpine-configs",
+      "directory": "specs/epic-remove-alpine-support/01-block-alpine-configs",
+      "title": "Block Alpine configs and surface migration message",
+      "description": "Introduce a hard error in Config.load() when vm.distro: alpine is encountered, emitting the FR5 multi-line migration message before any VM operation occurs. Add the migration guide doc and a unit test for the rejection path. All other Alpine code remains in place — this story establishes the single detection point (NFR2) that makes subsequent removals safe.",
+      "owning_module": "config.py",
+      "acceptance_criteria": [
+        "AC1"
+      ],
+      "scope_in": [
+        "src/clauded/config.py — replace _validate_distro() raise with the FR5 multi-line ConfigValidationError message when distro == 'alpine'",
+        "docs/migration-from-alpine.md — new file; AI-agent-readable migration steps referenced from the FR5 error message",
+        "tests/test_config.py — add unit test asserting ConfigValidationError is raised with the expected message fragment",
+        "CHANGELOG.md — [Unreleased] entry noting the Alpine config rejection guardrail",
+        "Omit version placeholder: do NOT include 'vX.Y.0' in the error message; keep the message version-agnostic"
+      ],
+      "scope_out": [
+        "Removing any other Alpine code (roles, distro.py, --distro flag, wizard step) — those are Stories 02-05",
+        "Changing Config.vm_distro field or schema — that is Story 03",
+        "Updating documentation beyond migration-from-alpine.md — that is Story 06"
+      ],
+      "dependencies": [],
+      "seams_produced": [
+        "alpine_config_rejection"
+      ],
+      "seams_consumed": [],
+      "observable_change": "Running clauded against a .clauded.yaml with distro: alpine now exits with the actionable migration error. All Ubuntu workflows are unaffected.",
+      "status": "done",
+      "estimated_complexity": "S",
+      "verification_rounds": 1,
+      "reopened_reason": "31 tests failing; baseline taint disallowed"
+    },
+    {
+      "id": "02",
+      "name": "remove-distro-flag-and-wizard-step",
+      "directory": "specs/epic-remove-alpine-support/02-remove-distro-flag-and-wizard-step",
+      "title": "Remove the --distro flag and wizard distro-selection step",
+      "description": "Delete the --distro Click option from cli.py, _handle_distro_change(), and the distro_override parameter and _select_distro() function from wizard.py. Also remove the distro_override and _select_distro call sites in detect/wizard_integration.py (not enumerated in spec FRs but discovered via exploration). Delete or trim the corresponding test files.",
+      "owning_module": "cli.py + wizard.py",
+      "acceptance_criteria": [
+        "AC2",
+        "AC3"
+      ],
+      "scope_in": [
+        "src/clauded/cli.py — remove --distro Click option (~line 712), _handle_distro_change (~line 531), distro_override pass-through (~lines 917, 921), SUPPORTED_DISTROS lazy import",
+        "src/clauded/wizard.py — remove _select_distro (~line 116), distro_override parameter on run() (~line 154), answers['distro'] assignment (~line 167), lazy distro imports",
+        "src/clauded/detect/wizard_integration.py — remove distro_override param (~line 30), _select_distro call (~line 103), vm_distro pass-through (~lines 488, 860)",
+        "tests/test_cli_distro.py — delete",
+        "tests/test_wizard_distro.py — delete",
+        "tests/test_distro_change.py — delete",
+        "tests/test_detect_integration.py — strip distro_override and vm_distro references",
+        "tests/test_wizard.py — strip distro_override pass-through",
+        "CHANGELOG.md — [Unreleased] entry noting --distro flag and wizard distro step removal"
+      ],
+      "scope_out": [
+        "Removing vm_distro from Config dataclass or YAML schema — that is Story 03",
+        "Removing distro.py or DistroProvider — that is Story 05",
+        "Removing Alpine Ansible roles — that is Story 04"
+      ],
+      "dependencies": [
+        "01"
+      ],
+      "seams_produced": [],
+      "seams_consumed": [
+        "alpine_config_rejection"
+      ],
+      "observable_change": "The wizard opens at the Python version question with no prior distro prompt. clauded --distro ubuntu exits with Click's 'no such option' error.",
+      "status": "done",
+      "estimated_complexity": "M"
+    },
+    {
+      "id": "03",
+      "name": "drop-vm-distro-from-schema",
+      "directory": "specs/epic-remove-alpine-support/03-drop-vm-distro-from-schema",
+      "title": "Drop vm.distro from the Config schema and dataclass",
+      "description": "Remove the vm_distro attribute from the Config dataclass. Config.load() reads and discards any distro field for ubuntu (emitting an INFO log line per NFR4) and rejects alpine via the Story 01 guard. Config.save() no longer emits a distro key. Update provisioner.py to drop the vm_distro playbook variable. Also clean up the detect/wizard_integration.py vm_distro pass-through (lines 488, 860) that remain after Story 02.",
+      "owning_module": "config.py",
+      "acceptance_criteria": [
+        "AC4"
+      ],
+      "scope_in": [
+        "src/clauded/config.py — remove vm_distro field from Config dataclass, remove _validate_distro(), read and silently discard distro: ubuntu with INFO log, ensure Config.save() emits no distro key",
+        "src/clauded/provisioner.py — remove vm_distro Ansible variable (~line 381)",
+        "src/clauded/detect/wizard_integration.py — remove remaining vm_distro pass-through (~lines 488, 860) if not already addressed in Story 02",
+        "tests/test_config_distro.py — delete or fold alpine-rejection test into test_config.py",
+        "tests/test_config.py — update any fixture that passes vm_distro kwarg; add/verify the alpine-rejection test (AC1 unit coverage)",
+        "tests/test_version_check.py — strip vm_distro='alpine' from Config fixtures (~18 references)",
+        "tests/test_database.py — strip vm_distro='alpine' from fixtures",
+        "CHANGELOG.md — [Unreleased] entry noting vm.distro config field removal"
+      ],
+      "scope_out": [
+        "Removing --distro CLI flag or wizard distro step — that is Story 02",
+        "Removing Alpine roles or renaming ubuntu roles — that is Story 04",
+        "Removing distro.py module — that is Story 05"
+      ],
+      "dependencies": [
+        "01"
+      ],
+      "seams_produced": [
+        "config_no_vm_distro"
+      ],
+      "seams_consumed": [
+        "alpine_config_rejection"
+      ],
+      "observable_change": "New .clauded.yaml files written by Config.save() contain no distro field. Loading an old ubuntu config succeeds with an INFO log; no user action required.",
+      "status": "done",
+      "estimated_complexity": "M"
+    },
+    {
+      "id": "04",
+      "name": "remove-alpine-roles-and-rename-ubuntu",
+      "directory": "specs/epic-remove-alpine-support/04-remove-alpine-roles-and-rename-ubuntu",
+      "title": "Remove *-alpine roles, delete stale bare dirs, and rename *-ubuntu to bare names",
+      "description": "Execute the role directory transition: delete all 24 *-alpine directories, delete all 19 stale bare-name role directories (including playwright which is Alpine-only despite its bare name), and rename all 25 *-ubuntu directories to bare names (including opencode-ubuntu -> opencode). Remove the opencode-alpine guard from provisioner.py. Strip _apply_distro_suffix(), _ROLES_WITH_VARIANTS, and suffix application from provisioner.py so it emits bare role names.",
+      "owning_module": "provisioner.py + roles/",
+      "acceptance_criteria": [
+        "AC5"
+      ],
+      "scope_in": [
+        "src/clauded/roles/*-alpine/ — git rm -r all 24 directories",
+        "src/clauded/roles/{aws_cli,c,dart,docker,gh,go,gradle,java,kotlin,maven,mongodb,mysql,playwright,poetry,postgresql,redis,rust,sqlite,uv}/ — git rm -r all 19 stale bare dirs (playwright explicitly included even though not in _ROLES_WITH_VARIANTS)",
+        "src/clauded/roles/*-ubuntu/ — git mv all 25 to bare names; opencode-ubuntu -> opencode",
+        "src/clauded/provisioner.py — remove _ROLES_WITH_VARIANTS frozenset (~line 23), _apply_distro_suffix (~line 139), opencode-alpine guard (~lines 179-185), distro string in role-not-found error message (~line 195)",
+        "tests/test_provisioner.py — remove TestApplyDistroSuffix class, opencode-alpine tests, update role-name assertions to bare names",
+        "CHANGELOG.md — [Unreleased] entry noting *-alpine role removal and -ubuntu suffix drop"
+      ],
+      "scope_out": [
+        "Removing distro.py or DistroProvider abstraction — that is Story 05",
+        "Modifying role internals beyond deletion/rename",
+        "Restructuring or merging roles"
+      ],
+      "dependencies": [
+        "02",
+        "03"
+      ],
+      "seams_produced": [
+        "bare_role_names"
+      ],
+      "seams_consumed": [
+        "alpine_config_rejection",
+        "config_no_vm_distro"
+      ],
+      "observable_change": "Provisioning logs emit 'Roles: common, python, docker, ...' with bare names. Provisioning completes end-to-end for Ubuntu projects.",
+      "status": "done",
+      "estimated_complexity": "L"
+    },
+    {
+      "id": "05",
+      "name": "remove-distro-provider-and-alpine-assets",
+      "directory": "specs/epic-remove-alpine-support/05-remove-distro-provider-and-alpine-assets",
+      "title": "Remove DistroProvider abstraction and remaining Alpine assets",
+      "description": "Delete distro.py entirely (ADR-001). Remove get_alpine_image() from downloads.py, simplify get_cloud_image() to no-arg Ubuntu-only, and drop the alpine_image block from downloads.yml. Remove get_vm_distro() and Alpine comments from lima.py. Remove the linux-arm64-musl branch from cli.py. Remove all remaining distro imports across modules.",
+      "owning_module": "distro.py + downloads.py + lima.py + cli.py",
+      "acceptance_criteria": [
+        "AC6",
+        "AC7",
+        "AC8"
+      ],
+      "scope_in": [
+        "src/clauded/distro.py — delete entirely",
+        "src/clauded/downloads.py — remove get_alpine_image() (~line 64), remove alpine_image key from get_ansible_download_vars() (~line 128), simplify get_cloud_image() to no-arg Ubuntu-only",
+        "src/clauded/downloads.yml — remove alpine_image block (~lines 14-17)",
+        "src/clauded/lima.py — remove get_vm_distro() SSH method (~line 360), remove lazy distro import and _get_image_config distro branch (~lines 425-437; replace with direct Ubuntu URL lookup), remove Alpine comments at lines 229 and 501",
+        "src/clauded/cli.py — remove linux-arm64-musl branch (~line 254); replace with unconditional linux-arm64",
+        "src/clauded/provisioner.py — remove remaining `from .distro import ...` import",
+        "tests/test_distro.py — delete",
+        "tests/test_downloads_distro.py — delete",
+        "tests/test_downloads.py — strip alpine-specific cases",
+        "tests/test_lima.py — strip get_vm_distro and _get_image_config(distro='alpine') tests",
+        "CHANGELOG.md — [Unreleased] entry noting DistroProvider abstraction removal"
+      ],
+      "scope_out": [
+        "Documentation cleanup — that is Story 06",
+        "Role-level changes — completed in Story 04"
+      ],
+      "dependencies": [
+        "04"
+      ],
+      "seams_produced": [],
+      "seams_consumed": [
+        "alpine_config_rejection",
+        "config_no_vm_distro",
+        "bare_role_names"
+      ],
+      "observable_change": "No code path references 'alpine' in src/ beyond the FR5 error message in config.py. Ubuntu users see identical behavior.",
+      "status": "done",
+      "estimated_complexity": "M"
+    },
+    {
+      "id": "06",
+      "name": "documentation-spec-changelog",
+      "directory": "specs/epic-remove-alpine-support/06-documentation-spec-changelog",
+      "title": "Documentation, spec, and CHANGELOG cleanup",
+      "description": "Delete the two Alpine-only doc files, update all docs that contain live Alpine references, update README.md and user-stories.md, update specs/spec.md to reflect Ubuntu-only reality, and add the final NFR5 CHANGELOG entries. Run the NFR3 grep check and confirm it passes (with linguist/languages.yml filtered out if needed).",
+      "owning_module": "docs/ + README.md + specs/spec.md + CHANGELOG.md",
+      "acceptance_criteria": [
+        "AC9",
+        "AC10",
+        "AC12"
+      ],
+      "scope_in": [
+        "docs/alpine-architecture.md — delete",
+        "docs/claude-code-alpine-troubleshooting.md — delete",
+        "docs/architecture.md — remove Alpine paragraphs and dual-distro discussion",
+        "docs/configuration.md — remove Alpine examples and --distro flag documentation",
+        "docs/supply-chain-security.md — remove Alpine repository signing notes",
+        "docs/testing-infrastructure.md — remove dual-distro test matrix references",
+        "README.md — remove Alpine bullets, --distro examples, change-distro guidance, wizard distro example",
+        "user-stories.md — strike Alpine personas and lines",
+        "specs/spec.md — update base OS to Ubuntu 24.04 LTS, remove dual-distro narrative, update role table",
+        "CHANGELOG.md — add [Unreleased] Removed block (Alpine support, --distro flag, vm.distro config field, *-alpine roles, distro wizard step) and Changed line (Ubuntu 24.04 LTS sole guest OS)",
+        "NFR3 grep check: verify grep -ri 'alpine' src/ tests/ docs/ specs/ returns only allowed hits; add linguist exclusion to grep if needed"
+      ],
+      "scope_out": [
+        "Creating new documentation beyond migration-from-alpine.md (already created in Story 01)",
+        "Any source code changes — all code changes complete by Story 05"
+      ],
+      "dependencies": [
+        "05"
+      ],
+      "seams_produced": [],
+      "seams_consumed": [
+        "alpine_config_rejection",
+        "config_no_vm_distro",
+        "bare_role_names"
+      ],
+      "observable_change": "Documentation reflects single-distro reality. NFR3 grep check passes. README shows no Alpine content.",
+      "status": "done",
+      "estimated_complexity": "M"
+    },
+    {
+      "id": "07",
+      "name": "end-to-end-validation-and-release",
+      "directory": "specs/epic-remove-alpine-support/07-end-to-end-validation-and-release",
+      "title": "End-to-end validation and release",
+      "description": "Run full Ubuntu provisioning end-to-end for representative role combinations (Python+Node, Java+PostgreSQL, Rust+Docker). Verify lint, typecheck, and pytest coverage all pass. Confirm the NFR3 grep check is clean. Tag and publish the release.",
+      "owning_module": "N/A — validation story",
+      "acceptance_criteria": [
+        "AC11",
+        "AC13",
+        "AC14"
+      ],
+      "scope_in": [
+        "Full Ubuntu provisioning run: Python+Node project, Java+PostgreSQL project, Rust+Docker project",
+        "uv run pytest tests/ --cov=clauded --cov-report=term-missing --cov-fail-under=80 — must pass",
+        "make lint, make typecheck — must pass with no new errors",
+        "NFR3 grep check: grep -ri 'alpine' src/ tests/ docs/ specs/ — verify only allowed hits remain",
+        "Release tag (version determined per CHANGELOG entries from Stories 01-06)"
+      ],
+      "scope_out": [
+        "Any new feature work",
+        "Any code or documentation changes not driven by validation failures"
+      ],
+      "dependencies": [
+        "06"
+      ],
+      "seams_produced": [],
+      "seams_consumed": [
+        "alpine_config_rejection",
+        "config_no_vm_distro",
+        "bare_role_names"
+      ],
+      "observable_change": "A user-installable release where Ubuntu 24.04 LTS is the sole supported guest OS, with all tooling gates green.",
+      "status": "done",
+      "estimated_complexity": "M"
+    }
+  ]
+}

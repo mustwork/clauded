@@ -1,0 +1,25 @@
+{
+  "story_id": "06",
+  "story_name": "documentation-spec-changelog",
+  "owning_modules": ["docs/", "README.md", "user-stories.md", "specs/spec.md", "CHANGELOG.md", "src/clauded/lima.py"],
+  "interfaces_touched": [],
+  "public_api_changes": [],
+  "files_deleted": [
+    "docs/alpine-architecture.md",
+    "docs/claude-code-alpine-troubleshooting.md"
+  ],
+  "files_modified": [
+    "src/clauded/lima.py",
+    "docs/architecture.md",
+    "docs/configuration.md",
+    "docs/supply-chain-security.md",
+    "docs/testing-infrastructure.md",
+    "README.md",
+    "user-stories.md",
+    "specs/spec.md",
+    "CHANGELOG.md"
+  ],
+  "seams_produced": [],
+  "seams_consumed": ["alpine_config_rejection", "config_no_vm_distro", "bare_role_names"],
+  "ac12_status": "PASS — no live production code paths branch on Alpine; remaining test hits are FR5 rejection tests and incidental strings (Docker image names, test URLs)"
+}

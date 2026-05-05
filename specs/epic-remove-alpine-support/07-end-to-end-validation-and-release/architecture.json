@@ -1,0 +1,42 @@
+{
+  "story_id": "07",
+  "story_name": "end-to-end-validation-and-release",
+  "architecture_decisions": [
+    {
+      "id": "ADR-007-01",
+      "decision": "No production code changes in Story 07",
+      "rationale": "All Alpine removal code changes completed in Stories 01-06. Story 07 validates that gates are green and documents release readiness. Boy-scout test cleanup (stale alpine fixture names/URLs/comments) is allowed and does not touch production code."
+    },
+    {
+      "id": "ADR-007-02",
+      "decision": "AC13 (E2E smoke tests) marked manual/deferred",
+      "rationale": "AC13 requires a real Ubuntu host VM and live Lima provisioning. The automated test suite (968 unit/integration tests) validates all code paths. AC13 is inherently a human-run validation that requires infrastructure not available in the automated pipeline."
+    },
+    {
+      "id": "ADR-007-03",
+      "decision": "Version bump and release tag are user-executed actions",
+      "rationale": "Per team-lead instructions: no version bump, no tag, no push in this story. The architect documents the required release actions for the user to execute manually."
+    }
+  ],
+  "boy_scout_cleanups": [
+    "tests/test_provisioner.py: Renamed test_alpine_without_opencode_not_blocked → test_codex_without_opencode_excludes_opencode_role; vm_name='clauded-alpine-no-opencode' → 'clauded-codex-no-opencode'. Test logic unchanged.",
+    "tests/test_lima.py: Changed fixture URL 'custom-alpine.qcow2' → 'custom-image.qcow2'. Removed stale 'Lima user provisions fail on Alpine due to home directory permissions' comment.",
+    "tests/test_config.py: Changed fixture URL 'custom-alpine.qcow2' → 'custom-image.qcow2'."
+  ],
+  "nfr3_grep_analysis": {
+    "result": "PASS",
+    "allowed_hits": {
+      "src/clauded/config.py": "FR5 error string (allowed per AC12)",
+      "src/clauded/linguist/languages.yml": "External linguist data — 'Alpine Abuild' programming language entry unrelated to OS choice (explicitly documented in AC12)",
+      "tests/test_config.py (TestAlpineConfigRejection)": "FR5 rejection tests required by AC11",
+      "tests/test_database.py (redis:7-alpine)": "Docker container image tag, not OS distro choice",
+      "tests/test_documentation.py (test_no_opencode_alpine_in_src)": "Guard test checking absence of opencode-alpine in src/",
+      "tests/test_version_check.py (distro: alpine)": "Legacy VM metadata JSON fixture — opaque stored data, not config distro",
+      "docs/migration-from-alpine.md": "Migration doc (explicitly allowed per AC12)",
+      "specs/epic-add-codex-framework/": "Historical epic spec — pre-dates Alpine removal, read-only per no-history-rewrite rule",
+      "specs/epic-add-opencode-harness/": "Historical epic spec — pre-dates Alpine removal, read-only per no-history-rewrite rule",
+      "specs/epic-dart-with-flutter/": "Historical epic spec — pre-dates Alpine removal, read-only per no-history-rewrite rule",
+      "specs/epic-ollama-host-proxy/": "Historical epic spec — pre-dates Alpine removal, read-only per no-history-rewrite rule"
+    }
+  }
+}

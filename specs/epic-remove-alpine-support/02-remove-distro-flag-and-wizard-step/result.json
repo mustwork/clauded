@@ -1,0 +1,52 @@
+{
+  "story_id": "02",
+  "story_name": "remove-distro-flag-and-wizard-step",
+  "status": "complete",
+  "files_created": [],
+  "files_modified": [
+    "src/clauded/cli.py",
+    "src/clauded/wizard.py",
+    "src/clauded/detect/wizard_integration.py",
+    "tests/test_detect_integration.py",
+    "tests/test_wizard.py",
+    "CHANGELOG.md"
+  ],
+  "files_deleted": [
+    "tests/test_cli_distro.py",
+    "tests/test_distro_change.py",
+    "tests/test_wizard_distro.py"
+  ],
+  "implementation_summary": [
+    "cli.py: Removed --distro Click option, distro param from main(), SUPPORTED_DISTROS lazy import + validation block, --distro conflicts-with-config block, distro_override pass-throughs in wizard.run() and run_with_detection() calls, _handle_distro_change() function, vm_recreated block and variable, and simplified 'if reprovision and not vm_recreated:' to 'if reprovision:'.",
+    "wizard.py: Removed _select_distro() function and distro_override param; run() signature is now run(project_path: Path).",
+    "detect/wizard_integration.py: Removed _select_distro import, distro_override param from run_with_detection(), answers['distro'] = _select_distro(distro_override) call, and answers['distro'] = config.vm_distro from run_edit_with_detection().",
+    "tests/test_cli_distro.py: Deleted (all Story 02 skips honored).",
+    "tests/test_distro_change.py: Deleted (all Story 02 skips honored).",
+    "tests/test_wizard_distro.py: Deleted.",
+    "tests/test_detect_integration.py: Removed 3 patch('...._select_distro') calls from with-blocks.",
+    "tests/test_wizard.py: Removed 4 patch('clauded.wizard._select_distro') calls from with-blocks.",
+    "CHANGELOG.md: Added --distro flag removal and wizard distro step removal entries."
+  ],
+  "seams_produced": [],
+  "seams_consumed": ["alpine_config_rejection"],
+  "test_counts": {
+    "passed": 1018,
+    "failed": 0,
+    "skipped": 8,
+    "skipped_note": "4x Story 03 (test_config_distro.py), 3x Story 04 (test_provisioner.py), 1x Story 05 (test_lima.py)."
+  },
+  "tooling_gates": {
+    "lint": "pass",
+    "format": "pass",
+    "typecheck": "pass"
+  },
+  "verification_rounds": [
+    {
+      "round": 1,
+      "outcome": "accepted",
+      "timestamp": "2026-05-05T15:00:00Z"
+    }
+  ],
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-05T15:00:00Z"
+}

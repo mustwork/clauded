@@ -1,20 +1,22 @@
 ---
+# Install Redis on Ubuntu
+
 - name: Install Redis
-  apk:
+  apt:
     name:
-      - redis
+      - redis-server
     state: present
+    update_cache: yes
 
-- name: Add Redis service to boot
-  command: rc-update add redis default
-  changed_when: false
-  ignore_errors: yes
+- name: Enable Redis service
+  systemd:
+    name: redis-server
+    enabled: yes
 
-- name: Start Redis service via rc-service
-  command: rc-service redis start
-  register: redis_start
-  changed_when: "'started' in redis_start.stdout or redis_start.rc == 0"
-  failed_when: false
+- name: Start Redis service
+  systemd:
+    name: redis-server
+    state: started
 
 - name: Wait for Redis to be ready
   wait_for:
@@ -25,7 +27,7 @@
   ignore_errors: yes
 
 - name: Check Redis status
-  command: rc-service redis status
+  command: systemctl status redis-server
   register: redis_status
   changed_when: false
   failed_when: false

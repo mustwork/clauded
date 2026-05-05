@@ -113,58 +113,16 @@ def _menu_multi_select(title: str, items: list[tuple[str, str, bool]]) -> list[s
     return [items[i][1] for i in indices]
 
 
-def _select_distro(distro_override: str | None = None) -> str:
-    """Prompt user to select a Linux distribution or use override.
-
-    Args:
-        distro_override: Pre-selected distro from --distro flag, or None to show menu.
-
-    Returns:
-        Selected distro name ("alpine" or "ubuntu").
-
-    Raises:
-        KeyboardInterrupt: If user cancels selection.
-    """
-    from .distro import SUPPORTED_DISTROS, get_distro_provider
-
-    if distro_override:
-        return distro_override
-
-    # Build menu items with display names
-    distro_items = []
-    default_index = 0
-    for i, distro_name in enumerate(SUPPORTED_DISTROS):
-        provider = get_distro_provider(distro_name)
-        distro_items.append((provider.display_name, distro_name))
-        if distro_name == "alpine":
-            default_index = i
-
-    selected_distro = _menu_select(
-        "Select Linux distribution:",
-        distro_items,
-        default_index,
-    )
-
-    if selected_distro is None:
-        raise KeyboardInterrupt()
-
-    return selected_distro
-
-
-def run(project_path: Path, *, distro_override: str | None = None) -> Config:
+def run(project_path: Path) -> Config:
     """Run the interactive wizard and return a Config.
 
     Args:
         project_path: Path to project directory
-        distro_override: Pre-select this distro (from --distro flag)
     """
 
     print("\n  clauded - VM Environment Setup\n")
 
     answers: dict[str, str | list[str] | bool] = {}
-
-    # Distribution selection (FIRST step)
-    answers["distro"] = _select_distro(distro_override)
 
     # Languages - multi-select
     selected_languages = _menu_multi_select(

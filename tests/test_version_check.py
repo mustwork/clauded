@@ -23,7 +23,7 @@ def config_yaml() -> str:
     return """version: "1"
 vm:
   name: clauded-testcli1-abc123
-  distro: alpine
+  distro: ubuntu
   cpus: 1
   memory: 8GiB
   disk: 20GiB
@@ -46,7 +46,7 @@ def config_yaml_pinned() -> str:
     return """version: "1"
 vm:
   name: clauded-testcli1-abc123
-  distro: alpine
+  distro: ubuntu
   cpus: 1
   memory: 8GiB
   disk: 20GiB
@@ -78,7 +78,6 @@ class TestGetVmMetadata:
         """Valid JSON from VM returns parsed dict."""
         config = Config(
             vm_name="test-vm",
-            vm_distro="alpine",
             mount_host="/test",
             mount_guest="/test",
         )
@@ -108,7 +107,6 @@ class TestGetVmMetadata:
         """Returns None without subprocess call when VM not running."""
         config = Config(
             vm_name="test-vm",
-            vm_distro="alpine",
             mount_host="/test",
             mount_guest="/test",
         )
@@ -125,7 +123,6 @@ class TestGetVmMetadata:
         """Returns None when /etc/clauded.json doesn't exist (returncode=1)."""
         config = Config(
             vm_name="test-vm",
-            vm_distro="alpine",
             mount_host="/test",
             mount_guest="/test",
         )
@@ -148,7 +145,6 @@ class TestGetVmMetadata:
         """Returns None on invalid JSON."""
         config = Config(
             vm_name="test-vm",
-            vm_distro="alpine",
             mount_host="/test",
             mount_guest="/test",
         )
@@ -190,7 +186,7 @@ class TestVersionCheck:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1-abc123"
-                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_distro.return_value = "ubuntu"
                 mock_vm.get_vm_metadata.return_value = {
                     "version": "0.1.0",
                     "commit": "abc1234",
@@ -221,7 +217,7 @@ class TestVersionCheck:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1-abc123"
-                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_distro.return_value = "ubuntu"
                 mock_vm.get_vm_metadata.return_value = {
                     "version": "0.1.0",
                     "commit": "abc1234",
@@ -255,7 +251,7 @@ class TestVersionCheck:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1-abc123"
-                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_distro.return_value = "ubuntu"
                 mock_vm.get_vm_metadata.return_value = {
                     "version": "0.1.0",
                     "commit": "abc1234",
@@ -315,7 +311,7 @@ class TestVersionCheck:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1-abc123"
-                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_distro.return_value = "ubuntu"
                 mock_vm.count_active_sessions.return_value = 0
                 MockVM.return_value = mock_vm
 
@@ -344,7 +340,7 @@ class TestVersionCheck:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1-abc123"
-                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_distro.return_value = "ubuntu"
                 mock_vm.get_vm_metadata.return_value = None
                 mock_vm.count_active_sessions.return_value = 0
                 MockVM.return_value = mock_vm
@@ -370,7 +366,7 @@ class TestVersionCheck:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1-abc123"
-                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_distro.return_value = "ubuntu"
                 mock_vm.get_vm_metadata.return_value = {
                     "version": "0.1.0",
                     "commit": "unknown",
@@ -398,7 +394,7 @@ class TestLibraryUpdateCheck:
         mock_vm.exists.return_value = True
         mock_vm.is_running.return_value = True
         mock_vm.name = "clauded-testcli1-abc123"
-        mock_vm.get_vm_distro.return_value = "alpine"
+        mock_vm.get_vm_distro.return_value = "ubuntu"
         mock_vm.get_vm_metadata.return_value = {
             "version": "0.1.0",
             "commit": "abc1234",
@@ -444,7 +440,7 @@ class TestLibraryUpdateCheck:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1-abc123"
-                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_distro.return_value = "ubuntu"
                 mock_vm.get_vm_metadata.return_value = {
                     "version": "0.1.0",
                     "commit": "abc1234",
@@ -643,7 +639,7 @@ class TestLibraryUpdateCheck:
         config_no_cc = """version: "1"
 vm:
   name: clauded-testcli1-abc123
-  distro: alpine
+  distro: ubuntu
   cpus: 1
   memory: 8GiB
   disk: 20GiB
@@ -671,7 +667,7 @@ environment:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1-abc123"
-                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_distro.return_value = "ubuntu"
                 mock_vm.get_vm_metadata.return_value = {
                     "version": "0.1.0",
                     "commit": "abc1234",
@@ -819,7 +815,6 @@ class TestConfigVersionsPersistence:
 
         config = Config(
             vm_name="test-vm",
-            vm_distro="alpine",
             mount_host="/test",
             mount_guest="/test",
             claude_code_version="2.1.62",
@@ -843,7 +838,6 @@ class TestConfigVersionsPersistence:
 
         config = Config(
             vm_name="test-vm",
-            vm_distro="alpine",
             mount_host="/test",
             mount_guest="/test",
         )
@@ -866,7 +860,6 @@ class TestConfigVersionsPersistence:
 
         config = Config(
             vm_name="test-vm",
-            vm_distro="alpine",
             mount_host="/test",
             mount_guest="/test",
             claude_code_version="2.1.62",
@@ -1195,7 +1188,7 @@ class TestOpencodeUpdateCheck:
                 mock_vm.exists.return_value = True
                 mock_vm.is_running.return_value = True
                 mock_vm.name = "clauded-testcli1-abc123"
-                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_distro.return_value = "ubuntu"
                 mock_vm.get_vm_metadata.return_value = {
                     "version": "0.1.0",
                     "commit": "abc1234",

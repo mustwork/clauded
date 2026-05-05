@@ -1,0 +1,56 @@
+{
+  "story_id": "02",
+  "pre_impl_questions": [
+    {
+      "category": "SPEC",
+      "ac_id": "AC2",
+      "question": "Is the --distro Click option removed from cli.py?",
+      "answer": "Yes — removed the @click.option block and the distro parameter from main()."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC2",
+      "question": "Is _handle_distro_change() removed from cli.py?",
+      "answer": "Yes — the full function body and all call sites removed."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC3",
+      "question": "Is _select_distro() removed from wizard.py and wizard.run() parameter-free?",
+      "answer": "Yes — _select_distro removed, run() signature is now run(project_path: Path) with no distro_override."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC3",
+      "question": "Are wizard_integration.py distro touch-points cleaned up (lines ~30, ~103, ~860)?",
+      "answer": "Yes — _select_distro import removed, distro_override param from run_with_detection() removed, answers['distro'] assignments removed."
+    },
+    {
+      "category": "ARCHITECTURE",
+      "question": "Does the boundary rule hold — config.py remains the only Alpine detection point?",
+      "answer": "Yes — no new distro detection added. The distro field passthrough (vm_distro=config.vm_distro in apply_detection_to_config) is preserved for Story 03 to remove."
+    },
+    {
+      "category": "TEST",
+      "question": "Are test_cli_distro.py, test_distro_change.py, test_wizard_distro.py deleted entirely?",
+      "answer": "Yes — all three files deleted."
+    },
+    {
+      "category": "TEST",
+      "question": "Are Story 02 skip markers from Story 01 honored (6 skips deleted)?",
+      "answer": "Yes — the 3 test_cli_distro.py and 3 test_distro_change.py skips are gone with their files. 14 → 8 remaining skips."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "category": "QUALITY",
+      "question": "Do all tooling gates pass?",
+      "answer": "Yes — lint, format, typecheck all pass. 1018 passed, 8 skipped, 0 failed."
+    },
+    {
+      "category": "QUALITY",
+      "question": "Are the 8 remaining skips valid Story 03/04/05 markers?",
+      "answer": "Yes — 4 from test_config_distro.py (Story 03), 3 from test_provisioner.py (Story 04), 1 from test_lima.py (Story 05)."
+    }
+  ]
+}

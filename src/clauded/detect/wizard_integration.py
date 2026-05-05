@@ -16,7 +16,6 @@ from ..wizard import (
     _apply_harness_to_answers,
     _menu_multi_select,
     _menu_select,
-    _select_distro,
 )
 from . import detect
 from .result import DetectionResult
@@ -27,7 +26,6 @@ def run_with_detection(
     detection: DetectionResult | None = None,
     *,
     debug: bool = False,
-    distro_override: str | None = None,
 ) -> Config:
     """Run interactive wizard with detection-based defaults.
 
@@ -98,9 +96,6 @@ def run_with_detection(
         defaults = defaults_dict
 
     answers: dict[str, str | list[str] | bool] = {}
-
-    # Distribution selection (FIRST step)
-    answers["distro"] = _select_distro(distro_override)
 
     # Languages - multi-select
     # Note: defaults.get(lang) may return None (key missing) or "None" (not detected)
@@ -485,7 +480,6 @@ def apply_detection_to_config(
     new_config = ConfigClass(
         version=config.version,
         vm_name=config.vm_name,
-        vm_distro=config.vm_distro,
         cpus=config.cpus,
         memory=config.memory,
         disk=config.disk,
@@ -857,7 +851,6 @@ def run_edit_with_detection(
         raise KeyboardInterrupt()
 
     # Preserve VM settings from original config (cannot be changed without recreation)
-    answers["distro"] = config.vm_distro
     answers["cpus"] = str(config.cpus)
     answers["memory"] = config.memory
     answers["disk"] = config.disk

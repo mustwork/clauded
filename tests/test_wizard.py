@@ -304,7 +304,6 @@ class TestWizardHarnessStep:
         with (
             patch("clauded.wizard._menu_multi_select") as mock_multi,
             patch("clauded.wizard._menu_select") as mock_select,
-            patch("clauded.wizard._select_distro", return_value="ubuntu"),
             patch(
                 "clauded.wizard.click.confirm",
                 side_effect=self._fake_confirm_default_false,
@@ -333,7 +332,6 @@ class TestWizardHarnessStep:
         with (
             patch("clauded.wizard._menu_multi_select") as mock_multi,
             patch("clauded.wizard._menu_select") as mock_select,
-            patch("clauded.wizard._select_distro", return_value="ubuntu"),
             patch(
                 "clauded.wizard.click.confirm",
                 side_effect=self._fake_confirm_default_false,
@@ -369,7 +367,6 @@ class TestWizardHarnessStep:
         with (
             patch("clauded.wizard._menu_multi_select") as mock_multi,
             patch("clauded.wizard._menu_select") as mock_select,
-            patch("clauded.wizard._select_distro", return_value="ubuntu"),
             patch(
                 "clauded.wizard.click.confirm",
                 side_effect=self._fake_confirm_default_false,
@@ -454,7 +451,6 @@ class TestWizardFrameworksMultiselect:
         with (
             patch("clauded.wizard._menu_multi_select") as mock_multi_select,
             patch("clauded.wizard._menu_select") as mock_select,
-            patch("clauded.wizard._select_distro", return_value="ubuntu"),
             patch("clauded.wizard.click.confirm", side_effect=fake_confirm),
             patch("clauded.wizard.click.prompt", return_value=""),
         ):

@@ -1,0 +1,234 @@
+{
+  "generated_at": "2026-05-05T00:00:00Z",
+  "spec_path": "specs/epic-remove-alpine-support/spec.md",
+  "ac_path": "specs/epic-remove-alpine-support/acceptance-criteria.md",
+  "spec_gaps_discovered": [
+    {
+      "gap": "Spec FR7 lists 24 *-ubuntu role directories to rename. Actual count is 25. The extra is opencode-ubuntu, added by epic-add-opencode-harness AFTER the multi-distro epic. There is no opencode-alpine (opencode is Ubuntu-only by provisioner.py guard at lines 179-185). Story 04 must rename opencode-ubuntu -> opencode and remove the opencode-alpine guard from provisioner.run.",
+      "severity": "medium",
+      "affects_stories": ["04", "05"]
+    },
+    {
+      "gap": "Spec FR8 names rust/uv/c as the stale bare role dirs containing Alpine code. Actual audit shows 18 of 19 stale bare dirs contain `apk:` task blocks: aws_cli, c, dart, docker, gh, go, gradle, java, kotlin, maven, mongodb, mysql, playwright, postgresql, redis, rust, sqlite, uv. Only `poetry` is clean (uses pipx). Story 04's `git rm -r` step must cover all 18 stale Alpine-bearing dirs plus the clean `poetry` dir.",
+      "severity": "medium",
+      "affects_stories": ["04"]
+    },
+    {
+      "gap": "playwright bare role contains four `apk:` blocks plus three Alpine comments at lines 2/43/66, but is NOT in `_ROLES_WITH_VARIANTS` — the provisioner selects it directly by bare name. Note: a `playwright-alpine` directory ALSO exists. After the epic, only the renamed playwright-ubuntu content should remain at `roles/playwright/`. The current bare playwright dir must be deleted (it's stale Alpine-only code) before the rename.",
+      "severity": "medium",
+      "affects_stories": ["04"]
+    },
+    {
+      "gap": "src/clauded/detect/wizard_integration.py is not listed in spec FR3 or FR9 but references `distro_override`, `_select_distro`, and `vm_distro` at four locations (lines ~30, 103, 488, 860). Stories 02 and 03 must include this file in the cleanup.",
+      "severity": "medium",
+      "affects_stories": ["02", "03"]
+    },
+    {
+      "gap": "Spec mentions `vX.Y.0` as a placeholder version in the FR5 error message. Current project version is 0.2.6; this epic is a breaking-change removal. The release version should be 0.3.0 (Story 07 release). The FR5 message should either omit the version (preferred — remains valid across releases) or be parameterized at runtime via `clauded.__version__`.",
+      "severity": "low",
+      "affects_stories": ["01", "07"]
+    },
+    {
+      "gap": "Stale-role audit found `aws_cli/tasks/main.yml` contains an `apk:` block. Spec FR8 only listed rust/uv/c. The full inventory is in `similar_features.stale_role_audit` below.",
+      "severity": "informational",
+      "affects_stories": ["04"]
+    },
+    {
+      "gap": "Tests touching Alpine that the spec didn't enumerate: test_documentation.py (4 hits), test_detect_integration.py (4 hits with distro_override), test_database.py (1 hit on vm_distro=alpine fixture), test_wizard.py (4 hits on distro_override). Story 02/03 should sweep these too.",
+      "severity": "low",
+      "affects_stories": ["02", "03", "13_test_cleanup"]
+    }
+  ],
+
+  "similar_features": {
+    "sibling_epic_summary": "epic-multi-distribution-support (specs/epic-multi-distribution-support/) was implemented in 7 stories (all status: done) in Feb 2026. Story 01 created src/clauded/distro.py with SUPPORTED_DISTROS=['alpine','ubuntu'], DistroProvider protocol, AlpineProvider, UbuntuProvider, get_distro_provider() factory; added vm_distro field to Config dataclass; added alpine_image block to downloads.yml; added get_alpine_image() to downloads.py. Story 02 added --distro CLI flag to cli.py, _select_distro() and distro_override param to wizard.py, _handle_distro_change() to cli.py, get_vm_distro() SSH read to lima.py. Story 03 renamed existing bare roles to -alpine suffix, added _apply_distro_suffix() and _ROLES_WITH_VARIANTS to provisioner.py, created first -ubuntu variants. Stories 04-06 created all remaining -ubuntu role variants. Story 07 added integration tests. The remove-alpine epic partially unwinds all of this.",
+
+    "config_validation_error_patterns": [
+      {"file": "src/clauded/config.py", "lines": "39-43", "summary": "ConfigValidationError defined as plain Exception subclass with no extra fields."},
+      {"file": "src/clauded/config.py", "lines": "62-65", "summary": "_validate_distro() raises ConfigValidationError with single-line f-string. This is the existing distro-validation raise site; FR5 replaces with multi-line migration message when distro=='alpine'."},
+      {"file": "src/clauded/config.py", "lines": "172-184", "summary": "_validate_version_pin and _validate_harness use multi-line message style with implicit string concatenation. Closest precedent for FR5's multi-line format."},
+      {"file": "src/clauded/provisioner.py", "lines": "181-184", "summary": "ConfigValidationError raised for missing Ansible roles using \\n concatenation. Multi-line message precedent."}
+    ],
+
+    "past_role_migrations": [
+      {
+        "epic": "epic-multi-distribution-support story 03",
+        "pattern": "git mv (rename) bare roles to -alpine suffix in single commit; simultaneously added _apply_distro_suffix() and updated tests.",
+        "files_affected": "src/clauded/roles/<name>/ -> roles/<name>-alpine/, provisioner.py, test_provisioner.py",
+        "note": "No prior epic performed bulk role deletion. The closest inverse is FR6+FR7+FR8."
+      }
+    ],
+
+    "alpine_inventory_summary": "44 files contain Alpine references across src/, tests/, docs/. Top hot-spots: tests/test_distro_change.py (38), test_distro.py (32), src/clauded/distro.py (24), tests/test_provisioner.py (23), tests/test_wizard_distro.py (22), tests/test_version_check.py (22), tests/test_config_distro.py (21), src/clauded/roles/uv/tasks/main.yml (20). Detail in similar_features.alpine_inventory_full below.",
+
+    "alpine_inventory_full": [
+      {"file": "tests/test_distro_change.py", "match_count": 38},
+      {"file": "tests/test_distro.py", "match_count": 32},
+      {"file": "src/clauded/distro.py", "match_count": 24},
+      {"file": "tests/test_provisioner.py", "match_count": 23},
+      {"file": "tests/test_wizard_distro.py", "match_count": 22},
+      {"file": "tests/test_version_check.py", "match_count": 22},
+      {"file": "tests/test_config_distro.py", "match_count": 21},
+      {"file": "tests/test_cli_distro.py", "match_count": 20},
+      {"file": "src/clauded/roles/uv/tasks/main.yml", "match_count": 20},
+      {"file": "docs/alpine-architecture.md", "match_count": 20},
+      {"file": "tests/test_downloads_distro.py", "match_count": 19},
+      {"file": "tests/test_downloads.py", "match_count": 12},
+      {"file": "tests/test_lima.py", "match_count": 10},
+      {"file": "docs/configuration.md", "match_count": 9},
+      {"file": "src/clauded/roles/uv-alpine/tasks/main.yml", "match_count": 7},
+      {"file": "src/clauded/downloads.py", "match_count": 6},
+      {"file": "src/clauded/config.py", "match_count": 6},
+      {"file": "docs/architecture.md", "match_count": 6},
+      {"file": "src/clauded/roles/node-alpine/tasks/main.yml", "match_count": 5},
+      {"file": "src/clauded/provisioner.py", "match_count": 5},
+      {"file": "tests/test_documentation.py", "match_count": 4},
+      {"file": "src/clauded/roles/claude_code-alpine/tasks/main.yml", "match_count": 4},
+      {"file": "docs/claude-code-alpine-troubleshooting.md", "match_count": 4},
+      {"file": "src/clauded/roles/playwright/tasks/main.yml", "match_count": 3},
+      {"file": "src/clauded/roles/playwright-alpine/tasks/main.yml", "match_count": 3},
+      {"file": "src/clauded/lima.py", "match_count": 3},
+      {"file": "src/clauded/downloads.yml", "match_count": 3},
+      {"file": "docs/supply-chain-security.md", "match_count": 3},
+      {"file": "tests/test_config.py", "match_count": 2},
+      {"file": "src/clauded/wizard.py", "match_count": 2},
+      {"file": "src/clauded/cli.py", "match_count": 2},
+      {"file": "tests/test_database.py", "match_count": 1},
+      {"file": "src/clauded/roles/rust/tasks/main.yml", "match_count": 1},
+      {"file": "src/clauded/roles/rust-alpine/tasks/main.yml", "match_count": 1},
+      {"file": "src/clauded/roles/poetry-alpine/tasks/main.yml", "match_count": 1},
+      {"file": "src/clauded/roles/maven-alpine/tasks/main.yml", "match_count": 1},
+      {"file": "src/clauded/roles/gradle-alpine/tasks/main.yml", "match_count": 1},
+      {"file": "src/clauded/roles/gh-alpine/tasks/main.yml", "match_count": 1},
+      {"file": "src/clauded/roles/common-alpine/tasks/main.yml", "match_count": 1},
+      {"file": "src/clauded/roles/codex-alpine/tasks/main.yml", "match_count": 1},
+      {"file": "src/clauded/roles/aws_cli/tasks/main.yml", "match_count": 1},
+      {"file": "docs/testing-infrastructure.md", "match_count": 1}
+    ],
+
+    "vm_distro_inventory": [
+      {"file": "src/clauded/cli.py", "symbols": ["vm_distro", "--distro", "distro_override", "_handle_distro_change", "linux-arm64-musl", "SUPPORTED_DISTROS", "get_distro_provider"], "key_locations": "line 254 (linux-arm64-musl branch), line 531 (_handle_distro_change), line 712 (--distro option), line 917 (distro_override pass-through)"},
+      {"file": "src/clauded/distro.py", "symbols": ["SUPPORTED_DISTROS", "DistroProvider", "AlpineProvider", "UbuntuProvider", "get_distro_provider"], "key_locations": "line 12, 15, 117, 190, 263"},
+      {"file": "src/clauded/provisioner.py", "symbols": ["_ROLES_WITH_VARIANTS", "_apply_distro_suffix", "vm_distro"], "key_locations": "line 23, 139, 150, 180 (opencode guard), 195 (error msg), 381 (playbook var)"},
+      {"file": "src/clauded/config.py", "symbols": ["ConfigValidationError", "vm_distro", "_validate_distro", "SUPPORTED_DISTROS"], "key_locations": "line 16 (import), 45 (_validate_distro), 59 (alpine default), 62 (raise), 293 (field default 'alpine'), 531 (vm_distro=), 567 (save emits)"},
+      {"file": "src/clauded/wizard.py", "symbols": ["_select_distro", "distro_override", "SUPPORTED_DISTROS"], "key_locations": "line 116, 128, 130, 154, 167"},
+      {"file": "src/clauded/lima.py", "symbols": ["get_vm_distro", "get_distro_provider"], "key_locations": "line 229 (Alpine comment for who), 360 (get_vm_distro), 425 (lazy import), 427 (provider call), 501 (Alpine permissions comment)"},
+      {"file": "src/clauded/downloads.py", "symbols": ["get_alpine_image", "alpine_image"], "key_locations": "line 64, 128"},
+      {"file": "src/clauded/downloads.yml", "symbols": ["alpine_image"], "key_locations": "line 14-17"},
+      {"file": "src/clauded/detect/wizard_integration.py", "symbols": ["distro_override", "_select_distro", "vm_distro"], "key_locations": "line 30, 103, 488, 860"}
+    ],
+
+    "role_directory_audit": {
+      "alpine_dirs_count": 24,
+      "alpine_dirs": ["aws_cli-alpine", "c-alpine", "claude_code-alpine", "codex-alpine", "common-alpine", "dart-alpine", "docker-alpine", "gh-alpine", "go-alpine", "gradle-alpine", "java-alpine", "kotlin-alpine", "maven-alpine", "mongodb-alpine", "mysql-alpine", "node-alpine", "playwright-alpine", "poetry-alpine", "postgresql-alpine", "python-alpine", "redis-alpine", "rust-alpine", "sqlite-alpine", "uv-alpine"],
+      "ubuntu_dirs_count": 25,
+      "ubuntu_dirs": ["aws_cli-ubuntu", "c-ubuntu", "claude_code-ubuntu", "codex-ubuntu", "common-ubuntu", "dart-ubuntu", "docker-ubuntu", "gh-ubuntu", "go-ubuntu", "gradle-ubuntu", "java-ubuntu", "kotlin-ubuntu", "maven-ubuntu", "mongodb-ubuntu", "mysql-ubuntu", "node-ubuntu", "opencode-ubuntu", "playwright-ubuntu", "poetry-ubuntu", "postgresql-ubuntu", "python-ubuntu", "redis-ubuntu", "rust-ubuntu", "sqlite-ubuntu", "uv-ubuntu"],
+      "stale_bare_dirs_count": 19,
+      "stale_bare_dirs": ["aws_cli", "c", "dart", "docker", "gh", "go", "gradle", "java", "kotlin", "maven", "mongodb", "mysql", "playwright", "poetry", "postgresql", "redis", "rust", "sqlite", "uv"],
+      "final_target_count": 25,
+      "final_target_dirs": ["aws_cli", "c", "claude_code", "codex", "common", "dart", "docker", "gh", "go", "gradle", "java", "kotlin", "maven", "mongodb", "mysql", "node", "opencode", "playwright", "poetry", "postgresql", "python", "redis", "rust", "sqlite", "uv"],
+      "ac5_correction_needed": "AC5 says 24 final dirs but should be 25 (opencode added). Planner must update AC5 list during planning."
+    },
+
+    "stale_role_audit": [
+      {"file": "src/clauded/roles/uv/tasks/main.yml", "tokens": ["apk", "alpine-release"], "snippet": "Alpine conditional block branches on /etc/alpine-release. Lines 34-95."},
+      {"file": "src/clauded/roles/rust/tasks/main.yml", "tokens": ["apk", "alpine-sdk", "musl-dev"], "snippet": "Entire role is Alpine-only."},
+      {"file": "src/clauded/roles/c/tasks/main.yml", "tokens": ["apk", "musl-dev"], "snippet": "Five apk task blocks. Alpine-only."},
+      {"file": "src/clauded/roles/docker/tasks/main.yml", "tokens": ["apk", "rc-update", "rc-service"], "snippet": "Alpine/OpenRC-only."},
+      {"file": "src/clauded/roles/redis/tasks/main.yml", "tokens": ["apk", "rc-update", "rc-service"], "snippet": "Alpine/OpenRC-only."},
+      {"file": "src/clauded/roles/playwright/tasks/main.yml", "tokens": ["apk"], "snippet": "Four apk blocks plus Alpine comments. Alpine-only despite bare dir."},
+      {"file": "src/clauded/roles/aws_cli/tasks/main.yml", "tokens": ["apk"], "snippet": "Uses apk for package installation."},
+      {"file": "src/clauded/roles/dart/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/gh/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/go/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/gradle/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/java/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/kotlin/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/maven/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/mongodb/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/mysql/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/postgresql/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/sqlite/tasks/main.yml", "tokens": ["apk"]},
+      {"file": "src/clauded/roles/poetry/tasks/main.yml", "tokens": [], "snippet": "Clean — uses pipx install poetry. No Alpine code."}
+    ]
+  },
+
+  "architecture": {
+    "paradigm": "Modular monolith with package-by-feature layout in src/clauded/. Plain modules + classes (not hexagonal). cli.py is the top of the import graph and pulls in config, wizard, lima, provisioner, downloads, distro. A thin DistroProvider protocol exists in distro.py but is only consulted from one site (lima._get_image_config); the rest of the system carries the distro as a plain string field on Config.",
+    "module_map": [
+      {"module": "distro.py", "to_remove": true, "purpose": "DistroProvider protocol + AlpineProvider + UbuntuProvider + SUPPORTED_DISTROS + get_distro_provider factory."},
+      {"module": "config.py", "to_change": true, "purpose": "Config dataclass, YAML load/save. vm_distro field, _validate_distro, SUPPORTED_DISTROS import. Removal: drop vm_distro + _validate_distro; add Alpine-config hard error path in load()."},
+      {"module": "cli.py", "to_change": true, "purpose": "Click entrypoint. Removal: --distro option, _handle_distro_change, linux-arm64-musl branch, distro_override pass-through."},
+      {"module": "wizard.py", "to_change": true, "purpose": "Interactive wizard. Removal: _select_distro, distro_override param, answers['distro'] assignment."},
+      {"module": "lima.py", "to_change": true, "purpose": "Lima VM lifecycle. Removal: get_vm_distro SSH read, lazy distro import, _get_image_config branch (replace with direct ubuntu lookup), Alpine comments at lines 229/501."},
+      {"module": "provisioner.py", "to_change": true, "purpose": "Ansible playbook generator. Removal: _ROLES_WITH_VARIANTS, _apply_distro_suffix, opencode-alpine guard at lines 179-185, vm_distro playbook var, distro string in error message."},
+      {"module": "downloads.py", "to_change": true, "purpose": "downloads.yml loader. Removal: get_alpine_image, alpine_image key from get_ansible_download_vars; simplify get_cloud_image to take no arg or strict ubuntu-only."},
+      {"module": "downloads.yml", "to_change": true, "purpose": "External download registry. Removal: alpine_image block (lines 14-17)."},
+      {"module": "detect/wizard_integration.py", "to_change": true, "purpose": "Detection-mode wizard wrapper. Removal: distro_override param, _select_distro call, vm_distro pass-through (lines 30, 103, 488, 860). NOT in spec but discovered via grep — planner must add."}
+    ],
+    "data_flow": {
+      "summary": "Distro selected once (wizard or --distro) -> Config.vm_distro: str -> persisted to .clauded.yaml under vm.distro -> read by provisioner (role suffixing + playbook var), lima (image URL via DistroProvider), and cli (_handle_distro_change + linux-arm64-musl).",
+      "after_epic": "No distro state. Config has no vm_distro. Provisioner emits bare role names. Lima reads ubuntu image URL directly from downloads.yml. CLI uses linux-arm64 unconditionally."
+    },
+    "boundary_rules": [
+      "config.py is the single distro-detection point at load time (NFR2).",
+      "All distro imports from distro.py are lazy except in config.py — these all collapse on removal.",
+      "Role-name resolution is in provisioner._apply_distro_suffix; that helper is being removed and roles are emitted as bare names."
+    ],
+    "external_boundaries": [
+      {"surface": "Lima VM via limactl subprocess", "module": "lima.py"},
+      {"surface": "Ansible playbook execution", "module": "provisioner.py"},
+      {"surface": "Cloud image download URL", "module": "lima.py + downloads.yml"},
+      {"surface": "Filesystem .clauded.yaml", "module": "config.py"},
+      {"surface": "Filesystem /etc/clauded.json (in VM)", "module": "lima.py"}
+    ]
+  },
+
+  "testing_and_conventions": {
+    "language": "Python 3.12",
+    "package_manager": "uv",
+    "test_framework": {"name": "pytest", "plugins": ["pytest-cov", "hypothesis"], "coverage_threshold": 80, "config_location": "pyproject.toml [tool.pytest.ini_options]"},
+    "test_run_command": "uv run pytest tests/ --cov=clauded --cov-report=term-missing --cov-fail-under=80",
+    "test_directory_layout": "Flat tests/ directory. No conftest.py. ~30 test files.",
+    "distro_test_files_to_remove": [
+      {"file": "tests/test_distro.py", "lines": 173, "summary": "Tests SUPPORTED_DISTROS, AlpineProvider, UbuntuProvider, get_distro_provider"},
+      {"file": "tests/test_distro_change.py", "lines": 436, "summary": "Tests _handle_distro_change and VM recreation flow"},
+      {"file": "tests/test_config_distro.py", "lines": 284, "summary": "Tests vm_distro field validation and YAML round-trip"},
+      {"file": "tests/test_wizard_distro.py", "lines": 339, "summary": "Tests _select_distro and distro_override"},
+      {"file": "tests/test_cli_distro.py", "lines": 280, "summary": "Tests --distro CLI flag"},
+      {"file": "tests/test_downloads_distro.py", "lines": 89, "summary": "Tests get_cloud_image multi-distro support"}
+    ],
+    "test_files_to_amend": [
+      {"file": "tests/test_provisioner.py", "lines": 1345, "summary": "Strip TestApplyDistroSuffix class, opencode-alpine tests, alpine fixture references."},
+      {"file": "tests/test_lima.py", "lines": 930, "summary": "Strip get_vm_distro and _get_image_config(distro='alpine') tests."},
+      {"file": "tests/test_version_check.py", "lines": 1208, "summary": "Strip vm_distro='alpine' from Config fixtures (~18 references)."},
+      {"file": "tests/test_database.py", "lines": 1386, "summary": "Strip vm_distro='alpine' from fixtures."},
+      {"file": "tests/test_documentation.py", "summary": "Drop Alpine doc references."},
+      {"file": "tests/test_detect_integration.py", "summary": "Strip distro_override and vm_distro references."},
+      {"file": "tests/test_wizard.py", "summary": "Strip distro_override pass-through."},
+      {"file": "tests/test_config.py", "summary": "Add the new Alpine-config rejection test (FR5)."}
+    ],
+    "lint": {"tool": "ruff", "command": "uv run ruff check src/ tests/", "make_target": "make lint"},
+    "type_check": {"tool": "mypy", "command": "uv run mypy src/", "make_target": "make typecheck"},
+    "format": {"tool": "ruff format", "command": "uv run ruff format src/ tests/ && uv run ruff check --fix src/ tests/", "make_target": "make format"},
+    "build": {"backend": "hatchling", "wheel_includes": ["src/clauded/**/*.py", "src/clauded/roles/**/*.yml", "src/clauded/linguist/**/*.yml", "src/clauded/linguist/README.md"], "custom_hook": "hatch_build.py writes _build_info.py with __commit__ from git rev-parse"},
+    "changelog": {"format": "Keep a Changelog 1.1.0 + SemVer", "sections_used": ["Added", "Changed", "Removed", "Fixed"], "version_tag_format": "[X.Y.Z] - YYYY-MM-DD", "make_targets": ["bump-patch", "bump-minor", "bump-major"]},
+    "docs": {
+      "files_to_delete": ["docs/alpine-architecture.md (151 lines)", "docs/claude-code-alpine-troubleshooting.md (230 lines)"],
+      "files_to_amend": ["docs/architecture.md (791 lines, 6 alpine hits)", "docs/configuration.md (1069 lines, 9 alpine hits)", "docs/supply-chain-security.md (82 lines, 3 alpine hits)", "docs/testing-infrastructure.md (132 lines, 1 alpine hit)", "README.md", "user-stories.md", "specs/spec.md"],
+      "files_to_add": ["docs/migration-from-alpine.md (per FR5)"],
+      "doc_style": "Markdown with ATX headings, fenced code blocks with language tags, tables via pipe syntax."
+    },
+    "ci_workflows": [{"file": ".github/workflows/test.yml", "trigger": "push/PR to master", "jobs": ["lint", "typecheck", "test with --cov-fail-under=80"]}],
+    "alpine_in_ci": false,
+    "project_specific_constraints": [
+      "uv only; no pip direct usage",
+      "CHANGELOG.md [Unreleased] entry required for every feature/fix",
+      "No production-code adaptations for tests",
+      "Boy-scout rule: fix small adjacent issues in passing",
+      "Lint/format/typecheck verified after each increment",
+      "No file: state: absent on Lima mount paths (safety rule)",
+      "Code is fully responsible for VM setup; no handling of unexpected configurations"
+    ]
+  }
+}

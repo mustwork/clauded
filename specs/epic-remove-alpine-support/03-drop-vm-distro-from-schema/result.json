@@ -1,0 +1,52 @@
+{
+  "story_id": "03",
+  "story_name": "drop-vm-distro-from-schema",
+  "status": "complete",
+  "files_created": [],
+  "files_modified": [
+    "src/clauded/config.py",
+    "src/clauded/provisioner.py",
+    "src/clauded/cli.py",
+    "src/clauded/lima.py",
+    "src/clauded/detect/wizard_integration.py",
+    "tests/test_config.py",
+    "tests/test_version_check.py",
+    "tests/test_provisioner.py",
+    "tests/test_detect_integration.py",
+    "tests/test_lima.py",
+    "CHANGELOG.md"
+  ],
+  "files_deleted": [
+    "tests/test_config_distro.py"
+  ],
+  "implementation_summary": [
+    "config.py: Removed SUPPORTED_DISTROS import, _validate_distro() function, vm_distro dataclass field, vm_distro=answers.get('distro') from from_wizard(), vm_distro=vm_distro from cls() in load(), and 'distro': self.vm_distro from save(). Replaced _validate_distro call in load() with inline alpine rejection + ubuntu INFO log.",
+    "provisioner.py: Removed vm_distro playbook variable. Removed opencode-alpine guard (dead code). Fixed _apply_distro_suffix to use hardcoded 'ubuntu' suffix. Fixed error message that referenced vm_distro.",
+    "cli.py: Replaced linux-arm64-musl branch with unconditional linux-arm64 (type error fix, Story 05 behavior).",
+    "lima.py: Replaced get_distro_provider(config.vm_distro) with get_cloud_image('ubuntu') (type error fix, Story 05 behavior).",
+    "detect/wizard_integration.py: Removed vm_distro=config.vm_distro from apply_detection_to_config.",
+    "tests: Removed all vm_distro= kwargs from Config constructors across 5 test files. Deleted test_config_distro.py (Story 03 skips honored). Added Story 04 skip to test_opencode_alpine_raises."
+  ],
+  "seams_produced": ["config_no_vm_distro"],
+  "seams_consumed": ["alpine_config_rejection"],
+  "test_counts": {
+    "passed": 1008,
+    "failed": 0,
+    "skipped": 5,
+    "skipped_note": "1x Story 05 (test_lima.py), 4x Story 04 (test_provisioner.py — includes test_opencode_alpine_raises newly added)"
+  },
+  "tooling_gates": {
+    "lint": "pass",
+    "format": "pass",
+    "typecheck": "pass"
+  },
+  "verification_rounds": [
+    {
+      "round": 1,
+      "outcome": "accepted",
+      "timestamp": "2026-05-05T15:30:00Z"
+    }
+  ],
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-05T15:30:00Z"
+}

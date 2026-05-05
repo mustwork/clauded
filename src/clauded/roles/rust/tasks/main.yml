@@ -1,10 +1,13 @@
 ---
+# Install Rust on Ubuntu using rustup
+
 - name: Install required packages for Rust installation
-  apk:
+  apt:
     name:
       - curl
-      - alpine-sdk
-      - musl-dev
+      - build-essential
+      - pkg-config
+      - libssl-dev
     state: present
     update_cache: yes
 

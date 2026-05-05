@@ -1,52 +1,96 @@
 ---
+# Install C/C++ development tools on Ubuntu
+
 - name: Install base C/C++ development tools
-  apk:
+  apt:
     name:
-      - build-base
+      - build-essential
       - make
       - cmake
       - gdb
       - valgrind
-      - musl-dev
-      - linux-headers
+      - linux-headers-generic
     state: present
     update_cache: yes
 
 - name: Install GCC 14 toolchain
-  apk:
+  apt:
     name:
-      - gcc
-      - g++
+      - gcc-14
+      - g++-14
     state: present
   when: c_version == "gcc14"
+  ignore_errors: yes
 
 - name: Install GCC 13 toolchain
-  apk:
+  apt:
+    name:
+      - gcc-13
+      - g++-13
+    state: present
+  when: c_version == "gcc13"
+  ignore_errors: yes
+
+- name: Install default GCC if specific version not available
+  apt:
     name:
       - gcc
       - g++
     state: present
-  when: c_version == "gcc13"
+  when: c_version in ["gcc14", "gcc13"]
 
 - name: Install Clang 18 toolchain
-  apk:
+  apt:
     name:
-      - clang18
-      - clang18-dev
-      - llvm18
-      - lld
+      - clang-18
+      - llvm-18
+      - lld-18
     state: present
   when: c_version == "clang18"
+  ignore_errors: yes
 
 - name: Install Clang 17 toolchain
-  apk:
+  apt:
     name:
-      - clang17
-      - clang17-dev
-      - llvm17
-      - lld
+      - clang-17
+      - llvm-17
+      - lld-17
     state: present
   when: c_version == "clang17"
+  ignore_errors: yes
+
+- name: Install default Clang if specific version not available
+  apt:
+    name:
+      - clang
+      - llvm
+      - lld
+    state: present
+  when: c_version in ["clang18", "clang17"]
+
+- name: Create gcc symlinks for gcc14
+  file:
+    src: "/usr/bin/{{ item.src }}"
+    dest: "/usr/bin/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "gcc-14", dest: "gcc" }
+    - { src: "g++-14", dest: "g++" }
+  when: c_version == "gcc14"
+  ignore_errors: yes
+
+- name: Create gcc symlinks for gcc13
+  file:
+    src: "/usr/bin/{{ item.src }}"
+    dest: "/usr/bin/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "gcc-13", dest: "gcc" }
+    - { src: "g++-13", dest: "g++" }
+  when: c_version == "gcc13"
+  ignore_errors: yes
 
 - name: Create clang symlinks for clang18
   file:

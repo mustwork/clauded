@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from clauded.config import Config
-from clauded.downloads import get_alpine_image
 from clauded.lima import LaunchSpec, LimaVM, _build_launch_spec
 
 
@@ -149,35 +148,16 @@ class TestLimaVMGenerateLimaConfig:
         assert config["memory"] == "8GiB"
         assert config["disk"] == "20GiB"
 
-    def test_sets_default_alpine_image(self, sample_config: Config) -> None:
-        """Generated config uses default Alpine image without digest verification.
-
-        Alpine rebuilds images in-place for security patches without changing
-        the version, which breaks hash verification. We rely on HTTPS transport
-        security instead.
-        """
-        sample_config.vm_image = None
-        vm = LimaVM(sample_config)
-
-        config = vm._generate_lima_config()
-
-        alpine = get_alpine_image()
-        assert len(config["images"]) == 1
-        assert config["images"][0]["location"] == alpine["url"]
-        assert config["images"][0]["arch"] == "aarch64"
-        # No digest - Alpine images are rebuilt in-place
-        assert "digest" not in config["images"][0]
-
     def test_uses_custom_image_when_set(self, sample_config: Config) -> None:
         """Generated config uses custom image URL when vm_image is set."""
-        sample_config.vm_image = "https://example.com/custom-alpine.qcow2"
+        sample_config.vm_image = "https://example.com/custom-image.qcow2"
         vm = LimaVM(sample_config)
 
         config = vm._generate_lima_config()
 
         assert len(config["images"]) == 1
         assert (
-            config["images"][0]["location"] == "https://example.com/custom-alpine.qcow2"
+            config["images"][0]["location"] == "https://example.com/custom-image.qcow2"
         )
         assert config["images"][0]["arch"] == "aarch64"
         # Custom images don't have checksum verification (user's responsibility)
@@ -296,7 +276,6 @@ class TestLimaVMGenerateLimaConfig:
             disk="10GiB",
             mount_host="/path/to/project",
             mount_guest="/path/to/project",
-            vm_distro="ubuntu",
             frameworks=["opencode"],
         )
         vm = LimaVM(config)
@@ -376,7 +355,6 @@ class TestLimaVMGenerateLimaConfig:
             config = vm._generate_lima_config()
 
         # No provision scripts - all configuration handled by Ansible
-        # Lima user provisions fail on Alpine due to home directory permissions
         assert "provision" not in config
 
 

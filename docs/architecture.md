@@ -31,7 +31,7 @@
 │          │             │                                       │
 │          v             v                                       │
 │  ┌──────────────────────────────────────────────────────┐    │
-│  │  Lima VM (Alpine Linux 3.21 / Apple Virtualization)  │    │
+│  │  Lima VM (Ubuntu 24.04 LTS / Apple Virtualization)   │    │
 │  │                                                       │    │
 │  │  <project-path> (virtiofs mount from host)            │    │
 │  │                                                       │    │
@@ -223,7 +223,7 @@ def _generate_lima_config(self) -> dict[str, Any]:
         "os": "linux",
         "arch": "aarch64",
         "images": [{
-            "location": "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/nocloud_alpine-3.21.0-aarch64-uefi-cloudinit-r0.qcow2"
+            "location": "https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-arm64.img"
         }],
         "cpus": self.config.vm_cpus,
         "memory": self.config.vm_memory,
@@ -526,7 +526,7 @@ All roles follow standardized patterns for consistency, idempotency, and maintai
 - **Package Manager**: Tool available via npm, pipx, cargo - simplest approach
 - **Binary Download**: Official binaries available, need version pinning
 - **Installer Script**: Upstream provides installer handling all complexity
-- **APK Package**: Alpine package available and version-appropriate
+- **APT Package**: Ubuntu package available and version-appropriate
 
 ### 5. Deterministic VM Naming
 
@@ -659,13 +659,12 @@ After installation, `clauded` command is available system-wide.
 
 **Breakdown**:
 1. Lima VM initialization: ~30-60 seconds
-2. Alpine image download: ~10-30 seconds (first time only, ~50MB)
+2. Ubuntu image download: ~10-60 seconds (first time only, ~600MB)
 3. VM boot: ~10-20 seconds
 4. Ansible provisioning: ~30-90 seconds (depends on selected roles)
 
 **Optimization**:
-- Alpine image cached by Lima after first download
-- apk package manager is faster than apt
+- Ubuntu image cached by Lima after first download
 - Ansible pipelining enabled (reduces SSH round-trips)
 - Parallel package installation where possible
 
@@ -771,7 +770,7 @@ class AWSVM(BaseVM):
 - **Fix**: `brew install lima`
 
 **Issue**: VM creation hangs
-- **Cause**: Network issues downloading Alpine image
+- **Cause**: Network issues downloading Ubuntu image
 - **Fix**: Check internet connection, retry
 
 **Issue**: Ansible provisioning fails

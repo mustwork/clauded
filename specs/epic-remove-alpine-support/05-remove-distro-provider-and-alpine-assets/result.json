@@ -1,0 +1,50 @@
+{
+  "story_id": "05",
+  "story_name": "remove-distro-provider-and-alpine-assets",
+  "status": "complete",
+  "files_created": [],
+  "files_modified": [
+    "src/clauded/downloads.py",
+    "src/clauded/downloads.yml",
+    "src/clauded/lima.py",
+    "tests/test_lima.py",
+    "tests/test_downloads.py",
+    "CHANGELOG.md"
+  ],
+  "files_deleted": [
+    "src/clauded/distro.py",
+    "tests/test_distro.py",
+    "tests/test_downloads_distro.py"
+  ],
+  "implementation_summary": [
+    "distro.py: Deleted entirely (git rm). DistroProvider, AlpineProvider, UbuntuProvider, SUPPORTED_DISTROS, get_distro_provider gone.",
+    "downloads.py: Deleted get_alpine_image(). Simplified get_cloud_image() to no-arg ubuntu-only. Removed 'alpine_image' key from get_ansible_download_vars().",
+    "downloads.yml: Removed alpine_image block (5 lines).",
+    "lima.py: Removed get_vm_distro() SSH-read method. Updated get_cloud_image call to no-arg.",
+    "test_distro.py: Deleted entirely.",
+    "test_downloads_distro.py: Deleted entirely.",
+    "test_lima.py: Removed get_alpine_image import. Deleted test_sets_default_alpine_image (Story 05 skip honored).",
+    "test_downloads.py: Removed get_alpine_image import. Deleted TestGetAlpineImage class. Updated expected_tools to ubuntu_image. Removed alpine_image assertions."
+  ],
+  "seams_produced": [],
+  "seams_consumed": ["alpine_config_rejection", "config_no_vm_distro", "bare_role_names"],
+  "test_counts": {
+    "passed": 968,
+    "failed": 0,
+    "skipped": 0
+  },
+  "tooling_gates": {
+    "lint": "pass",
+    "format": "pass",
+    "typecheck": "pass — 21 source files (distro.py gone)"
+  },
+  "verification_rounds": [
+    {
+      "round": 1,
+      "outcome": "accepted",
+      "timestamp": "2026-05-05T16:30:00Z"
+    }
+  ],
+  "final_outcome": "accepted",
+  "completed_at": "2026-05-05T16:30:00Z"
+}

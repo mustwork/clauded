@@ -161,6 +161,40 @@ class TestCliDestroy:
                 assert result.exit_code == 0
                 assert config_path.exists()
 
+    def test_destroy_works_on_legacy_alpine_config(self, runner: CliRunner) -> None:
+        """--destroy must operate on a legacy `vm.distro: alpine` config so the
+        FR5 migration message (step 1: clauded --destroy) is actually
+        executable. Without this bypass, users would be stuck."""
+        alpine_yaml = """version: "1"
+vm:
+  name: clauded-testcli-legacy
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+  distro: alpine
+mount:
+  host: /test/project
+  guest: /workspace
+environment:
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+"""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(alpine_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--destroy"], input="n\n")
+
+                assert result.exit_code == 0
+                assert "Alpine Linux is no longer supported" not in result.output
+                mock_vm.destroy.assert_called_once()
+
 
 class TestCliStop:
     """Tests for CLI --stop option."""

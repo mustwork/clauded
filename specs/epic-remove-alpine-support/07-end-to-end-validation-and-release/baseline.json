@@ -1,0 +1,19 @@
+{
+  "story_id": "07",
+  "story_name": "end-to-end-validation-and-release",
+  "captured_at": "2026-05-05T13:55:00Z",
+  "inherited_baseline": {
+    "passed": 968,
+    "skipped": 0,
+    "failed": 0,
+    "source": "Story 06 acceptance baseline"
+  },
+  "pre_story_state": {
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "coverage_pct": 85.84,
+    "coverage_threshold": 80,
+    "test_counts": {"passed": 968, "skipped": 0, "failed": 0}
+  },
+  "notes": "Story 07 is a validation-only story. No production code changes expected. Baseline is carried from Story 06. Boy-scout cleanup allowed: stale alpine test name, stale fixture URLs, stale comment."
+}

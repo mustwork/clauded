@@ -1,12 +1,12 @@
 ---
+# Install Dart SDK on Ubuntu using official download
+
 - name: Install dependencies for Dart and Flutter
-  apk:
+  apt:
     name:
       - curl
       - unzip
       - git
-      - bash
-      - gcompat
     state: present
     update_cache: yes
 

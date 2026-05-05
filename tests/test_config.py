@@ -324,7 +324,7 @@ vm:
   cpus: 1
   memory: 8GiB
   disk: 20GiB
-  image: https://example.com/custom-alpine.qcow2
+  image: https://example.com/custom-image.qcow2
 mount:
   host: /test
   guest: /test
@@ -336,7 +336,7 @@ environment:
 
         config = Config.load(config_path)
 
-        assert config.vm_image == "https://example.com/custom-alpine.qcow2"
+        assert config.vm_image == "https://example.com/custom-image.qcow2"
 
     def test_load_without_image_defaults_to_none(self, tmp_path: Path) -> None:
         """Loading config without vm.image field defaults to None."""
@@ -1301,7 +1301,6 @@ versions:
             disk="20GiB",
             mount_host="/test",
             mount_guest="/test",
-            vm_distro="ubuntu",
             frameworks=["claude-code", "codex", "opencode"],
             opencode_version="1.14.33",
         )
@@ -1386,7 +1385,6 @@ versions:
             disk="20GiB",
             mount_host="/test",
             mount_guest="/test",
-            vm_distro="ubuntu",
             frameworks=["claude-code", "codex", "opencode"],
         )
         config_path = tmp_path / ".clauded.yaml"
@@ -1729,3 +1727,112 @@ class TestHarnessFromWizard:
 
         loaded = Config.load(config_path)
         assert loaded.harness == "opencode"
+
+
+class TestAlpineConfigRejection:
+    """Tests for FR5 migration error when vm.distro: alpine is loaded (AC1, AC11)."""
+
+    _BASE_YAML = """\
+version: "1"
+harness: claude-code
+vm:
+  name: clauded-test-abc123
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+  distro: {distro}
+mount:
+  host: /test/project
+  guest: /test/project
+environment:
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+"""
+
+    def _write_config(self, tmp_path: Path, distro: str) -> Path:
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text(self._BASE_YAML.format(distro=distro))
+        return config_path
+
+    def test_alpine_distro_raises_config_validation_error(self, tmp_path: Path) -> None:
+        """Loading a config with distro: alpine raises ConfigValidationError (AC1)."""
+        config_path = self._write_config(tmp_path, "alpine")
+        with pytest.raises(
+            ConfigValidationError, match="Alpine Linux is no longer supported"
+        ):
+            Config.load(config_path)
+
+    def test_alpine_error_message_contains_migration_steps(
+        self, tmp_path: Path
+    ) -> None:
+        """The error message names the three migration steps (AC1)."""
+        config_path = self._write_config(tmp_path, "alpine")
+        with pytest.raises(ConfigValidationError) as exc_info:
+            Config.load(config_path)
+        message = str(exc_info.value)
+        assert "clauded --destroy" in message
+        assert "distro: alpine" in message
+        assert "docs/migration-from-alpine.md" in message
+
+    def test_alpine_error_message_does_not_contain_version_placeholder(
+        self, tmp_path: Path
+    ) -> None:
+        """The error message is version-agnostic — no vX.Y.0 placeholder."""
+        config_path = self._write_config(tmp_path, "alpine")
+        with pytest.raises(ConfigValidationError) as exc_info:
+            Config.load(config_path)
+        assert "vX.Y" not in str(exc_info.value)
+
+    def test_ubuntu_distro_loads_successfully(self, tmp_path: Path) -> None:
+        """A config with distro: ubuntu continues to load (NFR4 — not an error)."""
+        config_path = self._write_config(tmp_path, "ubuntu")
+        config = Config.load(config_path)
+        assert config is not None
+
+    def test_missing_distro_field_loads_successfully(self, tmp_path: Path) -> None:
+        """A config with no distro field loads without error."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text(
+            """\
+version: "1"
+harness: claude-code
+vm:
+  name: clauded-test-abc123
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test/project
+  guest: /test/project
+environment:
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+"""
+        )
+        config = Config.load(config_path)
+        assert config is not None
+
+    def test_alpine_legacy_loads_when_allowed(self, tmp_path: Path) -> None:
+        """allow_alpine_legacy=True bypasses the FR5 raise so --destroy/--stop
+        can operate on a legacy Alpine project (the migration message tells
+        users to run `clauded --destroy` as step 1)."""
+        config_path = self._write_config(tmp_path, "alpine")
+        config = Config.load(config_path, allow_alpine_legacy=True)
+        assert config is not None
+        assert config.vm_name == "clauded-test-abc123"
+
+    def test_unknown_distro_value_is_rejected(self, tmp_path: Path) -> None:
+        """vm.distro values other than 'ubuntu'/'alpine' must be rejected.
+        Pre-epic, _validate_distro() raised on anything outside SUPPORTED_DISTROS;
+        dropping that helper without a replacement would silently accept typos
+        ('ubunto', 'debain') and deprecated distros ('debian', 'fedora') —
+        treating them as valid Ubuntu configs. This guards against that
+        regression."""
+        for bad in ("debian", "fedora", "ubunto"):
+            config_path = self._write_config(tmp_path, bad)
+            with pytest.raises(ConfigValidationError, match="Unknown vm.distro"):
+                Config.load(config_path)

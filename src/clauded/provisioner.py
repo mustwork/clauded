@@ -13,47 +13,9 @@ import click
 import yaml
 
 from . import __version__
-from .config import Config, ConfigValidationError
+from .config import Config
 from .downloads import get_downloads
 from .lima import LimaVM
-
-# Roles that have distro-specific variants (e.g., common-alpine, common-ubuntu).
-# Roles NOT in this set use the original name without suffix.
-# All roles now have variants after Story 06.
-_ROLES_WITH_VARIANTS = frozenset(
-    {
-        # Core roles (Story 03)
-        "common",
-        "python",
-        "node",
-        # Language roles (Story 04)
-        "java",
-        "kotlin",
-        "rust",
-        "go",
-        "dart",
-        "c",
-        # Tool roles (Story 05)
-        "docker",
-        "uv",
-        "poetry",
-        "maven",
-        "gradle",
-        "aws_cli",
-        "gh",
-        # Database roles (Story 06)
-        "postgresql",
-        "redis",
-        "mysql",
-        "sqlite",
-        "mongodb",
-        # Framework roles (Story 06)
-        "claude_code",
-        "codex",
-        "opencode",
-        "playwright",
-    }
-)
 
 # Allowlist of safe environment variables to pass to ansible-playbook.
 # This prevents leaking sensitive variables (AWS credentials, API keys, etc.)
@@ -136,26 +98,6 @@ class Provisioner:
         self.roles_path = Path(__file__).parent / "roles"
         self.debug = debug
 
-    def _apply_distro_suffix(self, base_roles: list[str]) -> list[str]:
-        """Apply distro suffix to roles that have variants.
-
-        Args:
-            base_roles: List of base role names (e.g., ["common", "python", "docker"])
-
-        Returns:
-            List of role names with distro suffix applied where appropriate.
-            Roles in _ROLES_WITH_VARIANTS get f"{role}-{distro}" suffix.
-            Other roles keep their original name.
-        """
-        distro = self.config.vm_distro
-        result = []
-        for role in base_roles:
-            if role in _ROLES_WITH_VARIANTS:
-                result.append(f"{role}-{distro}")
-            else:
-                result.append(role)
-        return result
-
     def _validate_roles_exist(self, role_names: list[str]) -> list[str]:
         """Validate that all required roles exist.
 
@@ -174,33 +116,20 @@ class Provisioner:
 
     def run(self) -> None:
         """Run the provisioning playbook."""
-        # NFR5: opencode requires Ubuntu (pre-Alpine-removal targeting).
-        # Raised before role lookup so the user sees an actionable distro message
-        # rather than a missing-role error.
-        if self.config.vm_distro == "alpine" and "opencode" in self.config.frameworks:
-            raise ConfigValidationError(
-                "opencode is only supported on Ubuntu. "
-                "Re-run with --distro ubuntu (alpine support for opencode is "
-                "not provided pre-epic-remove-alpine-support)."
-            )
-
-        # Get base roles and apply distro suffix
-        base_roles = self._get_base_roles()
-        roles_with_suffix = self._apply_distro_suffix(base_roles)
+        roles = self._get_base_roles()
 
         # Validate all roles exist before running
-        missing_roles = self._validate_roles_exist(roles_with_suffix)
+        missing_roles = self._validate_roles_exist(roles)
         if missing_roles:
             click.echo(
-                f"Error: Missing Ansible roles for distro '{self.config.vm_distro}':\n"
+                "Error: Missing Ansible roles:\n"
                 + "\n".join(f"  - {role}" for role in missing_roles)
-                + "\n\nThis may indicate incomplete distro support. "
-                "Check that all required role variants exist.",
+                + "\n\nCheck that all required role directories exist.",
                 err=True,
             )
             raise SystemExit(1)
 
-        playbook = self._generate_playbook(roles_with_suffix)
+        playbook = self._generate_playbook(roles)
         inventory = self._generate_inventory()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -221,7 +150,7 @@ class Provisioner:
             lima_ssh_config = self.vm.get_ssh_config_path()
 
             print(f"\nProvisioning VM '{self.vm.name}'...")
-            print(f"Roles: {', '.join(roles_with_suffix)}\n")
+            print(f"Roles: {', '.join(roles)}\n")
 
             # Display SQLite storage disclaimer (C3)
             if "sqlite" in self.config.databases:
@@ -378,7 +307,6 @@ class Provisioner:
                     "clauded_project_name": self.config.project_name,
                     "clauded_mount_guest": self.config.mount_guest,
                     "clauded_mount_host": self.config.mount_host,
-                    "vm_distro": self.config.vm_distro,
                     "gitconfig_content": gitconfig_content,
                     # Centralized download metadata for integrity verification
                     "downloads": downloads,

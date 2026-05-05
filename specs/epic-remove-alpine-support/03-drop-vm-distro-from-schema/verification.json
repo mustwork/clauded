@@ -1,0 +1,51 @@
+{
+  "story_id": "03",
+  "pre_impl_questions": [
+    {
+      "category": "SPEC",
+      "ac_id": "AC4",
+      "question": "Is Config.vm_distro removed from the dataclass?",
+      "answer": "Yes — field deleted. from_wizard() and load() no longer pass or read it."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC4",
+      "question": "Does Config.save() no longer emit distro: under vm:?",
+      "answer": "Yes — 'distro': self.vm_distro removed from vm_data dict in save()."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC4",
+      "question": "Does loading distro: ubuntu log INFO and succeed?",
+      "answer": "Yes — Config.load() logs INFO 'vm.distro is no longer used; you can remove it from .clauded.yaml' for any non-None, non-alpine distro value and continues loading."
+    },
+    {
+      "category": "SPEC",
+      "ac_id": "AC1",
+      "question": "Does loading distro: alpine still raise ConfigValidationError?",
+      "answer": "Yes — the alpine check is now inline in Config.load() (the FR5 message is preserved identically)."
+    },
+    {
+      "category": "ARCHITECTURE",
+      "question": "Is the config_no_vm_distro seam produced?",
+      "answer": "Yes — Config no longer has vm_distro; all consumers (Stories 04-07) must not pass that kwarg."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "category": "QUALITY",
+      "question": "Were all tooling gates green after the story?",
+      "answer": "Yes — lint, format, typecheck all pass. 1008 passed, 5 skipped, 0 failed."
+    },
+    {
+      "category": "QUALITY",
+      "question": "Were the 4 Story 03 skip markers in test_config_distro.py honored?",
+      "answer": "Yes — test_config_distro.py deleted entirely."
+    },
+    {
+      "category": "QUALITY",
+      "question": "Were any additional skips needed?",
+      "answer": "Yes — test_provisioner.py::test_opencode_alpine_raises needed a Story 04 skip (the opencode-alpine guard was removed as a side effect of removing vm_distro, and this test was testing that guard)."
+    }
+  ]
+}

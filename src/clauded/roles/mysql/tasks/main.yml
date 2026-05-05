@@ -1,10 +1,10 @@
 ---
-# Install MariaDB client libraries and development headers only.
+# Install MySQL client libraries and development headers only.
 # The actual database server runs externally.
-- name: Install MariaDB client and development libraries
-  apk:
+- name: Install MySQL client and development libraries
+  apt:
     name:
-      - mariadb-client
-      - mariadb-dev
-      - mariadb-connector-c
+      - mysql-client
+      - libmysqlclient-dev
     state: present
+    update_cache: yes

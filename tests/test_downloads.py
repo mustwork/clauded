@@ -4,7 +4,6 @@ import pytest
 
 from clauded.downloads import (
     DownloadMetadataError,
-    get_alpine_image,
     get_downloads,
     get_tool_metadata,
 )
@@ -24,7 +23,7 @@ class TestGetDownloads:
         downloads = get_downloads()
 
         expected_tools = [
-            "alpine_image",
+            "ubuntu_image",
             "go",
             "kotlin",
             "uv",
@@ -42,24 +41,6 @@ class TestGetDownloads:
         downloads2 = get_downloads()
 
         assert downloads1 is downloads2
-
-
-class TestGetAlpineImage:
-    """Tests for get_alpine_image() function."""
-
-    def test_returns_dict_with_required_keys(self) -> None:
-        """Returns dict with url, version, arch keys."""
-        image = get_alpine_image()
-
-        assert "url" in image
-        assert "version" in image
-        assert "arch" in image
-
-    def test_url_is_alpine_cdn(self) -> None:
-        """URL points to Alpine Linux CDN."""
-        image = get_alpine_image()
-
-        assert "dl-cdn.alpinelinux.org" in image["url"]
 
 
 class TestGetToolMetadata:
@@ -122,10 +103,6 @@ class TestDownloadsYamlIntegrity:
         # Single-version tools
         assert "installer_url" in downloads["uv"]
         assert downloads["uv"]["installer_url"].startswith("https://")
-
-        # Alpine image
-        assert "url" in downloads["alpine_image"]
-        assert downloads["alpine_image"]["url"].startswith("https://")
 
     def test_bun_binary_url(self) -> None:
         """Bun binary has URL defined."""

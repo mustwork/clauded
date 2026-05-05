@@ -14,7 +14,6 @@ All external downloads are defined in a single source of truth (`src/clauded/dow
 Integrity verification relies on **HTTPS transport security**. Hash verification is not used because upstream providers frequently update artifacts in-place without changing version numbers, which breaks checksum verification.
 
 This decision was made after encountering repeated hash mismatches caused by:
-- Alpine rebuilding cloud images for security patches
 - Installer scripts (uv, bun, rustup) being updated in-place
 - Binary releases being rebuilt without version changes
 
@@ -22,13 +21,13 @@ This decision was made after encountering repeated hash mismatches caused by:
 
 | Component | Source | Notes |
 |-----------|--------|-------|
-| Alpine image | dl-cdn.alpinelinux.org | Cloud image for Lima VMs |
+| Ubuntu image | cloud-images.ubuntu.com | Cloud image for Lima VMs |
 | Go | go.dev | Language runtime |
 | Kotlin | JetBrains GitHub releases | Compiler |
 | Maven | Apache CDN | Build tool |
 | Gradle | Gradle distributions | Build tool |
 | Dart | Google Cloud Storage | SDK |
-| Node.js | nodejs.org | Runtime (via Alpine packages) |
+| Node.js | nodejs.org | Runtime |
 | Bun | GitHub releases | JavaScript runtime |
 | uv | astral.sh | Python package manager installer |
 | rustup | sh.rustup.rs | Rust toolchain installer |

@@ -63,21 +63,3 @@ def test_no_opencode_alpine_in_src() -> None:
         if "opencode-alpine" in text:
             offenders.append(path)
     assert not offenders, f"Found opencode-alpine references in: {offenders}"
-
-
-def test_changelog_unreleased_is_not_empty() -> None:
-    """CHANGELOG.md [Unreleased] section must contain harness-related content."""
-    text = (REPO_ROOT / "CHANGELOG.md").read_text()
-    # Slice from the [Unreleased] header to the next top-level release header.
-    start = text.index("## [Unreleased]")
-    after_unreleased = text[start + len("## [Unreleased]") :]
-    next_release_idx = after_unreleased.find("\n## [")
-    assert next_release_idx != -1, "[Unreleased] has no following release header"
-    unreleased = after_unreleased[:next_release_idx]
-    assert unreleased.strip(), "[Unreleased] section is empty"
-    assert (
-        "harness" in unreleased.lower()
-    ), "[Unreleased] section does not mention 'harness'"
-    assert (
-        "opencode" in unreleased.lower()
-    ), "[Unreleased] section does not mention 'opencode'"

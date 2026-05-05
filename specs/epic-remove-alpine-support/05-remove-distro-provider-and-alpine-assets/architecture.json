@@ -1,0 +1,36 @@
+{
+  "story_id": "05",
+  "story_name": "remove-distro-provider-and-alpine-assets",
+  "owning_modules": ["src/clauded/distro.py", "src/clauded/downloads.py", "src/clauded/lima.py"],
+  "interfaces_touched": [
+    {"module": "src/clauded/distro.py", "changes": ["Delete entirely (ADR-001)"]},
+    {"module": "src/clauded/downloads.py", "changes": [
+      "Delete get_alpine_image()",
+      "Delete 'alpine_image' key from get_ansible_download_vars()",
+      "Simplify get_cloud_image() to ubuntu-only (no-arg or strict ubuntu validation)"
+    ]},
+    {"module": "src/clauded/downloads.yml", "changes": ["Delete alpine_image block"]},
+    {"module": "src/clauded/lima.py", "changes": ["Delete get_vm_distro() method"]}
+  ],
+  "public_api_changes": [
+    "distro.py no longer exists — imports will fail at import time",
+    "downloads.get_alpine_image no longer exported",
+    "downloads.get_cloud_image simplified to no-arg Ubuntu-only",
+    "lima.LimaVM.get_vm_distro removed"
+  ],
+  "files_deleted": [
+    "src/clauded/distro.py",
+    "tests/test_distro.py",
+    "tests/test_downloads_distro.py"
+  ],
+  "files_modified": [
+    "src/clauded/downloads.py",
+    "src/clauded/downloads.yml",
+    "src/clauded/lima.py",
+    "tests/test_lima.py",
+    "tests/test_downloads.py",
+    "CHANGELOG.md"
+  ],
+  "seams_produced": [],
+  "seams_consumed": ["alpine_config_rejection", "config_no_vm_distro", "bare_role_names"]
+}

@@ -62,7 +62,7 @@
 - **Configuration**: PyYAML 6.0+
 - **VM Management**: Lima (limactl commands via subprocess)
 - **Provisioning**: Ansible 13.2+ (ansible-playbook via subprocess)
-- **Base OS**: Alpine Linux 3.21 (cloud image)
+- **Base OS**: Ubuntu 24.04 LTS (cloud image)
 - **Hypervisor**: Apple Virtualization Framework (vz)
 - **Filesystem**: virtiofs for host-guest mounting
 
@@ -84,7 +84,7 @@
 
 **`lima.py`**
 - Manage Lima VM lifecycle via `limactl` subprocess calls
-- Generate Lima YAML configuration with VM resources, Alpine image, and mounts
+- Generate Lima YAML configuration with VM resources, Ubuntu image, and mounts
 - Check VM existence and running status
 - Provide SSH config path for Ansible connectivity
 
@@ -144,7 +144,7 @@
 **VM Creation**
 - Input: `Config` object with VM settings and environment selections
 - Process:
-  1. Generate Lima YAML config with vmType=vz, Alpine Linux image, CPU/memory/disk settings
+  1. Generate Lima YAML config with vmType=vz, Ubuntu 24.04 LTS image, CPU/memory/disk settings
   2. Configure virtiofs mount: host project path → same path in guest
   3. Execute `limactl start <vm-name> --tty=false <lima-config-path>`
 - Output: Running Lima VM with project directory mounted
@@ -201,7 +201,7 @@ vm:
   cpus: <int>
   memory: <size>GiB
   disk: <size>GiB
-  image: <url>  # optional, defaults to Alpine 3.21 cloud image
+  image: <url>  # optional, defaults to Ubuntu 24.04 LTS cloud image
   keep_running: false  # optional, keep VM running after shell exit
 mount:
   host: <absolute-path>
@@ -305,7 +305,7 @@ The top-level `harness:` field selects which AI coding TUI `clauded` launches wh
   - `playwright` if "playwright" in config.environment.frameworks
   - `claude_code` if "claude-code" in config.environment.frameworks
   - `codex` if "codex" in config.environment.frameworks
-  - `opencode` if "opencode" in config.environment.frameworks (Ubuntu only — Alpine is rejected at config-load time)
+  - `opencode` if "opencode" in config.environment.frameworks
 
 **Auto-bundled Roles**
 - When `python` is selected: `uv` and `poetry` are automatically included
@@ -317,22 +317,22 @@ The top-level `harness:` field selects which AI coding TUI `clauded` launches wh
 
 | Role | Purpose | Key Tasks |
 |------|---------|-----------|
-| `common` | Base system packages | ca-certificates, coreutils, curl, git, gnupg, alpine-sdk, bash |
-| `python` | Python build dependencies | apk python3, python3-dev, py3-pip, build dependencies |
+| `common` | Base system packages | ca-certificates, coreutils, curl, git, gnupg, bash |
+| `python` | Python build dependencies | apt python3, python3-dev, pip, build dependencies |
 | `uv` | Python package manager | uv installation, then `uv python install {{ python_version }}` |
 | `poetry` | Python dependency manager | poetry installation via pipx (auto-bundled with Python) |
-| `node` | Node.js installation | Alpine packages for musl compatibility, includes npm/npx/corepack (enables yarn/pnpm) |
-| `java` | Java version installation | apk openjdk{{ java_version }} |
+| `node` | Node.js installation | NodeSource apt repo, includes npm/npx/corepack (enables yarn/pnpm) |
+| `java` | Java version installation | apt openjdk-{{ java_version }}-jdk |
 | `kotlin` | Kotlin compiler installation | Download from GitHub releases, kotlin{{ kotlin_version }} |
 | `maven` | Java/Kotlin build tool | Maven binary installation (auto-bundled with Java/Kotlin) |
 | `rust` | Rust toolchain installation | rustup, rustc/cargo {{ rust_version }} |
 | `go` | Go version installation | Download from go.dev, go{{ go_version }} |
 | `dart` | Dart SDK installation | Download from Google storage, dart/pub {{ dart_version }} |
 | `c` | C/C++ toolchain installation | gcc/g++/clang/make/cmake/gdb/valgrind, CC/CXX env vars |
-| `docker` | Docker setup | apk docker, OpenRC service, user group |
-| `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, postgresql-dev, OpenRC service |
-| `redis` | Redis installation | redis, OpenRC service, port 6379 |
-| `mysql` | MySQL installation | mariadb (MySQL-compatible), OpenRC service, port 3306 |
+| `docker` | Docker setup | apt docker-ce, systemd service, user group |
+| `postgresql` | PostgreSQL installation | postgresql, postgresql-contrib, postgresql-dev, systemd service |
+| `redis` | Redis installation | redis-server, systemd service, port 6379 |
+| `mysql` | MySQL installation | mysql-server, systemd service, port 3306 |
 | `sqlite` | SQLite installation | sqlite package via apk, no service management (file-based) |
 | `mongodb` | MongoDB CLI tools | mongodb-tools package via apk (mongodump, mongorestore, etc.), no service management |
 | `aws_cli` | AWS CLI v2 | Download aarch64 zip, unzip, install |
@@ -506,7 +506,7 @@ The project uses GitHub Actions for automated quality enforcement:
 
 ### Performance
 
-- VM creation: ~1-3 minutes (Alpine image download + provisioning)
+- VM creation: ~2-5 minutes (Ubuntu image download + provisioning)
 - VM start: ~5-15 seconds
 - VM stop: ~2-5 seconds
 - Shell entry: <1 second for running VM
@@ -582,7 +582,7 @@ The project uses GitHub Actions for automated quality enforcement:
 **Required**:
 - Lima (`limactl` in PATH)
 - Ansible (`ansible-playbook` in PATH via uv)
-- Internet connection (for Alpine image download and package installation)
+- Internet connection (for Ubuntu image download and package installation)
 
 **Optional**:
 - Git (for version control of `.clauded.yaml`)
@@ -619,7 +619,7 @@ The project uses GitHub Actions for automated quality enforcement:
 2. **macOS-only**: Lima is macOS-specific
 3. **ARM64-only**: Hardcoded architecture in Lima config
 4. **Local VMs only**: No remote provisioning
-5. **Alpine Linux**: Hardcoded base image
+5. **Ubuntu 24.04 LTS**: Sole supported base image
 6. **No VM migration**: VMs are tied to host machine
 
 ### Assumptions

@@ -42,35 +42,19 @@ def get_downloads() -> dict[str, Any]:
     return _DOWNLOADS
 
 
-def get_cloud_image(distro: str) -> dict[str, str]:
-    """Get cloud image metadata for specified distro.
-
-    Args:
-        distro: Distribution name (alpine, ubuntu)
+def get_cloud_image() -> dict[str, str]:
+    """Get the Ubuntu cloud image metadata.
 
     Returns:
         Dict with 'url', 'version', 'arch' keys
 
     Raises:
-        DownloadMetadataError: If cloud image not found for distro
+        DownloadMetadataError: If ubuntu_image not found in downloads.yml
     """
     downloads = get_downloads()
-    key = f"{distro}_image"
-    if key not in downloads:
-        raise DownloadMetadataError(f"No cloud image for distro: {distro}")
-    return dict(downloads[key])
-
-
-def get_alpine_image() -> dict[str, str]:
-    """Get Alpine Linux cloud image metadata.
-
-    Returns:
-        Dict with 'url', 'version', 'arch' keys
-
-    Note:
-        Kept for backward compatibility. Use get_cloud_image('alpine') instead.
-    """
-    return get_cloud_image("alpine")
+    if "ubuntu_image" not in downloads:
+        raise DownloadMetadataError("ubuntu_image not found in downloads.yml")
+    return dict(downloads["ubuntu_image"])
 
 
 def get_tool_metadata(tool: str, version: str | None = None) -> dict[str, Any]:
@@ -125,7 +109,6 @@ def get_ansible_download_vars() -> dict[str, Any]:
 
     return {
         "downloads": {
-            "alpine_image": downloads["alpine_image"],
             "go": downloads["go"],
             "kotlin": downloads["kotlin"],
             "uv": downloads["uv"],

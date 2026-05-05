@@ -1,0 +1,67 @@
+{
+  "story_id": "07",
+  "story_name": "end-to-end-validation-and-release",
+  "status": "complete",
+  "completed_at": "2026-05-05T14:05:00Z",
+  "gate_results": {
+    "lint": {"tool": "ruff", "command": "make lint", "result": "PASS", "output": "All checks passed!"},
+    "typecheck": {"tool": "mypy", "command": "make typecheck", "result": "PASS", "output": "Success: no issues found in 21 source files"},
+    "test_suite": {
+      "command": "uv run pytest tests/ --cov=clauded --cov-report=term-missing",
+      "result": "PASS",
+      "passed": 968,
+      "failed": 0,
+      "skipped": 0,
+      "coverage_pct": 85.84,
+      "coverage_threshold": 80
+    },
+    "wheel_build": {
+      "command": "uv build --wheel",
+      "result": "PASS",
+      "artifact": "clauded-0.2.6-py3-none-any.whl",
+      "role_count": 25,
+      "roles": ["aws_cli", "c", "claude_code", "codex", "common", "dart", "docker", "gh", "go", "gradle", "java", "kotlin", "maven", "mongodb", "mysql", "node", "opencode", "playwright", "poetry", "postgresql", "python", "redis", "rust", "sqlite", "uv"]
+    },
+    "nfr3_grep": {
+      "command": "grep -ri 'alpine' src/ tests/ docs/ specs/",
+      "result": "PASS",
+      "note": "All hits in allowed categories: FR5 error string, migration doc, linguist data, AC11 rejection tests, historical epic spec dirs"
+    }
+  },
+  "ac_coverage_summary": {
+    "AC1": {"status": "pass", "story": "01", "note": "Config.load() raises ConfigValidationError with FR5 message for alpine distro"},
+    "AC2": {"status": "pass", "story": "02", "note": "--distro flag removed from cli.py; Click errors on unknown option"},
+    "AC3": {"status": "pass", "story": "02", "note": "_select_distro deleted; wizard.run() takes no distro_override; first question is Python"},
+    "AC4": {"status": "pass", "story": "03", "note": "Config has no vm_distro; save() emits no distro key; ubuntu loads with INFO log"},
+    "AC5": {"status": "pass", "story": "04", "note": "25 bare role dirs; no -alpine or -ubuntu suffix; _apply_distro_suffix and _ROLES_WITH_VARIANTS removed"},
+    "AC6": {"status": "pass", "story": "05", "note": "distro.py deleted; no DistroProvider/AlpineProvider/UbuntuProvider/get_distro_provider anywhere in src/"},
+    "AC7": {"status": "pass", "story": "05", "note": "cli.py uses unconditional linux-arm64; get_vm_distro() removed; no Alpine/musl/OpenRC comments"},
+    "AC8": {"status": "pass", "story": "05", "note": "downloads.yml has no alpine_image block; get_alpine_image deleted; get_cloud_image() is no-arg Ubuntu-only"},
+    "AC9": {"status": "pass", "story": "06", "note": "Alpine doc files deleted; migration-from-alpine.md exists; docs/README/user-stories/spec.md all cleaned"},
+    "AC10": {"status": "pass", "story": "06", "note": "CHANGELOG Removed block lists all 5 items; Changed line states Ubuntu 24.04 LTS sole guest OS"},
+    "AC11": {"status": "pass", "story": "05", "note": "6 distro test files deleted; TestAlpineConfigRejection in test_config.py; no alpine parametrize; coverage >= 80%"},
+    "AC12": {"status": "pass", "story": "07", "note": "NFR3 grep check PASS; stale fixtures cleaned in Story 07 boy-scout pass"},
+    "AC13": {"status": "manual", "story": "07", "note": "E2E smoke tests on live Ubuntu VM require real infrastructure; cannot be automated in CI"},
+    "AC14": {"status": "pass", "story": "07", "note": "ruff PASS; mypy PASS; pytest 968/0/0; coverage 85.84% >= 80%"}
+  },
+  "release_ready": true,
+  "release_actions_for_user": [
+    "run: make bump-minor (this is a breaking change — Alpine configs will now error; minor version bump required)",
+    "verify CHANGELOG [Unreleased] section moves to [0.3.0] with today's date",
+    "run: make release",
+    "tag v0.3.0",
+    "push tag: git push origin v0.3.0"
+  ],
+  "boy_scout_cleanups": [
+    "tests/test_provisioner.py: Renamed test_alpine_without_opencode_not_blocked → test_codex_without_opencode_excludes_opencode_role; vm_name updated to 'clauded-codex-no-opencode'",
+    "tests/test_lima.py: Fixture URL custom-alpine.qcow2 → custom-image.qcow2; removed stale Alpine home-dir comment",
+    "tests/test_config.py: Fixture URL custom-alpine.qcow2 → custom-image.qcow2"
+  ],
+  "implementation_summary": [
+    "All 5 tooling gates green (lint, typecheck, test suite 968/0/0, coverage 85.84%, wheel 25 roles).",
+    "NFR3 grep check PASS after cleaning 3 stale fixture hits.",
+    "No production code changes — Story 07 is validation-only.",
+    "AC13 (live E2E provisioning) is manual; all automated gates green.",
+    "Release actions documented for user; no version bump, tag, or push performed by architect."
+  ]
+}

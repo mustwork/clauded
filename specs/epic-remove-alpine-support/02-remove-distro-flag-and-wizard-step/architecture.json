@@ -1,0 +1,60 @@
+{
+  "story_id": "02",
+  "story_name": "remove-distro-flag-and-wizard-step",
+  "owning_modules": ["src/clauded/cli.py", "src/clauded/wizard.py"],
+  "interfaces_touched": [
+    {
+      "module": "src/clauded/cli.py",
+      "changes": [
+        "Remove --distro Click option (~line 711-716)",
+        "Remove distro parameter from main() signature (~line 736)",
+        "Remove SUPPORTED_DISTROS lazy import and --distro validation block (~lines 753-763)",
+        "Remove --distro conflicts-with-existing-config block (~lines 768-780)",
+        "Remove distro_override=distro pass-through in wizard.run() call (~line 917)",
+        "Remove distro_override=distro pass-through in run_with_detection() call (~line 921)",
+        "Remove _handle_distro_change() function (~lines 531-606)",
+        "Remove vm_recreated block (~lines 965-980)"
+      ]
+    },
+    {
+      "module": "src/clauded/wizard.py",
+      "changes": [
+        "Remove _select_distro() function (~lines 116-151)",
+        "Remove distro_override parameter from run() (~line 154)",
+        "Remove answers['distro'] = _select_distro(distro_override) call (~line 167)",
+        "Remove lazy distro imports inside _select_distro"
+      ]
+    },
+    {
+      "module": "src/clauded/detect/wizard_integration.py",
+      "changes": [
+        "Remove _select_distro import (~line 19)",
+        "Remove distro_override parameter from run_with_detection() (~line 30)",
+        "Remove answers['distro'] = _select_distro(distro_override) call (~line 103)",
+        "Remove vm_distro=config.vm_distro from apply_detection_to_config (~line 488)",
+        "Remove answers['distro'] = config.vm_distro from run_edit_with_detection (~line 860)"
+      ]
+    }
+  ],
+  "public_api_changes": [
+    "wizard.run() no longer accepts distro_override parameter",
+    "run_with_detection() no longer accepts distro_override parameter",
+    "clauded --distro flag removed from CLI"
+  ],
+  "files_deleted": [
+    "tests/test_cli_distro.py",
+    "tests/test_distro_change.py",
+    "tests/test_wizard_distro.py"
+  ],
+  "files_modified": [
+    "src/clauded/cli.py",
+    "src/clauded/wizard.py",
+    "src/clauded/detect/wizard_integration.py",
+    "tests/test_detect_integration.py",
+    "tests/test_wizard.py",
+    "CHANGELOG.md"
+  ],
+  "seams_produced": [],
+  "seams_consumed": ["alpine_config_rejection"],
+  "cross_story_notes": "After this story, Config.vm_distro still exists (removed in Story 03). The vm_distro field in wizard answers (answers['distro']) is still used by Config.from_wizard — but its value comes from the existing config passthrough, not from a wizard step."
+}
