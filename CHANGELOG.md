@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-05
+
 ### Added
 
 - **`opencode` framework option** — selecting `opencode` in the wizard's frameworks multi-select (or adding it to `frameworks:` in `.clauded.yaml`) installs the opencode binary into `~/.local/bin` via the official install script. The role resolves the latest GitHub release when `opencode_version` is unset, accepts a pin otherwise, and is idempotent across reruns. No Node.js dependency is added.
