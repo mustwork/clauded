@@ -105,7 +105,7 @@ class TestConfigLoadDistro:
                     "disk": "20GiB",
                 },
                 "mount": {"host": "/test/project", "guest": "/test/project"},
-                "environment": {},
+                "environment": {"frameworks": ["claude-code"]},
             }
 
             with open(config_path, "w") as f:
@@ -130,7 +130,7 @@ class TestConfigLoadDistro:
                     "disk": "20GiB",
                 },
                 "mount": {"host": "/test/project", "guest": "/test/project"},
-                "environment": {},
+                "environment": {"frameworks": ["claude-code"]},
             }
 
             with open(config_path, "w") as f:
@@ -155,7 +155,7 @@ class TestConfigLoadDistro:
                     "disk": "20GiB",
                 },
                 "mount": {"host": "/test/project", "guest": "/test/project"},
-                "environment": {},
+                "environment": {"frameworks": ["claude-code"]},
             }
 
             with open(config_path, "w") as f:
@@ -180,7 +180,7 @@ class TestConfigLoadDistro:
                     "disk": "20GiB",
                 },
                 "mount": {"host": "/test/project", "guest": "/test/project"},
-                "environment": {},
+                "environment": {"frameworks": ["claude-code"]},
             }
 
             with open(config_path, "w") as f:
@@ -204,7 +204,7 @@ class TestConfigLoadDistro:
                     "disk": "20GiB",
                 },
                 "mount": {"host": "/test/project", "guest": "/test/project"},
-                "environment": {},
+                "environment": {"frameworks": ["claude-code"]},
             }
 
             with open(config_path, "w") as f:

@@ -1014,12 +1014,12 @@ class TestOpencodeVersionResolution:
         mock_vm = MagicMock()
         mock_vm.name = "test-vm"
         with patch("clauded.cli.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0)
+            mock_run.return_value = MagicMock(returncode=0, stdout="opencode 1.14.33\n")
 
             ok = _update_opencode(mock_vm, "1.14.33")
 
         assert ok is True
-        args, _kwargs = mock_run.call_args
+        args, kwargs = mock_run.call_args
         argv = args[0]
         assert argv[0] == "limactl"
         assert "shell" in argv
@@ -1027,6 +1027,12 @@ class TestOpencodeVersionResolution:
         joined = " ".join(argv)
         assert "OPENCODE_VERSION" in joined
         assert "1.14.33" in joined
+        # `pipefail` ensures a failed curl propagates through `| bash`.
+        assert "pipefail" in joined
+        # Post-install verification probes the installed binary.
+        assert "--version" in joined
+        # Verification needs subprocess output captured to compare against version_str.
+        assert kwargs.get("capture_output") is True
 
     def test_update_opencode_returns_false_on_install_failure(self) -> None:
         """Non-zero returncode -> False."""
@@ -1035,7 +1041,22 @@ class TestOpencodeVersionResolution:
         mock_vm = MagicMock()
         mock_vm.name = "test-vm"
         with patch("clauded.cli.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=1)
+            mock_run.return_value = MagicMock(returncode=1, stdout="")
+
+            ok = _update_opencode(mock_vm, "1.14.33")
+
+        assert ok is False
+
+    def test_update_opencode_returns_false_when_version_mismatch(self) -> None:
+        """Returncode 0 but install script silently produced wrong version -> False."""
+        from clauded.cli import _update_opencode
+
+        mock_vm = MagicMock()
+        mock_vm.name = "test-vm"
+        with patch("clauded.cli.subprocess.run") as mock_run:
+            # Pipeline exits 0 but the binary on disk reports a stale version —
+            # this is the silent-failure mode the post-install check is here for.
+            mock_run.return_value = MagicMock(returncode=0, stdout="opencode 1.10.0\n")
 
             ok = _update_opencode(mock_vm, "1.14.33")
 

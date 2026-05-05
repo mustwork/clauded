@@ -225,6 +225,7 @@ mount:
   guest: /test/project
 environment:
   python: "3.12"
+  frameworks: [claude-code]
 """
         with runner.isolated_filesystem():
             Path(".clauded.yaml").write_text(legacy_config)

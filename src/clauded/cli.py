@@ -27,19 +27,19 @@ from .provisioner import Provisioner, __commit__
 def _validate_harness_override(harness: str | None, config: Config) -> None:
     """Reject a --harness override that targets a framework not in the config.
 
-    Only fires when ``harness`` is non-None and resolves to ``opencode``
-    without ``opencode`` in ``config.frameworks``. claude-code and codex
-    always pass because those frameworks are non-configurable defaults
-    (HarnessName invariant 3).
+    The provisioner only installs frameworks that are present in
+    ``config.frameworks`` — so a harness override naming a framework that is
+    absent would launch a binary the VM never received. We refuse the launch
+    rather than fail later at exec time.
 
     Exits 1 with an actionable message naming ``clauded --edit`` per FR6 / AC-014.
     """
     if harness is None:
         return
-    if harness == "opencode" and "opencode" not in config.frameworks:
+    if harness not in config.frameworks:
         click.echo(
-            "Error: --harness opencode requires 'opencode' in frameworks. "
-            "Run `clauded --edit` to add opencode to the frameworks list, "
+            f"Error: --harness {harness} requires '{harness}' in frameworks. "
+            "Run `clauded --edit` to add it to the frameworks list, "
             "or pick a different harness.",
             err=True,
         )
@@ -377,19 +377,29 @@ def _update_opencode(vm: LimaVM, version_str: str) -> bool:
         version_str: Version to install (e.g. "1.14.33")
 
     Returns:
-        True if the install script returned 0; False otherwise.
+        True if the install script returned 0 AND the resulting opencode
+        binary reports the requested version; False otherwise.
     """
+    # `pipefail` ensures a failed `curl` propagates through `| bash`; without
+    # it, bash exits 0 on empty stdin and we'd report success for a download
+    # that never happened. The post-install version check guards against the
+    # install script itself failing silently.
     cmd = (
-        "set -e && "
+        "set -eo pipefail && "
         f'export OPENCODE_VERSION="{version_str}" && '
         'export OPENCODE_INSTALL_DIR="$HOME/.local/bin" && '
-        "curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path"
+        "curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path && "
+        '"$OPENCODE_INSTALL_DIR/opencode" --version'
     )
     result = subprocess.run(
         ["limactl", "shell", vm.name, "--", "bash", "-lc", cmd],
+        capture_output=True,
+        text=True,
         check=False,
     )
-    return result.returncode == 0
+    if result.returncode != 0:
+        return False
+    return version_str in result.stdout
 
 
 def _get_latest_claude_code_version() -> str | None:

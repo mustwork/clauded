@@ -200,10 +200,14 @@ def _validate_harness(value: object, frameworks: list[str]) -> str:
 
     Raises:
         ConfigValidationError: When value is a non-string, an unknown harness,
-            or "opencode" without "opencode" in frameworks.
+            or names a framework that is not in the frameworks list. The
+            provisioner only installs frameworks that appear in
+            ``config.frameworks``, so the launched harness binary must also
+            be present in that list — otherwise the VM ships without the
+            chosen binary and the shell launch fails at runtime.
     """
     if value is None:
-        return "claude-code"
+        value = "claude-code"
 
     if not isinstance(value, str):
         raise ConfigValidationError(
@@ -213,14 +217,13 @@ def _validate_harness(value: object, frameworks: list[str]) -> str:
 
     if value not in HARNESS_NAMES:
         raise ConfigValidationError(
-            f"Unknown harness '{value}'. "
-            f"Accepted values: {', '.join(HARNESS_NAMES)}."
+            f"Unknown harness '{value}'. Accepted values: {', '.join(HARNESS_NAMES)}."
         )
 
-    if value == "opencode" and "opencode" not in frameworks:
+    if value not in frameworks:
         raise ConfigValidationError(
-            "harness 'opencode' requires 'opencode' in frameworks. "
-            "Run `clauded --edit` to add opencode to the frameworks list, "
+            f"harness '{value}' requires '{value}' in frameworks. "
+            "Run `clauded --edit` to add it to the frameworks list, "
             "or pick a different harness."
         )
 
@@ -318,7 +321,7 @@ class Config:
     c: str | None = None
     tools: list[str] = field(default_factory=list)
     databases: list[str] = field(default_factory=list)
-    frameworks: list[str] = field(default_factory=list)
+    frameworks: list[str] = field(default_factory=lambda: ["claude-code"])
     playwright_browsers: list[str] = field(default_factory=list)
 
     # Framework version pins (None = "latest")
@@ -367,7 +370,7 @@ class Config:
             c=answers.get("c") if answers.get("c") != "None" else None,
             tools=answers.get("tools", []),
             databases=answers.get("databases", []),
-            frameworks=answers.get("frameworks", []),
+            frameworks=answers.get("frameworks") or ["claude-code"],
             playwright_browsers=answers.get("playwright_browsers", []),
             claude_dangerously_skip_permissions=answers.get(
                 "claude_dangerously_skip_permissions", True

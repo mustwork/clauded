@@ -518,7 +518,7 @@ environment:
   python: "3.12"
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """
         config_path.write_text(malicious_yaml)
 
@@ -573,7 +573,7 @@ environment:
   python: "3.12"
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """
         config_path.write_text(malicious_yaml)
 

@@ -136,14 +136,18 @@ class TestConfigFromWizard:
         assert config.go is None
 
     def test_empty_selections_default_to_empty_lists(self, tmp_path: Path) -> None:
-        """Missing selections default to empty lists."""
+        """Missing selections default to empty lists; frameworks gets claude-code.
+
+        The default harness is claude-code, and the harness invariant requires it
+        to be in frameworks — so absent any wizard input we backfill the default.
+        """
         answers = {"cpus": "1", "memory": "8GiB", "disk": "20GiB"}
 
         config = Config.from_wizard(answers, tmp_path)
 
         assert config.tools == []
         assert config.databases == []
-        assert config.frameworks == []
+        assert config.frameworks == ["claude-code"]
 
     def test_claude_permissions_defaults_to_true(self, tmp_path: Path) -> None:
         """Missing claude_dangerously_skip_permissions defaults to True."""
@@ -298,7 +302,7 @@ environment:
   go: null
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         config = Config.load(config_path)
@@ -327,7 +331,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         config = Config.load(config_path)
@@ -350,7 +354,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         config = Config.load(config_path)
@@ -375,7 +379,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         config = Config.load(config_path)
@@ -398,7 +402,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 claude:
   dangerously_skip_permissions: false
 """)
@@ -425,7 +429,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         config = Config.load(config_path)
@@ -448,7 +452,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 ssh:
   host_key_checking: false
 """)
@@ -564,6 +568,7 @@ ssh:
             disk="20GiB",
             mount_host="/test",
             mount_guest="/test",
+            frameworks=["claude-code"],
             forward_env=["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
         )
         config_path = tmp_path / ".clauded.yaml"
@@ -584,7 +589,7 @@ ssh:
                 "disk": "20GiB",
             },
             "mount": {"host": "/test", "guest": "/test"},
-            "environment": {},
+            "environment": {"frameworks": ["claude-code"]},
         }
         config_path = tmp_path / ".clauded.yaml"
         with open(config_path, "w") as f:
@@ -611,7 +616,7 @@ class TestConfigDefaults:
         assert config.mount_guest == ""
         assert config.tools == []
         assert config.databases == []
-        assert config.frameworks == []
+        assert config.frameworks == ["claude-code"]
         assert config.forward_env == []
 
     def test_claude_dangerously_skip_permissions_defaults_to_true(self) -> None:
@@ -764,7 +769,7 @@ environment:
   python: "3.12"
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         with pytest.raises(ConfigVersionError):
@@ -788,7 +793,7 @@ environment:
   python: "3.12"
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         with caplog.at_level(logging.WARNING):
@@ -817,7 +822,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         config = Config.load(config_path)
@@ -843,7 +848,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         with caplog.at_level(logging.WARNING):
@@ -935,7 +940,7 @@ environment:
   python: "2.7"
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         with pytest.raises(ConfigValidationError) as exc_info:
@@ -960,7 +965,7 @@ environment:
   node: "16"
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         with pytest.raises(ConfigValidationError) as exc_info:
@@ -985,7 +990,7 @@ environment:
   go: "1.18"
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         with pytest.raises(ConfigValidationError) as exc_info:
@@ -1015,7 +1020,7 @@ environment:
   go: "1.23.5"
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         config = Config.load(config_path)
@@ -1181,7 +1186,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 versions: latest
 """)
 
@@ -1204,7 +1209,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 versions:
   - claude-code
 """)
@@ -1228,7 +1233,7 @@ mount:
 environment:
   tools: []
   databases: []
-  frameworks: []
+  frameworks: [claude-code]
 """)
 
         config = Config.load(config_path)
@@ -1245,6 +1250,7 @@ environment:
             disk="20GiB",
             mount_host="/test",
             mount_guest="/test",
+            frameworks=["claude-code"],
             claude_code_version="2.1.62",
             codex_version="1.2.0",
         )
@@ -1405,8 +1411,8 @@ class TestValidateHarness:
     """Unit-level tests for the _validate_harness helper."""
 
     def test_none_defaults_to_claude_code(self) -> None:
-        """A missing/None harness value resolves to the default."""
-        assert _validate_harness(None, frameworks=[]) == "claude-code"
+        """A missing/None harness value resolves to the claude-code default."""
+        assert _validate_harness(None, frameworks=["claude-code"]) == "claude-code"
 
     def test_known_values_pass_through(self) -> None:
         """Each accepted name is returned unchanged."""
@@ -1440,13 +1446,23 @@ class TestValidateHarness:
             _validate_harness("opencode", frameworks=["claude-code", "codex"])
         assert "clauded --edit" in str(exc_info.value)
 
-    def test_claude_code_does_not_require_opencode_framework(self) -> None:
-        """INV-3: claude-code never triggers the opencode⇒framework rule."""
-        assert _validate_harness("claude-code", frameworks=[]) == "claude-code"
+    def test_claude_code_requires_claude_code_framework(self) -> None:
+        """harness must be in frameworks: claude-code without it fails."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            _validate_harness("claude-code", frameworks=[])
+        assert "clauded --edit" in str(exc_info.value)
 
-    def test_codex_does_not_require_opencode_framework(self) -> None:
-        """INV-3: codex never triggers the opencode⇒framework rule."""
-        assert _validate_harness("codex", frameworks=[]) == "codex"
+    def test_codex_requires_codex_framework(self) -> None:
+        """harness must be in frameworks: codex without it fails."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            _validate_harness("codex", frameworks=["claude-code"])
+        assert "clauded --edit" in str(exc_info.value)
+
+    def test_default_claude_code_requires_claude_code_framework(self) -> None:
+        """A None harness defaults to claude-code, which still must be in frameworks."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            _validate_harness(None, frameworks=[])
+        assert "clauded --edit" in str(exc_info.value)
 
 
 class TestHarnessConfigLoad:
@@ -1540,27 +1556,27 @@ environment:
         assert config.harness == "opencode"
         assert "opencode" in config.frameworks
 
-    def test_harness_claude_code_with_empty_frameworks_loads(
+    def test_harness_claude_code_without_framework_rejected(
         self, tmp_path: Path
     ) -> None:
-        """INV-3 positive: claude-code never requires opencode framework."""
+        """harness must be in frameworks: provisioner only installs what is listed."""
         config_path = self._write_config(
             tmp_path, harness_line="harness: claude-code", frameworks=[]
         )
 
-        config = Config.load(config_path)
+        with pytest.raises(ConfigValidationError) as exc_info:
+            Config.load(config_path)
+        assert "clauded --edit" in str(exc_info.value)
 
-        assert config.harness == "claude-code"
-
-    def test_harness_codex_with_empty_frameworks_loads(self, tmp_path: Path) -> None:
-        """INV-3 positive: codex never requires opencode framework."""
+    def test_harness_codex_without_framework_rejected(self, tmp_path: Path) -> None:
+        """harness must be in frameworks: codex without 'codex' in frameworks fails."""
         config_path = self._write_config(
-            tmp_path, harness_line="harness: codex", frameworks=[]
+            tmp_path, harness_line="harness: codex", frameworks=["claude-code"]
         )
 
-        config = Config.load(config_path)
-
-        assert config.harness == "codex"
+        with pytest.raises(ConfigValidationError) as exc_info:
+            Config.load(config_path)
+        assert "clauded --edit" in str(exc_info.value)
 
     def test_harness_non_string_value_rejected(self, tmp_path: Path) -> None:
         """YAML scalars decoded to non-strings (e.g. true) raise cleanly."""
