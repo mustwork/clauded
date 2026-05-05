@@ -1,0 +1,89 @@
+---
+# Install opencode on Ubuntu (glibc)
+# See: https://opencode.ai
+#
+# Story 01 default: opencode_version is the literal sentinel "latest". Story 05
+# wires Config.opencode_version through Provisioner._generate_playbook so the
+# pinned value flows through. The role accepts either a pinned version string
+# (e.g. "1.14.33") or "latest" (resolved here against the GitHub releases API).
+
+- name: Install opencode dependencies
+  apt:
+    name:
+      - curl
+    state: present
+    update_cache: yes
+
+- name: Get remote username
+  become: no
+  command: whoami
+  register: opencode_remote_user
+  changed_when: false
+
+- name: Get remote home directory
+  become: no
+  shell: echo $HOME
+  register: opencode_remote_home
+  changed_when: false
+
+- name: Create .local/bin directory for user
+  file:
+    path: "{{ opencode_remote_home.stdout }}/.local/bin"
+    state: directory
+    owner: "{{ opencode_remote_user.stdout }}"
+    group: "{{ opencode_remote_user.stdout }}"
+    mode: '0755'
+
+- name: Resolve opencode target version
+  become: no
+  shell: |
+    set -e
+    if [ "{{ opencode_version | default('latest') }}" = "latest" ]; then
+      curl -fsSL https://api.github.com/repos/anomalyco/opencode/releases/latest \
+        | grep -oE '"tag_name"\s*:\s*"v?[0-9]+\.[0-9]+\.[0-9]+"' \
+        | head -n1 \
+        | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'
+    else
+      echo "{{ opencode_version }}"
+    fi
+  register: resolved_opencode_version
+  changed_when: false
+
+- name: Detect currently installed opencode version (if any)
+  become: no
+  shell: |
+    if [ -x "{{ opencode_remote_home.stdout }}/.local/bin/opencode" ]; then
+      "{{ opencode_remote_home.stdout }}/.local/bin/opencode" --version 2>/dev/null \
+        | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' \
+        | head -n1
+    fi
+  register: installed_opencode_version
+  changed_when: false
+  failed_when: false
+
+- name: Install opencode (resolved version)
+  become: no
+  shell: |
+    set -e
+    export OPENCODE_INSTALL_DIR="$HOME/.local/bin"
+    export OPENCODE_VERSION="{{ resolved_opencode_version.stdout }}"
+    curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+  when: installed_opencode_version.stdout != resolved_opencode_version.stdout
+  register: opencode_install
+  changed_when: opencode_install.rc == 0
+
+- name: Verify opencode binary exists
+  become: no
+  stat:
+    path: "{{ opencode_remote_home.stdout }}/.local/bin/opencode"
+  register: opencode_binary
+
+- name: Verify opencode --version succeeds
+  become: no
+  command: "{{ opencode_remote_home.stdout }}/.local/bin/opencode --version"
+  register: opencode_installed_version
+  changed_when: false
+
+- name: Display opencode installation status
+  debug:
+    msg: "opencode {{ resolved_opencode_version.stdout }} installed: {{ opencode_binary.stat.exists | default(false) }} ({{ opencode_installed_version.stdout }})"

@@ -1,0 +1,247 @@
+{
+  "story_id": "02",
+  "story_name": "harness-config-field",
+  "title": "Add harness field to Config with load/save and validation",
+  "owning_module": "src/clauded/config.py",
+  "epic_architecture_ref": "specs/epic-add-opencode-harness/architecture.md",
+  "epic_architecture_section": "§4 Seam: HarnessName",
+
+  "paradigm": {
+    "level": "modular_monolith",
+    "boundary": "internal_module_change_only",
+    "rationale": "Story 02 adds a single dataclass field plus YAML emit/parse plumbing inside config.py. No new module, no new external boundary, no new HTTP surface. The HarnessName seam is a literal-string contract carried by Config.harness; consumers (Stories 03, 04) import `Config` and `HARNESS_NAMES` from `clauded.config` exactly as the existing graph already does."
+  },
+
+  "produces_seams": [
+    {
+      "name": "HarnessName",
+      "shape": {
+        "module_constants": [
+          {
+            "name": "HARNESS_NAMES",
+            "kind": "module-level tuple constant",
+            "type": "tuple[str, ...]",
+            "value": ["claude-code", "codex", "opencode"],
+            "rationale": "Single source of truth used by Config.load validation, future CLI Choice, future wizard menu. Plain tuple avoids any runtime dep beyond stdlib."
+          },
+          {
+            "name": "HarnessName",
+            "kind": "module-level type alias",
+            "type": "Literal[\"claude-code\", \"codex\", \"opencode\"]",
+            "rationale": "Documentation-only alias per architecture.md §4. Config.harness stores `str` for dataclass compatibility; the alias is for type-narrowing in callers that wish to opt in."
+          }
+        ],
+        "config_field": {
+          "name": "harness",
+          "type": "str",
+          "default": "claude-code",
+          "position_in_dataclass": "after `forward_env`, before any future opencode-specific fields (Story 05 adds `opencode_version` separately)"
+        },
+        "persistence_key": {
+          "yaml_path": "$.harness (top-level sibling of `vm`, `mount`, `environment`, `claude`, `ssh`, `versions`)",
+          "always_emitted": true,
+          "rationale": "FR3 explicit-when-default — persisted even when value equals default. Disambiguates pre-epic configs from post-epic-default configs and prevents the default from drifting silently."
+        }
+      },
+      "invariants": [
+        "INV-1: `Config.harness in HARNESS_NAMES` after a successful `Config.load`. Enforced by Config.load via membership check; ConfigValidationError raised otherwise.",
+        "INV-2: `Config.harness == \"opencode\" ⇒ \"opencode\" in Config.frameworks` after a successful `Config.load`. Enforced by Config.load AFTER frameworks is parsed.",
+        "INV-3: `Config.harness in {\"claude-code\", \"codex\"}` always satisfies INV-2 because claude-code and codex are non-configurable defaults present in every config (verified against current `from_wizard` defaults and existing claude-code/codex behaviour). Story 02 does NOT inject these into frameworks; INV-2 simply does not trigger for those harness values."
+      ],
+      "consumers": [
+        "Story 03 (wizard) — reads `HARNESS_NAMES`, writes `answers['harness']` consumed by from_wizard",
+        "Story 04 (CLI + lima) — uses `HARNESS_NAMES` for click.Choice, reads `Config.harness` in dispatcher",
+        "Story 05 — does not consume HarnessName directly (opencode mounts key off frameworks, not harness)"
+      ]
+    }
+  ],
+
+  "consumes_seams": [],
+
+  "components": [
+    {
+      "id": "C1",
+      "name": "HARNESS_NAMES module constant",
+      "kind": "module-level constant",
+      "location": "src/clauded/config.py (top of module, near CURRENT_VERSION)",
+      "responsibility": "Single immutable enumeration of valid harness identifiers. Imported by load-time validator and (in later stories) by CLI Choice and wizard menu.",
+      "exports": ["HARNESS_NAMES", "HarnessName"]
+    },
+    {
+      "id": "C2",
+      "name": "_validate_harness helper",
+      "kind": "private module-level function",
+      "location": "src/clauded/config.py (alongside other `_validate_*` helpers)",
+      "signature": "_validate_harness(value: str | None, frameworks: list[str]) -> str",
+      "responsibility": "Resolve and validate the harness value. Returns 'claude-code' when input is None (AC-005). Raises ConfigValidationError with message listing all of HARNESS_NAMES when value is unknown (AC-006). Raises ConfigValidationError with the literal substring 'clauded --edit' when value == 'opencode' and 'opencode' not in frameworks (AC-007).",
+      "called_from": "Config.load() AFTER frameworks parsing",
+      "rationale": "Mirrors the existing `_validate_distro` / `_validate_runtime_version` / `_validate_version_pin` pattern. Keeps Config.load() readable and the validation logic individually testable. Returning the resolved value (rather than raising on None) matches `_validate_distro`'s default-substitution pattern."
+    },
+    {
+      "id": "C3",
+      "name": "Config.harness dataclass field",
+      "kind": "dataclass field",
+      "location": "src/clauded/config.py within the @dataclass class Config",
+      "type": "str",
+      "default": "claude-code",
+      "responsibility": "Persisted, in-memory representation of the active harness for this project."
+    },
+    {
+      "id": "C4",
+      "name": "Config.load harness plumbing",
+      "kind": "method change",
+      "location": "src/clauded/config.py Config.load classmethod",
+      "responsibility": "Call _validate_harness(data.get('harness'), frameworks_list) AFTER frameworks list is parsed (see existing line 484). Pass the validated value into the cls(...) constructor.",
+      "ordering_constraint": "Validation runs AFTER frameworks parsing because INV-2 needs the frameworks list. Place the call AFTER `env.get('frameworks')` resolves and BEFORE the `cls(...)` return."
+    },
+    {
+      "id": "C5",
+      "name": "Config.save harness emission",
+      "kind": "method change",
+      "location": "src/clauded/config.py Config.save method",
+      "responsibility": "Always emit `harness:` as a top-level key in the YAML data dict, regardless of whether the value equals the default. Sibling of `vm`, `mount`, `environment`, `claude`, `ssh`. Position: insert as a top-level key in the `data` dict construction (line 515 area). Recommended placement: between `version` and `vm` so the harness selection is visible at the top of the file.",
+      "yaml_serialization": "Plain string scalar; pyyaml will not quote it. Round-trip via Config.load is byte-stable."
+    },
+    {
+      "id": "C6",
+      "name": "Config.from_wizard harness pass-through",
+      "kind": "method change",
+      "location": "src/clauded/config.py Config.from_wizard classmethod",
+      "responsibility": "Read `answers.get('harness', 'claude-code')` and pass it to `cls(...)`. No validation here; the wizard is trusted (its own validation prevents invalid values being put into the answers dict).",
+      "rationale": "Matches existing pattern: from_wizard accepts trusted answers and constructs Config; Config.load is the validating boundary."
+    }
+  ],
+
+  "boundary_rules_compliance": [
+    "Rule 1 (no cross-module imports beyond declared public surfaces): unchanged. Story 02 adds public names (HARNESS_NAMES, HarnessName, Config.harness) all on the existing public Config surface.",
+    "Rule 2 (Config is single source of truth): preserved. The harness lives only on Config; no env vars, no fallback chains.",
+    "Rule 3 (no HTTP client library): not applicable; story does not call HTTP.",
+    "Rule 4 (no test-only adaptations in production code): the validation is functionally required by AC-006/007; not a test shim.",
+    "Rule 5 (fragile seams require coordinated updates): not applicable; no duplicated lists touched in this story.",
+    "Rule 6 (no `if 'test' in env` branches): n/a.",
+    "Rule 7 (boy-scout USE_BUILTIN_RIPGREP=0 removal): explicitly NOT in this story (Story 04 architect-1's responsibility per kickoff)."
+  ],
+
+  "implementation_constraints_compliance": [
+    "Pre-Alpine-removal targeting: not applicable to config.py changes; vm.distro guards live in provisioner.py (Story 01).",
+    "Coverage ≥ 80 %: existing test density + new test_config.py cases will keep config.py well above 80 %.",
+    "CHANGELOG.md [Unreleased] entry: required. Section: Changed. Wording: 'Added top-level `harness:` field to .clauded.yaml; existing configs default to claude-code.'",
+    "No interactive flows: n/a.",
+    "GitHub API rate limiting: n/a.",
+    "FR9 / claude_dangerously_skip_permissions: untouched in Story 02.",
+    "Backward compatibility (NFR1, AC-022): hard requirement. Pre-epic configs lacking `harness:` load with harness='claude-code' silently. Validation does NOT enforce INV-2 for the default value because claude-code is always in frameworks (per INV-3).",
+    "Each story leaves codebase green: enforced via TDD plus the verifier's `make check` gate."
+  ],
+
+  "test_strategy": {
+    "framework": "pytest with hypothesis available; existing patterns",
+    "patterns_to_reuse": [
+      "isolated-filesystem-yaml: write a YAML fixture to tmp_path, load it, assert. Pattern matches existing test_config.py::test_load_config and similar.",
+      "round-trip: from_wizard → save → re-read raw YAML text + load → assert"
+    ],
+    "files_to_modify": ["tests/test_config.py"],
+    "new_test_cases": [
+      {
+        "name": "test_harness_defaults_to_claude_code_when_absent",
+        "ac": "AC-005",
+        "shape": "Write minimal valid YAML omitting `harness:`; Config.load(path); assert config.harness == 'claude-code'; assert no warnings emitted (caplog at WARNING level is empty for that record)."
+      },
+      {
+        "name": "test_harness_unknown_value_rejected",
+        "ac": "AC-006",
+        "shape": "Write YAML with `harness: gemini`; assert pytest.raises(ConfigValidationError); assert all three of 'claude-code', 'codex', 'opencode' appear in the message."
+      },
+      {
+        "name": "test_harness_opencode_without_framework_rejected",
+        "ac": "AC-007",
+        "shape": "Write YAML with `harness: opencode` and frameworks=['claude-code', 'codex']; assert ConfigValidationError; assert 'clauded --edit' substring in message."
+      },
+      {
+        "name": "test_harness_claude_code_does_not_require_opencode_framework",
+        "ac": "AC-007 (positive variant; INV-3)",
+        "shape": "Write YAML with `harness: claude-code` and frameworks=[]; assert load succeeds; assert config.harness == 'claude-code'."
+      },
+      {
+        "name": "test_harness_codex_does_not_require_opencode_framework",
+        "ac": "AC-007 (positive variant; INV-3)",
+        "shape": "Write YAML with `harness: codex` and frameworks=[]; assert load succeeds; assert config.harness == 'codex'."
+      },
+      {
+        "name": "test_harness_save_always_emits_field",
+        "ac": "AC-008",
+        "shape": "Construct a Config with default harness via from_wizard({'harness': 'claude-code', ...}); save(path); read raw YAML text; assert top-level 'harness: claude-code' line is present."
+      },
+      {
+        "name": "test_harness_round_trip_opencode",
+        "ac": "AC-008",
+        "shape": "from_wizard({'harness': 'opencode', 'frameworks': ['opencode'], ...}).save(path); reload; assert harness == 'opencode' and YAML text contains 'harness: opencode'."
+      },
+      {
+        "name": "test_pre_epic_config_loads_clean",
+        "ac": "AC-022",
+        "shape": "Write a pre-epic-style YAML (NO `harness:` line, NO `opencode` in frameworks, NO `versions.opencode`); load; assert config.harness == 'claude-code'; assert no errors and no warnings (caplog records list filtered to WARNING+ for clauded.* loggers is empty for harness-related entries)."
+      },
+      {
+        "name": "test_harness_round_trip_byte_stability",
+        "ac": "AC-008 (round-trip stability)",
+        "shape": "Save → load → save again; assert second YAML text is byte-identical to the first (sanity check that no normalization drift happens on resave)."
+      }
+    ],
+    "test_fixtures_introduced": [
+      "Pre-epic-style YAML fixture (constructed inline in the test; no shared fixture file). Mirrors existing tests' inline-YAML pattern."
+    ],
+    "mocks_introduced": [],
+    "patterns_to_avoid": [
+      "Do NOT create conftest.py (project rule: no conftest.py).",
+      "Do NOT mock pyyaml — the tests round-trip through real YAML serialization."
+    ]
+  },
+
+  "implementation_plan_outline": [
+    "Step 1 (TDD red): write failing tests in tests/test_config.py for AC-005, AC-006, AC-007 (negative + 2 positive variants), AC-008 (always-emit + round-trip), AC-022, plus the byte-stability sanity check. Run pytest; confirm they fail with the right error mode (AttributeError for missing field, etc.).",
+    "Step 2 (constants + dataclass field): add HARNESS_NAMES tuple and HarnessName Literal alias near CURRENT_VERSION. Add `harness: str = \"claude-code\"` to the Config dataclass after `forward_env`. Re-run tests; AC-005 / AC-008 (without validation) should advance.",
+    "Step 3 (validator): implement `_validate_harness(value, frameworks)` next to the existing `_validate_*` helpers. Logic: None → 'claude-code'; not in HARNESS_NAMES → ConfigValidationError listing all three; opencode with opencode not in frameworks → ConfigValidationError including 'clauded --edit'. Add a unit-level test for the helper itself (boundary-test the validator) plus the load-level tests already written.",
+    "Step 4 (Config.load wiring): call _validate_harness(data.get('harness'), frameworks_value) AFTER the frameworks list is computed; pass the result into cls(harness=...).",
+    "Step 5 (Config.save wiring): insert top-level `harness` key into the `data` dict in Config.save BETWEEN `version` and `vm` so the resulting YAML has the harness as the second top-level line.",
+    "Step 6 (Config.from_wizard wiring): add `harness=answers.get('harness', 'claude-code')` to the cls(...) call.",
+    "Step 7 (CHANGELOG entry): add under [Unreleased] / Changed: 'Added top-level `harness:` field to .clauded.yaml; existing configs default to claude-code.'",
+    "Step 8 (lint / typecheck / test gate): make check; ensure ruff, mypy, all 935+ tests green.",
+    "Step 9 (cleanup): no temp files; story directory contains only architecture.json, baseline.json, verification.json, result.json."
+  ],
+
+  "risks_and_mitigations": [
+    {
+      "risk": "INV-2 enforcement breaks AC-022 (a pre-epic config without `harness:` and without 'opencode' in frameworks). Mitigation: _validate_harness returns 'claude-code' for None input, so INV-2 trivially passes (claude-code never triggers the opencode⇒framework rule). Verified by test_pre_epic_config_loads_clean."
+    },
+    {
+      "risk": "YAML key ordering. Mitigation: pyyaml.dump(sort_keys=False) is already used in Config.save; inserting 'harness' between 'version' and 'vm' preserves the deterministic top-down order for newly-saved configs."
+    },
+    {
+      "risk": "from_wizard call sites elsewhere in the codebase pass partial answers dicts that omit 'harness'. Mitigation: from_wizard uses answers.get('harness', 'claude-code') — defaults silently. Existing test_wizard.py tests should still pass without modification (Story 02 introduces the field but the wizard menu lands in Story 03)."
+    },
+    {
+      "risk": "Existing test fixtures or factory functions in tests construct Config without `harness=`. Mitigation: dataclass default 'claude-code' covers this."
+    }
+  ],
+
+  "verification_anchors": {
+    "ac_to_artifact": {
+      "AC-005": "test_harness_defaults_to_claude_code_when_absent",
+      "AC-006": "test_harness_unknown_value_rejected",
+      "AC-007": "test_harness_opencode_without_framework_rejected (+ 2 positive variants)",
+      "AC-008": "test_harness_save_always_emits_field + test_harness_round_trip_opencode + test_harness_round_trip_byte_stability",
+      "AC-022": "test_pre_epic_config_loads_clean"
+    }
+  },
+
+  "story_directory_files": ["architecture.json", "baseline.json", "verification.json", "result.json"],
+
+  "out_of_scope_explicitly": [
+    "Config.opencode_version pin field (Story 05)",
+    "Wizard harness step (Story 03)",
+    "--harness CLI flag (Story 04)",
+    "lima.py launch dispatcher (Story 04)",
+    "Documentation updates (Story 06)",
+    "USE_BUILTIN_RIPGREP=0 removal (Story 04, architect-1's boy-scout)"
+  ]
+}

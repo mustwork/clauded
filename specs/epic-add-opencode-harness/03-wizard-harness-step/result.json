@@ -1,0 +1,28 @@
+{
+  "story_id": "03",
+  "status": "done",
+  "verification_rounds": 1,
+  "final_outcome": "accepted",
+  "verified_at": "2026-05-04T21:15:00Z",
+  "verified_by": "verifier",
+  "last_mile_review": {
+    "ollama": "skipped",
+    "codex": "skipped",
+    "skip_reason": "Last-mile two-stage adversarial review skipped on user directive (2026-05-04). Environment lacks node binary required by ollama-companion.mjs and codex-companion.mjs; user authorized 'assume node will be available, proceed.' All 10 pre-impl + 5 post-impl verification questions PASS, make check green at 85.61% coverage, AC-009/010/011 traceability sound."
+  },
+  "files_created": [],
+  "files_modified": [
+    "src/clauded/wizard.py",
+    "src/clauded/detect/wizard_integration.py",
+    "tests/test_wizard.py",
+    "tests/test_detect_integration.py",
+    "tests/test_wizard_distro.py",
+    "CHANGELOG.md"
+  ],
+  "tests_added": 7,
+  "tests_passing": 992,
+  "coverage_percent": 85.61,
+  "verification_rounds": 0,
+  "completed_at": "2026-05-04T21:10:00Z",
+  "notes": "Story 03 implemented directly by architect-1. Adds the 'Select harness:' single-select step after the frameworks multi-select in both wizard.run() and wizard.run_edit(); the same step is added to detect/wizard_integration.py's run_with_detection and run_edit_with_detection (4 menu insertion points total, lockstep with Story 01's framework-list pattern). Auto-add-to-frameworks behaviour for harness=='opencode' is implemented in a shared wizard._apply_harness_to_answers helper imported by wizard_integration. Boy-scout fix (in scope per Q-PRE-010): apply_detection_to_config was reconstructing Config without `harness=config.harness`, which would silently reset harness on any detect-only update — added the missing kwarg and a regression test. Existing 8 tests in test_wizard_distro.py needed iterator-style side_effect lists extended by one 'claude-code' element each (mechanical fix, original intent preserved). New tests cover AC-009 (3-entry menu, default index 0), AC-010 (auto-add and no-duplicate), AC-011 (run_edit pre-selection), plus parallel coverage for the wizard_integration flows and apply_detection_to_config preservation. make check GREEN; 992 tests; coverage 85.61% (>= 80% gate). In-flight QA (codex:review / ollama:review) skipped: same node-binary unavailability authorized exemption as Stories 01 and 02 (recorded in epic-state.json last_mile_review_skips). Verifier inherits QA responsibility."
+}

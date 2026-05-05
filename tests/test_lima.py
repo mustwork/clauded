@@ -1,5 +1,6 @@
 """Tests for clauded.lima module."""
 
+import dataclasses
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -8,7 +9,7 @@ import pytest
 
 from clauded.config import Config
 from clauded.downloads import get_alpine_image
-from clauded.lima import LimaVM
+from clauded.lima import LaunchSpec, LimaVM, _build_launch_spec
 
 
 @pytest.fixture
@@ -286,6 +287,75 @@ class TestLimaVMGenerateLimaConfig:
                 "/"
             ), f"mountPoint '{mount_point}' must be an absolute path"
 
+    def test_mounts_opencode_dirs_when_in_frameworks(self, tmp_path: Path) -> None:
+        """AC-019: opencode in frameworks adds two host mounts; mkdir is called."""
+        config = Config(
+            vm_name="clauded-opencode",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/path/to/project",
+            vm_distro="ubuntu",
+            frameworks=["opencode"],
+        )
+        vm = LimaVM(config)
+
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+        ):
+            generated = vm._generate_lima_config()
+
+        config_dir = tmp_path / ".config" / "opencode"
+        share_dir = tmp_path / ".local" / "share" / "opencode"
+        assert config_dir.exists(), "host ~/.config/opencode must be created"
+        assert share_dir.exists(), "host ~/.local/share/opencode must be created"
+
+        mount_locations = {m["location"]: m for m in generated["mounts"]}
+        assert str(config_dir) in mount_locations
+        assert str(share_dir) in mount_locations
+
+        config_mount = mount_locations[str(config_dir)]
+        assert config_mount["mountPoint"] == "/home/testuser.linux/.config/opencode"
+        assert config_mount["writable"] is True
+
+        share_mount = mount_locations[str(share_dir)]
+        assert share_mount["mountPoint"] == "/home/testuser.linux/.local/share/opencode"
+        assert share_mount["writable"] is True
+
+    def test_does_not_mount_opencode_dirs_when_absent(self, tmp_path: Path) -> None:
+        """opencode mounts are skipped when 'opencode' is not in frameworks."""
+        config = Config(
+            vm_name="clauded-no-opencode",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/path/to/project",
+            frameworks=["claude-code", "codex"],
+        )
+        vm = LimaVM(config)
+
+        with (
+            patch("clauded.lima.Path.home", return_value=tmp_path),
+            patch("clauded.lima.getpass.getuser", return_value="testuser"),
+        ):
+            generated = vm._generate_lima_config()
+
+        # No opencode-related mount should appear
+        for mount in generated["mounts"]:
+            assert not mount["mountPoint"].endswith(
+                "/opencode"
+            ), f"unexpected opencode mountPoint: {mount}"
+            assert (
+                "/opencode" not in mount["mountPoint"]
+            ), f"unexpected opencode mountPoint: {mount}"
+
+        # Host directories should not be created either
+        assert not (tmp_path / ".config" / "opencode").exists()
+        assert not (tmp_path / ".local" / "share" / "opencode").exists()
+
     def test_disables_containerd(self, sample_config: Config) -> None:
         """Generated config disables containerd."""
         vm = LimaVM(sample_config)
@@ -367,7 +437,7 @@ class TestLimaVMCommands:
                 "clauded-test1234",
                 "bash",
                 "-lic",
-                "USE_BUILTIN_RIPGREP=0 claude --dangerously-skip-permissions",
+                "claude --dangerously-skip-permissions",
             ],
             env=None,
         )
@@ -390,7 +460,7 @@ class TestLimaVMCommands:
                 "clauded-test1234",
                 "bash",
                 "-lic",
-                "USE_BUILTIN_RIPGREP=0 claude",
+                "claude",
             ],
             env=None,
         )
@@ -637,3 +707,224 @@ class TestLimaVMErrorHandling:
                 vm.destroy()
 
         assert exc_info.value.code == 1
+
+
+def _make_config(
+    *,
+    harness: str = "claude-code",
+    skip_permissions: bool = True,
+    frameworks: list[str] | None = None,
+) -> Config:
+    """Build a Config tailored for dispatcher tests."""
+    return Config(
+        vm_name="clauded-disp",
+        cpus=1,
+        memory="8GiB",
+        disk="20GiB",
+        mount_host="/path/to/project",
+        mount_guest="/path/to/project",
+        frameworks=frameworks or ["claude-code"],
+        harness=harness,
+        claude_dangerously_skip_permissions=skip_permissions,
+    )
+
+
+class TestLaunchSpec:
+    """LaunchSpec dataclass invariants (frozen)."""
+
+    def test_launch_spec_is_frozen(self) -> None:
+        """LaunchSpec instances reject attribute reassignment."""
+        spec = LaunchSpec(argv=["claude"], env={})
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            spec.argv = ["codex"]  # type: ignore[misc]
+
+
+class TestBuildLaunchSpec:
+    """Pure dispatcher: branches on harness, applies per-harness flag rules."""
+
+    def test_claude_code_with_skip(self) -> None:
+        """AC-016: claude-code argv includes --dangerously-skip-permissions."""
+        spec = _build_launch_spec(
+            "claude-code",
+            _make_config(harness="claude-code", skip_permissions=True),
+        )
+        assert spec.argv == ["claude", "--dangerously-skip-permissions"]
+        assert spec.env == {}
+
+    def test_claude_code_without_skip(self) -> None:
+        """AC-016: claude-code omits the flag when skip=False."""
+        spec = _build_launch_spec(
+            "claude-code",
+            _make_config(harness="claude-code", skip_permissions=False),
+        )
+        assert spec.argv == ["claude"]
+        assert spec.env == {}
+
+    def test_codex_with_skip(self) -> None:
+        """AC-017: codex argv includes --dangerously-bypass-approvals-and-sandbox."""
+        spec = _build_launch_spec(
+            "codex",
+            _make_config(harness="codex", skip_permissions=True),
+        )
+        assert spec.argv == ["codex", "--dangerously-bypass-approvals-and-sandbox"]
+        assert spec.env == {}
+
+    def test_codex_without_skip(self) -> None:
+        """AC-017: codex omits the flag when skip=False."""
+        spec = _build_launch_spec(
+            "codex",
+            _make_config(harness="codex", skip_permissions=False),
+        )
+        assert spec.argv == ["codex"]
+        assert spec.env == {}
+
+    def test_opencode_ignores_skip_true(self) -> None:
+        """AC-018, FR7: opencode never gets --dangerously-* even when skip=True."""
+        spec = _build_launch_spec(
+            "opencode",
+            _make_config(
+                harness="opencode",
+                skip_permissions=True,
+                frameworks=["claude-code", "codex", "opencode"],
+            ),
+        )
+        assert spec.argv == ["opencode"]
+        assert all("--dangerously" not in tok for tok in spec.argv)
+        assert spec.env == {}
+
+    def test_opencode_ignores_skip_false(self) -> None:
+        """AC-018: opencode is also flag-free when skip=False."""
+        spec = _build_launch_spec(
+            "opencode",
+            _make_config(
+                harness="opencode",
+                skip_permissions=False,
+                frameworks=["claude-code", "codex", "opencode"],
+            ),
+        )
+        assert spec.argv == ["opencode"]
+        assert spec.env == {}
+
+    @pytest.mark.parametrize("harness", ["claude-code", "codex", "opencode"])
+    def test_no_use_builtin_ripgrep_for_any_harness(self, harness: str) -> None:
+        """Boy-scout: USE_BUILTIN_RIPGREP is never injected for any harness."""
+        frameworks = (
+            ["claude-code", "codex", "opencode"]
+            if harness == "opencode"
+            else ["claude-code"]
+        )
+        spec = _build_launch_spec(
+            harness,
+            _make_config(harness=harness, frameworks=frameworks),
+        )
+        assert "USE_BUILTIN_RIPGREP" not in spec.env
+        assert all("USE_BUILTIN_RIPGREP" not in tok for tok in spec.argv)
+
+    def test_unknown_harness_raises(self) -> None:
+        """Defence-in-depth: dispatcher rejects out-of-allowlist values."""
+        with pytest.raises(ValueError, match="harness"):
+            _build_launch_spec(
+                "gemini",
+                _make_config(harness="claude-code"),
+            )
+
+
+class TestLimaVMShellHarnessDispatch:
+    """Integration: LimaVM.shell() renders the dispatcher's LaunchSpec correctly."""
+
+    def test_shell_launches_claude_when_harness_is_claude_code(self) -> None:
+        """AC-016 integration: claude-code produces 'claude ...' bash-lic arg."""
+        vm = LimaVM(_make_config(harness="claude-code", skip_permissions=True))
+
+        with patch("subprocess.run") as mock_run:
+            vm.shell()
+
+        cmd_string = mock_run.call_args[0][0][-1]
+        assert cmd_string == "claude --dangerously-skip-permissions"
+        assert "USE_BUILTIN_RIPGREP" not in cmd_string
+
+    def test_shell_launches_codex_when_harness_is_codex(self) -> None:
+        """AC-017 integration: codex harness produces 'codex ...' bash-lic arg."""
+        vm = LimaVM(
+            _make_config(
+                harness="codex",
+                skip_permissions=True,
+                frameworks=["claude-code", "codex"],
+            )
+        )
+
+        with patch("subprocess.run") as mock_run:
+            vm.shell()
+
+        cmd_string = mock_run.call_args[0][0][-1]
+        assert cmd_string == "codex --dangerously-bypass-approvals-and-sandbox"
+        assert "USE_BUILTIN_RIPGREP" not in cmd_string
+
+    def test_shell_launches_codex_without_flag_when_skip_disabled(self) -> None:
+        """AC-017 integration: codex with skip=False is plain 'codex'."""
+        vm = LimaVM(
+            _make_config(
+                harness="codex",
+                skip_permissions=False,
+                frameworks=["claude-code", "codex"],
+            )
+        )
+
+        with patch("subprocess.run") as mock_run:
+            vm.shell()
+
+        cmd_string = mock_run.call_args[0][0][-1]
+        assert cmd_string == "codex"
+
+    def test_shell_launches_opencode_when_harness_is_opencode(self) -> None:
+        """AC-018 integration: opencode is launched flag-free regardless of skip."""
+        vm = LimaVM(
+            _make_config(
+                harness="opencode",
+                skip_permissions=True,
+                frameworks=["claude-code", "codex", "opencode"],
+            )
+        )
+
+        with patch("subprocess.run") as mock_run:
+            vm.shell()
+
+        cmd_string = mock_run.call_args[0][0][-1]
+        assert cmd_string == "opencode"
+        assert "--dangerously" not in cmd_string
+        assert "USE_BUILTIN_RIPGREP" not in cmd_string
+
+    def test_shell_harness_override_takes_precedence(self) -> None:
+        """AC-012 (lima half): per-instance override beats config.harness."""
+        config = _make_config(
+            harness="claude-code",
+            frameworks=["claude-code", "codex", "opencode"],
+        )
+        vm = LimaVM(config, harness_override="opencode")
+
+        with patch("subprocess.run") as mock_run:
+            vm.shell()
+
+        cmd_string = mock_run.call_args[0][0][-1]
+        assert cmd_string == "opencode"
+
+    def test_shell_no_use_builtin_ripgrep_in_assembled_command(self) -> None:
+        """AC-016 boy-scout (integration): full bash-lic argument is RIPGREP-free."""
+        for harness, frameworks in (
+            ("claude-code", ["claude-code"]),
+            ("codex", ["claude-code", "codex"]),
+            ("opencode", ["claude-code", "codex", "opencode"]),
+        ):
+            vm = LimaVM(_make_config(harness=harness, frameworks=frameworks))
+            with patch("subprocess.run") as mock_run:
+                vm.shell()
+            cmd_string = mock_run.call_args[0][0][-1]
+            assert "USE_BUILTIN_RIPGREP" not in cmd_string
+
+    def test_shell_default_harness_override_is_none(self) -> None:
+        """LimaVM(config) without harness_override falls back to config.harness."""
+        vm = LimaVM(_make_config(harness="codex", frameworks=["claude-code", "codex"]))
+        with patch("subprocess.run") as mock_run:
+            vm.shell()
+        cmd_string = mock_run.call_args[0][0][-1]
+        assert cmd_string.startswith("codex")

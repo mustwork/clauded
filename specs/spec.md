@@ -103,7 +103,8 @@
 - Interactive menu prompts for Python/Node.js/Java/Kotlin/Rust/Go versions
 - Multi-select for tools (docker, git, aws-cli, gh, gradle)
 - Multi-select for databases (postgresql, redis, mysql, sqlite, mongodb)
-- Multi-select for frameworks (claude-code, codex, playwright)
+- Multi-select for frameworks (claude-code, codex, opencode, playwright)
+- Single-select harness step (claude-code, codex, opencode) after the frameworks step; default `claude-code`. Picking `opencode` auto-adds `opencode` to the frameworks list with an info message.
 - Optional VM resource customization
 - Return populated `Config` object
 - Non-interactive terminal detection: Exit with error if stdin is not a TTY
@@ -194,6 +195,7 @@ When connecting to an existing, running VM (not newly created, not recreated, no
 **Config Schema (.clauded.yaml)**
 ```yaml
 version: "1"
+harness: claude-code  # claude-code (default) | codex | opencode
 vm:
   name: clauded-{8-char-hash}
   cpus: <int>
@@ -227,10 +229,21 @@ environment:
   frameworks:
     - claude-code  # always included (non-configurable default)
     - codex        # always included (non-configurable default)
+    - opencode     # optional, Ubuntu only
     - playwright   # optional
+versions:                # optional version pins; omit for "latest"
+  claude-code: "<version>"  # optional
+  codex: "<version>"        # optional
+  opencode: "<version>"     # optional
 ssh:
   host_key_checking: true  # default: true, set false to disable
 ```
+
+**Harness Selection**
+
+The top-level `harness:` field selects which AI coding TUI `clauded` launches when entering the VM shell. Allowed values: `claude-code` (default), `codex`, `opencode`. The field is always emitted by `Config.save` (FR3 explicit-when-default) but is optional on load — pre-epic configs without `harness:` default to `claude-code` and behave identically to before.
+
+`opencode` may only be selected as harness when `opencode` is present in `frameworks`; loading a config that violates this rule fails with an actionable message that names `clauded --edit`. `claude-code` and `codex` never trip this rule because both are non-configurable defaults always present in `frameworks`.
 
 **Config Generation**
 - Wizard prompts or programmatic creation
@@ -262,6 +275,10 @@ ssh:
 - Mount path validation on load:
   - If mount_guest differs from mount_host: log warning, auto-correct mount_guest to match mount_host
   - Ensures consistent path mapping between host and VM
+- Harness validation on load:
+  - `harness` must be one of `claude-code`, `codex`, `opencode`; missing or unknown values default / fail respectively
+  - Cross-field invariant (FR4): when `harness == "opencode"`, `opencode` must be present in `frameworks`; otherwise fail with a message naming `clauded --edit`
+  - `claude-code` and `codex` never trip this rule (they are non-configurable defaults always present in frameworks)
 - Config migration support for future schema upgrades (currently no-op for v1)
 
 ### 3. Provisioning System
@@ -288,11 +305,13 @@ ssh:
   - `playwright` if "playwright" in config.environment.frameworks
   - `claude_code` if "claude-code" in config.environment.frameworks
   - `codex` if "codex" in config.environment.frameworks
+  - `opencode` if "opencode" in config.environment.frameworks (Ubuntu only — Alpine is rejected at config-load time)
 
 **Auto-bundled Roles**
 - When `python` is selected: `uv` and `poetry` are automatically included
 - When `java` or `kotlin` is selected: `maven` and `gradle` are automatically included
 - When `playwright` or `codex` is selected: `node` is automatically included (npm dependency)
+- `opencode` is a static binary; no Node.js dependency is added when `opencode` is selected
 
 **Ansible Roles**
 
@@ -552,6 +571,7 @@ The project uses GitHub Actions for automated quality enforcement:
 - `--detect`: Run detection only and output results
 - `--no-detect`: Skip automatic project detection
 - `--debug`: Enable debug logging for detection
+- `--harness <claude-code|codex|opencode>`: Override the active harness for this invocation only; persisted `.clauded.yaml` is unchanged. Invalid values exit 2. An override that names a harness whose framework is absent from `frameworks` exits 1 with an actionable message naming `clauded --edit`. Silently ignored with `--reprovision`/`--detect`/`--stop`/`--destroy`/`--reboot`/`--force-stop`; emits a one-line warning with `--edit` (the wizard remains the canonical place to persist a harness change).
 
 **Exit Codes**:
 - 0: Success

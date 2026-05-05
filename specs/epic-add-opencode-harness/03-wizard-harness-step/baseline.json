@@ -1,0 +1,11 @@
+{
+  "command": "make check",
+  "exit_code": 0,
+  "passed": 985,
+  "failed": 0,
+  "errors": 0,
+  "skipped": 0,
+  "coverage_percent": 85.41,
+  "captured_at": "2026-05-04T20:55:00Z",
+  "notes": "Baseline before Story 03 (wizard-harness-step). Story 02 (harness-config-field) and Story 01 (opencode-role-and-framework) already merged into the working tree. ruff + mypy + pytest all green; coverage 85.41%. Story 03 consumes seam HarnessName from Story 02."
+}

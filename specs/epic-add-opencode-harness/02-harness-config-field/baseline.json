@@ -1,0 +1,22 @@
+{
+  "story_id": "02",
+  "story_name": "harness-config-field",
+  "captured_at": "2026-05-04T14:35:00Z",
+  "captured_by": "architect-2",
+  "command": "make check",
+  "result": "pass",
+  "make_check": {
+    "ruff": "All checks passed!",
+    "mypy": "Success: no issues found in 22 source files",
+    "pytest": {
+      "tests_collected": 935,
+      "tests_passed": 935,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "duration_seconds": 17.87,
+      "exit_code": 0
+    }
+  },
+  "coverage_gate_status": "configured_at_80_in_pyproject_but_not_invoked_by_make_check_target",
+  "notes": "Zero tolerance for failures. All 935 tests pass on a clean tree. Lint and typecheck clean. The make check target runs ruff + mypy + pytest (no coverage flag); coverage gate (fail_under=80) lives in pyproject.toml [tool.coverage.report] and is enforced when pytest is run with --cov. Story 06 (AC-024) is the formal coverage gate boundary per stories.json."
+}

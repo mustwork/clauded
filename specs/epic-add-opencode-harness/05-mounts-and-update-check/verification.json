@@ -1,0 +1,94 @@
+{
+  "story_id": "05",
+  "story_name": "mounts-and-update-check",
+  "questions": [
+    {
+      "id": "Q-PRE-001",
+      "phase": "pre-impl",
+      "category": "QUALITY",
+      "question": "Are the opencode mount entries structurally identical to the existing claude_dir / codex_dir mount blocks (same dict shape, same mountType handling, same mkdir-before-mount pattern)? Are mountPoint paths absolute and prefixed with /home/<user>.linux/ to match Lima's username remap?"
+    },
+    {
+      "id": "Q-PRE-002",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Does _get_latest_opencode_version run on the HOST via subprocess.run + curl (NOT in the VM via limactl shell)? Is this the deliberate divergence from _get_npm_latest_version (which runs npm-in-VM) and is documented as such? Does the helper return None on every recoverable failure (timeout, non-200, parse error, rate limit) and never raise?"
+    },
+    {
+      "id": "Q-PRE-003",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Is Config.opencode_version field structurally parallel to claude_code_version and codex_version (same default None, same _validate_version_pin call, same emit-only-when-set save behaviour)? Is the pin location versions.opencode at the same nesting level as versions.claude-code and versions.codex?"
+    },
+    {
+      "id": "Q-PRE-004",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "Are the mount tests paired (include when 'opencode' in frameworks, exclude when absent) with assertions on BOTH the YAML mount entries AND the mkdir calls on the host? Is the mkdir patched at Path.mkdir to avoid touching the real host filesystem during tests?"
+    },
+    {
+      "id": "Q-PRE-005",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "Does the _get_latest_opencode_version test mock subprocess.run with a representative GitHub releases API response (containing 'tag_name': 'v1.14.33')? Does the failure-path test cover network error / non-200 returncode / missing tag_name / parse failure? Does the pin-override test mock _get_latest_opencode_version and assert it is NOT called when Config.opencode_version is set?"
+    },
+    {
+      "id": "Q-PRE-006",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-019",
+      "question": "Does the lima YAML for a config with 'opencode' in frameworks contain exactly two new mount entries: location=~/.config/opencode -> mountPoint=/home/<user>.linux/.config/opencode, and location=~/.local/share/opencode -> mountPoint=/home/<user>.linux/.local/share/opencode, both writable=True? Are both host directories auto-created via mkdir(parents=True, exist_ok=True)?"
+    },
+    {
+      "id": "Q-PRE-007",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-020",
+      "question": "Does _check_library_updates include opencode in its comparison loop when 'opencode' in config.frameworks? Does the prompt include 'opencode\\t<installed> -> <target>' with both versions populated? Does the dispatch on user confirmation route to _update_opencode (kind == 'opencode')? Does Config.opencode_version (when set) override the GitHub API call?"
+    },
+    {
+      "id": "Q-PRE-008",
+      "phase": "pre-impl",
+      "category": "SECURITY",
+      "question": "Does _get_latest_opencode_version use HTTPS-only with a finite timeout (e.g. 10 seconds) matching the existing _get_npm_latest_version pattern? Does it NOT use shell=True and NOT pipe through bash on the host? Does it gracefully handle GitHub rate limits (HTTP 403/429) by returning None rather than crashing?"
+    },
+    {
+      "id": "Q-PRE-009",
+      "phase": "pre-impl",
+      "category": "SECURITY",
+      "question": "Does _update_opencode run the install script inside the VM (via limactl shell) and NOT on the host? Does it use --no-modify-path and OPENCODE_INSTALL_DIR=$HOME/.local/bin so the install does not modify shared host state? Is the version string passed as an env var (OPENCODE_VERSION) rather than interpolated unsafely into a shell command?"
+    },
+    {
+      "id": "Q-POST-001",
+      "phase": "post-impl",
+      "category": "ARCHITECTURE",
+      "question": "Implementation note: _get_latest_opencode_version uses regex extraction directly from the JSON body (no json.loads) — `re.search(r'\"tag_name\"\\s*:\\s*\"v?(\\d+\\.\\d+\\.\\d+)\"', body)`. This mirrors the existing _get_latest_claude_code_version pattern (also regex-only) and avoids importing json for a single field read. Verifier should confirm this matches project conventions and is not flagged as fragile parsing."
+    },
+    {
+      "id": "Q-POST-002",
+      "phase": "post-impl",
+      "category": "ARCHITECTURE",
+      "question": "Implementation note: _update_opencode embeds the version_str in a double-quoted bash variable assignment `export OPENCODE_VERSION=\"<version>\"`. Because Config._validate_version_pin already restricts opencode_version to [0-9.]+ at load time, command injection is not reachable from a valid Config. The full string is passed via argv (not shell=True), so subprocess does not invoke a host shell."
+    },
+    {
+      "id": "Q-POST-003",
+      "phase": "post-impl",
+      "category": "TEST",
+      "question": "Implementation note: tests directly invoke _get_latest_opencode_version and _update_opencode (not via the CLI), patching subprocess.run at the module boundary. The CLI integration tests use the existing isolated_filesystem-yaml pattern with all version helpers patched, so the opencode-update detected/pin-overrides/skipped cases run end-to-end through _check_library_updates."
+    },
+    {
+      "id": "Q-POST-004",
+      "phase": "post-impl",
+      "category": "SPEC",
+      "ac_id": "AC-019",
+      "question": "Implementation note: the lima YAML mount entries use mountPoints `/home/<user>.linux/.config/opencode` and `/home/<user>.linux/.local/share/opencode` (writable=True) with locations `~/.config/opencode` and `~/.local/share/opencode` on the host. mkdir(parents=True, exist_ok=True) creates the host directories before YAML generation. Verifier should confirm exactly two new entries appear when 'opencode' in frameworks and zero when absent."
+    },
+    {
+      "id": "Q-POST-005",
+      "phase": "post-impl",
+      "category": "SPEC",
+      "ac_id": "AC-020",
+      "question": "Implementation note: _check_library_updates appends to the changes list with kind='opencode'; the dispatch loop routes to _update_opencode when kind == 'opencode'. The display label is lowercase 'opencode' (matching the binary name and CHANGELOG style; contrast: 'Codex' / 'Claude Code'). Verifier should confirm this naming is acceptable and consistent with how AC-020 expects the prompt to appear."
+    }
+  ]
+}

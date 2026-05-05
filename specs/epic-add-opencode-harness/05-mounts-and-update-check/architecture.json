@@ -1,0 +1,57 @@
+{
+  "story_id": "05",
+  "story_name": "mounts-and-update-check",
+  "owning_module": "lima.py + cli.py + config.py + provisioner.py",
+  "interfaces": [
+    {
+      "name": "lima.LimaVM._generate_lima_config — opencode mounts",
+      "signature": "_generate_lima_config(self) -> dict[str, Any]",
+      "behavior_change": "When 'opencode' in self.config.frameworks, append two host mounts: ~/.config/opencode -> /home/<user>.linux/.config/opencode (writable) and ~/.local/share/opencode -> /home/<user>.linux/.local/share/opencode (writable). Use mkdir(parents=True, exist_ok=True) on the host paths first (matches the claude_dir.mkdir(exist_ok=True) pattern). When opencode is not in frameworks, no mounts are added."
+    },
+    {
+      "name": "config.Config.opencode_version (new field)",
+      "signature": "opencode_version: str | None = None",
+      "behavior_change": "New dataclass field parallel to claude_code_version and codex_version. Config.load reads versions.opencode via _validate_version_pin('opencode', raw_versions.get('opencode')) and stores on the instance. Config.save emits versions['opencode'] = self.opencode_version when pinned."
+    },
+    {
+      "name": "cli._get_latest_opencode_version (new helper)",
+      "signature": "_get_latest_opencode_version() -> str | None",
+      "behavior_change": "Host curl against https://api.github.com/repos/anomalyco/opencode/releases/latest; parse tag_name (e.g. 'v1.14.33'); strip the leading 'v'; return the bare version. Returns None on any failure (timeout, non-200, JSON parse error, missing tag_name) — matches the existing _get_npm_latest_version skip-on-failure pattern."
+    },
+    {
+      "name": "cli._update_opencode (new helper)",
+      "signature": "_update_opencode(vm: LimaVM, version_str: str) -> bool",
+      "behavior_change": "Run the opencode install script inside the VM via limactl shell, with OPENCODE_INSTALL_DIR=$HOME/.local/bin and OPENCODE_VERSION=<version_str>; --no-modify-path. Returns True iff returncode == 0."
+    },
+    {
+      "name": "cli._resolve_framework_versions — opencode branch",
+      "signature": "extension to existing function",
+      "behavior_change": "When 'opencode' in config.frameworks: if config.opencode_version, use it; else call _get_latest_opencode_version() (host curl, NOT npm-in-VM). Store under resolved['opencode']."
+    },
+    {
+      "name": "cli._check_library_updates — opencode comparison",
+      "signature": "extension to existing function",
+      "behavior_change": "When 'opencode' in desired and desired['opencode']: get installed via _get_vm_tool_version(vm, 'opencode --version'); compare; if different, append to changes list. On user confirmation, dispatch via kind == 'opencode' to _update_opencode."
+    },
+    {
+      "name": "provisioner._generate_playbook — opencode_version Ansible var",
+      "signature": "extension to existing _generate_playbook",
+      "behavior_change": "Add 'opencode_version': self.config.opencode_version or 'latest' to the vars dict, parallel to codex_version. Story 01's role already accepts the literal 'latest' sentinel; this story wires the Config pin through."
+    }
+  ],
+  "data_flow": "User pins versions.opencode in .clauded.yaml -> Config.load validates and stores Config.opencode_version -> Provisioner._generate_playbook passes opencode_version Ansible var to the role -> role uses pin or falls back to GitHub API resolution. Independently: cli main flow runs _check_library_updates -> calls _resolve_framework_versions which adds an 'opencode' entry (pin or _get_latest_opencode_version()) -> compares to _get_vm_tool_version(vm, 'opencode --version') -> if different, prompts user -> dispatch to _update_opencode which runs the install script in the VM. lima.py mount block: when 'opencode' in config.frameworks, two host mounts ensure auth tokens, MCP OAuth, sessions, and TUI prefs persist across VM destroy/recreate cycles.",
+  "seam_contracts_consumed": ["HarnessName"],
+  "seam_contracts_produced": ["OpencodeMounts", "OpencodeVersionResolution"],
+  "files_to_modify": [
+    "src/clauded/lima.py — add opencode mount block in _generate_lima_config (conditional on 'opencode' in frameworks)",
+    "src/clauded/config.py — add Config.opencode_version field, parse versions.opencode in load, emit versions.opencode in save",
+    "src/clauded/cli.py — new _get_latest_opencode_version (host curl), new _update_opencode (in-VM install script), extend _resolve_framework_versions, extend _check_library_updates",
+    "src/clauded/provisioner.py — add 'opencode_version' Ansible var line in _generate_playbook (deferred from Story 01)",
+    "tests/test_lima.py — paired include/exclude for opencode mounts (mkdir called on both host paths when opencode in frameworks; not called when absent)",
+    "tests/test_config.py — round-trip for opencode_version pin; reject bogus pins via _validate_version_pin",
+    "tests/test_version_check.py — opencode update detected (mock GitHub API + _get_vm_tool_version); pin overrides latest; _get_latest_opencode_version parses tag_name; _get_latest_opencode_version returns None on failure",
+    "CHANGELOG.md — [Unreleased] Added entry for opencode mount points, opencode update check, Config.opencode_version pin"
+  ],
+  "files_to_create": [],
+  "implementation_strategy": "TDD per-component:\n\n1. RED: lima.py mount tests (paired include/exclude for opencode mounts; mkdir assertions).\n2. GREEN: lima.py — append two opencode mount entries when 'opencode' in self.config.frameworks; mkdir(parents=True, exist_ok=True) on both host paths.\n3. RED: config.py opencode_version round-trip + validation tests.\n4. GREEN: config.py — add field, load (raw_versions.get('opencode')), save (versions['opencode'] when pinned).\n5. RED: cli.py update-check tests (4 cases: detected, pin overrides latest, GitHub parse, GitHub failure).\n6. GREEN: cli.py — _get_latest_opencode_version, _update_opencode, _resolve_framework_versions extension, _check_library_updates extension.\n7. provisioner.py — add the 'opencode_version' Ansible var line; reuse Story 01's role default.\n8. Add CHANGELOG entry.\n9. make check; coverage >= 80%; all tests green.\n\nMock strategy:\n- function-boundary-patch on _get_latest_opencode_version and _get_vm_tool_version for update-check tests.\n- subprocess.run mock for _get_latest_opencode_version (GitHub API curl call) — return a fixture JSON body with tag_name = 'v1.14.33'.\n- For mkdir assertions in lima tests: patch Path.mkdir at module boundary.\n- isolated-filesystem-yaml for round-trip tests."
+}

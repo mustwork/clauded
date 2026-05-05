@@ -1,0 +1,157 @@
+{
+  "story_id": "06",
+  "story_name": "documentation",
+  "phase_summary": "pre-impl questions captured before implementation; post-impl questions appended after.",
+  "pre_impl_questions": [
+    {
+      "id": "Q-Q01",
+      "category": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Is the [Unreleased] section of CHANGELOG.md self-consistent — every Stories 01-05 contribution lives under the correct Keep-a-Changelog category (Added/Changed/Removed/Fixed/Deprecated/Security)?",
+      "rationale": "AC-025 lists CHANGELOG.md as one of the four documentation surfaces; CLAUDE.md mandates correct bucketing.",
+      "expected_evidence": "CHANGELOG.md [Unreleased] contains: Added entries for opencode framework, --harness flag, wizard harness step, opencode mounts, opencode update check, Config.opencode_version pin; Changed entries for harness: field and harness-driven entrypoint; Removed entry for USE_BUILTIN_RIPGREP=0. No misplaced entries."
+    },
+    {
+      "id": "Q-Q02",
+      "category": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Are stale documentation references purged — specifically, does docs/configuration.md still mention USE_BUILTIN_RIPGREP=0 (Story 04 boy-scout removed it from production code at line 533 of the doc)?",
+      "rationale": "Boy-scout per CLAUDE.md; AC-024 invariant doesn't tolerate stale runtime claims in docs.",
+      "expected_evidence": "grep -n 'USE_BUILTIN_RIPGREP' docs/configuration.md returns nothing after the doc edit. Same for README.md and specs/spec.md. CHANGELOG.md is the only place the string is allowed (because it correctly mentions the removal)."
+    },
+    {
+      "id": "Q-A01",
+      "category": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Does specs/spec.md respect project CLAUDE.md's 'no concrete file paths or code snippets' rule for spec.md?",
+      "rationale": "Project CLAUDE.md explicitly forbids implementation-level detail in specs/spec.md.",
+      "expected_evidence": "Story 06's edits to specs/spec.md add the harness concept, allowed values, --harness flag, and FR4 rule at the same abstraction level as the surrounding text. No new mentions of e.g. _build_launch_spec, LaunchSpec, lima.py:..., or YAML code blocks beyond the existing schema illustrations."
+    },
+    {
+      "id": "Q-A02",
+      "category": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Is the 'Choosing a harness' section in docs/configuration.md placed in the natural reading order — after harness-related setup but before generic minimal/example configurations?",
+      "rationale": "Docs flow drives usability; FR12 says docs/configuration.md is the deeper guide.",
+      "expected_evidence": "Section appears after the 'Claude Code Permissions' section (which discusses an adjacent harness-specific setting) and before the 'Minimal Configuration' / 'Common Configuration Patterns' sections."
+    },
+    {
+      "id": "Q-T01",
+      "category": "TEST",
+      "phase": "pre-impl",
+      "question": "Does the new tests/test_documentation.py mechanically lock in AC-025 by asserting 'opencode', 'harness', and '--harness' substrings appear in each of README.md, specs/spec.md, docs/configuration.md, and CHANGELOG.md?",
+      "rationale": "Turning a 'manual review' AC into a regression-resistant test.",
+      "expected_evidence": "tests/test_documentation.py contains 4 substring-presence tests (one per file) plus the negative USE_BUILTIN_RIPGREP test plus the negative opencode-alpine test."
+    },
+    {
+      "id": "Q-T02",
+      "category": "TEST",
+      "phase": "pre-impl",
+      "question": "Does coverage remain ≥ 80% after Story 06 lands (AC-024)?",
+      "rationale": "Hard gate.",
+      "expected_evidence": "uv run pytest --cov=clauded reports total ≥ 80% after the Story 06 edits land. Story 06 doesn't add production code, so coverage can only go up (denominator unchanged, numerator unchanged)."
+    },
+    {
+      "id": "Q-S01",
+      "category": "SPEC",
+      "ac_id": "AC-024",
+      "phase": "pre-impl",
+      "question": "Does `make check` pass at this story boundary, and does pytest with `--cov=clauded` report total coverage ≥ 80%?",
+      "rationale": "AC-024 verbatim — 'make check passes (lint + typecheck + test); coverage threshold (≥ 80 %) maintained.'",
+      "expected_evidence": "make check exit 0 + pytest --cov=clauded reports a 'Required test coverage of 80.0% reached' line."
+    },
+    {
+      "id": "Q-S02",
+      "category": "SPEC",
+      "ac_id": "AC-025",
+      "phase": "pre-impl",
+      "question": "Do README.md, specs/spec.md, docs/configuration.md, and CHANGELOG.md each reflect the new harness concept, the --harness flag, the opencode framework, and the harness ⇒ framework rule?",
+      "rationale": "AC-025 verbatim.",
+      "expected_evidence": "Per-file substring presence verified by tests/test_documentation.py; manual review of the new sections shows the four required ideas are covered (concept, flag, framework, validation rule)."
+    },
+    {
+      "id": "Q-SEC01",
+      "category": "SECURITY",
+      "phase": "pre-impl",
+      "question": "Does any documentation example accidentally promote unsafe patterns — e.g. inviting users to disable claude_dangerously_skip_permissions in opencode contexts (irrelevant; opencode ignores it) or to ship .clauded.yaml with hand-edited harness values that bypass the wizard's validation?",
+      "rationale": "Defensive review of doc examples to ensure they steer users to safe patterns.",
+      "expected_evidence": "Source review of new sections: examples show clauded --harness opencode and clauded --edit (the wizard path); the troubleshooting note for the harness ⇒ framework error directs users to clauded --edit (not to hand-editing .clauded.yaml)."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "id": "Q-P01",
+      "category": "QUALITY",
+      "phase": "post-impl",
+      "question": "Are CHANGELOG.md [Unreleased] entries correctly bucketed and free of Story 06 duplicates?",
+      "rationale": "Q-Q01 follow-through.",
+      "expected_evidence": "Inspection of CHANGELOG.md [Unreleased]: Added contains 5 bullets (opencode framework, wizard step, opencode mounts, opencode versions/update-check, --harness flag); Changed contains 3 bullets (harness: field, harness-driven entrypoint, doc refresh); Removed contains 1 bullet (USE_BUILTIN_RIPGREP=0). No duplicates."
+    },
+    {
+      "id": "Q-P02",
+      "category": "QUALITY",
+      "phase": "post-impl",
+      "question": "Is the stale USE_BUILTIN_RIPGREP=0 mention purged from user-facing docs (README.md, specs/spec.md, docs/configuration.md)?",
+      "rationale": "Q-Q02 follow-through.",
+      "expected_evidence": "Mechanically locked in by tests/test_documentation.py::test_no_use_builtin_ripgrep_in_user_facing_docs (parametrized over the three docs). All variants pass."
+    },
+    {
+      "id": "Q-P03",
+      "category": "ARCHITECTURE",
+      "phase": "post-impl",
+      "question": "Does specs/spec.md keep Story 06 edits at the abstraction level required by project CLAUDE.md (no concrete file paths or non-schema code snippets)?",
+      "rationale": "Q-A01 follow-through.",
+      "expected_evidence": "Source review of specs/spec.md edits: new content adds (a) bullet entries describing the wizard harness step, (b) the harness: field in the existing config-schema YAML illustration, (c) a 'Harness Selection' subsection in Configuration Management (high-level), (d) a Configuration-Validation bullet for the harness ⇒ framework rule, (e) the role-selection bullet for opencode, (f) the --harness CLI option entry. No new file paths, no new function names, no Python code blocks."
+    },
+    {
+      "id": "Q-P04",
+      "category": "ARCHITECTURE",
+      "phase": "post-impl",
+      "question": "Is 'Choosing a harness' placed between 'Claude Code Permissions' and 'Minimal Configuration' in docs/configuration.md?",
+      "rationale": "Q-A02 follow-through (reading-order check).",
+      "expected_evidence": "grep -n '^## ' docs/configuration.md shows the section order: ... Configuration Schema ... Choosing a harness ... Minimal Configuration ... Common Configuration Patterns. The 'Choosing a harness' section sits at the requested position."
+    },
+    {
+      "id": "Q-P05",
+      "category": "TEST",
+      "phase": "post-impl",
+      "question": "Does tests/test_documentation.py mechanically lock in AC-025 with substring assertions across the four user-facing docs?",
+      "rationale": "Q-T01 follow-through.",
+      "expected_evidence": "tests/test_documentation.py contains 4 parametrized substring presence tests (one per file) + 3 parametrized USE_BUILTIN_RIPGREP-absence tests (excluding CHANGELOG.md) + 1 opencode-alpine src-tree test + 1 [Unreleased]-non-empty CHANGELOG sanity test. 9 tests total; all green."
+    },
+    {
+      "id": "Q-P06",
+      "category": "TEST",
+      "phase": "post-impl",
+      "question": "Did make check pass and total coverage stay ≥ 80% at Story 06's boundary (AC-024)?",
+      "rationale": "Q-T02 / Q-S01 follow-through.",
+      "expected_evidence": "make check exit 0; pytest --cov=clauded reports 'Required test coverage of 80.0% reached. Total coverage: 86.00%' with 1044 tests passing (was 1035 baseline; +9 doc audit tests)."
+    },
+    {
+      "id": "Q-P07",
+      "category": "SPEC",
+      "ac_id": "AC-024",
+      "phase": "post-impl",
+      "question": "Is AC-024 satisfied — make check green at this story boundary with coverage ≥ 80%?",
+      "rationale": "Direct AC traceability — the epic-wide test gate.",
+      "expected_evidence": "make check exit 0; pytest --cov reports total 86.00% (gate at 80%)."
+    },
+    {
+      "id": "Q-P08",
+      "category": "SPEC",
+      "ac_id": "AC-025",
+      "phase": "post-impl",
+      "question": "Is AC-025 satisfied — README.md, specs/spec.md, docs/configuration.md, CHANGELOG.md all reflect the harness concept, --harness flag, opencode framework, and harness ⇒ framework rule?",
+      "rationale": "Direct AC traceability.",
+      "expected_evidence": "All 4 substring-presence tests in tests/test_documentation.py pass. Manual inspection: README has the 'Choosing a harness' subsection + 4-row frameworks table; spec.md has the harness field doc, --harness flag, and FR4 validation bullet; configuration.md has the 'Choosing a harness' section with dispatcher matrix and troubleshooting note; CHANGELOG.md [Unreleased] documents all five bullets."
+    },
+    {
+      "id": "Q-P09",
+      "category": "SECURITY",
+      "phase": "post-impl",
+      "question": "Q-SEC01 follow-through: do the new doc examples direct users toward safe paths (wizard / --edit / --harness) and away from hand-editing?",
+      "rationale": "Defensive review.",
+      "expected_evidence": "Source review of new sections: 'Selecting a harness' lists wizard / --harness override / hand-edit IN THAT ORDER, with hand-edit explicitly noting that validation runs on load. Troubleshooting section directs users to clauded --edit. No example invites disabling claude_dangerously_skip_permissions in opencode contexts."
+    }
+  ]
+}

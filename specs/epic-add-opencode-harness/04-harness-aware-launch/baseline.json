@@ -1,0 +1,26 @@
+{
+  "story_id": "04",
+  "story_name": "harness-aware-launch",
+  "captured_at": "2026-05-04T21:20:00Z",
+  "captured_by": "architect-2",
+  "command": "make check",
+  "result": "pass",
+  "make_check": {
+    "ruff": "All checks passed!",
+    "mypy": "Success: no issues found in 22 source files",
+    "pytest": {
+      "tests_collected": 999,
+      "tests_passed": 999,
+      "tests_failed": 0,
+      "exit_code": 0,
+      "delta_vs_story_02_baseline": "+42 tests (Stories 01, 02, 03 collectively); ZERO regressions"
+    }
+  },
+  "preconditions_observed": {
+    "config_harness_seam_realized": "src/clauded/config.py exposes HARNESS_NAMES tuple, HarnessName Literal alias, and Config.harness str field — Story 02 verified.",
+    "wizard_harness_step_realized": "Story 03 verified per epic-state.json. Wizard sets answers['harness'] consumed by from_wizard.",
+    "opencode_role_realized": "Story 01 verified. opencode is a valid frameworks entry; provisioner appends the role.",
+    "story_05_premature_diff_present": "lima.py and tests/test_lima.py contain Story 05 mount-block additions in the working tree (uncommitted). Story 04 will NOT touch this code; the dispatcher refactor is in LimaVM.shell() (different function from _generate_lima_config). Tests in test_lima.py for the existing shell() include the literal 'USE_BUILTIN_RIPGREP=0' prefix at lines 447, 470 — those existing assertions WILL be modified as part of Story 04's boy-scout removal."
+  },
+  "notes": "Zero tolerance for failures. 999 tests pass clean on the working tree (which includes Stories 01/02/03 unstaged diffs plus a premature Story 05 mount block that Story 04 will leave untouched). The Story 05 mount block is out-of-scope for Story 04 and architect-1 will rationalize it during their Story 05 implementation."
+}

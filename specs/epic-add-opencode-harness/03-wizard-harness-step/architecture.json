@@ -1,0 +1,49 @@
+{
+  "story_id": "03",
+  "story_name": "wizard-harness-step",
+  "owning_module": "wizard.py + detect/wizard_integration.py",
+  "interfaces": [
+    {
+      "name": "wizard.run() — new harness selection step",
+      "signature": "wizard.py around line ~210 (immediately after frameworks multi-select & answers['frameworks'] is computed; before playwright browser sub-flow)",
+      "behavior_change": "Single-select menu titled 'Select harness:' with three entries: 'Claude Code' (claude-code), 'Codex' (codex), 'opencode  [adds opencode to frameworks]' (opencode). Default index = 0 (claude-code) for new configs. Writes answers['harness']. When chosen value == 'opencode' AND 'opencode' not already in answers['frameworks'], append it and emit click.echo('opencode added to frameworks (required by harness selection).')."
+    },
+    {
+      "name": "wizard.run_edit() — new harness selection step",
+      "signature": "wizard.py around line ~400 (mirrors run() placement)",
+      "behavior_change": "Same menu shape as run(), but default index = HARNESS_NAMES.index(config.harness) (so the persisted harness is pre-selected). Same opencode auto-add behaviour."
+    },
+    {
+      "name": "detect/wizard_integration.run_with_detection() — new harness step",
+      "signature": "wizard_integration.py around line ~190 (after frameworks split, before playwright browser sub-flow)",
+      "behavior_change": "Same menu and auto-add behaviour as wizard.run(). Default index 0 (claude-code) for new configs. Writes answers['harness']."
+    },
+    {
+      "name": "detect/wizard_integration.run_edit_with_detection() — new harness step",
+      "signature": "wizard_integration.py around line ~755 (mirrors run_edit_with_detection's frameworks placement)",
+      "behavior_change": "Same as run_with_detection but default index = HARNESS_NAMES.index(config.harness). Same opencode auto-add."
+    },
+    {
+      "name": "detect/wizard_integration.apply_detection_to_config() — preserve harness",
+      "signature": "wizard_integration.py line 388 onwards",
+      "behavior_change": "No interactive prompt; the function builds an updated Config by merging detection with existing config. Preserve config.harness through the merge unchanged. (Implementation: this function already passes through fields it doesn't actively change; verify it does not silently drop harness when calling Config(...).)"
+    },
+    {
+      "name": "merge_detection_with_config() — pass-through harness",
+      "signature": "wizard_integration.py line ~519",
+      "behavior_change": "Verify the merged dict carries config.harness unchanged so that any downstream code that reconstructs Config from the merged dict does not lose the value. (May be a no-op edit if the function already only passes specific keys.)"
+    }
+  ],
+  "data_flow": "User runs `clauded` (or `clauded --edit`) -> wizard frameworks multi-select -> NEW harness select step (default = claude-code for new, current for edit) -> if user picks 'opencode' and frameworks lacks it, the wizard auto-appends 'opencode' to answers['frameworks'] with an info message -> answers['harness'] = chosen value -> Config.from_wizard(answers) (Story 02 already accepts this key) -> Config.save() emits top-level 'harness:' line. Detect-flow variants (run_with_detection / run_edit_with_detection) inherit identical behaviour. apply_detection_to_config does NOT prompt — it just preserves config.harness through the merge.",
+  "seam_contracts_consumed": ["HarnessName"],
+  "seam_contracts_produced": [],
+  "files_to_modify": [
+    "src/clauded/wizard.py — add harness step in run() and run_edit() with auto-add side effect",
+    "src/clauded/detect/wizard_integration.py — add harness step in run_with_detection() and run_edit_with_detection(); ensure apply_detection_to_config preserves harness",
+    "tests/test_wizard.py — coverage for AC-009 (offered with 3 entries), AC-010 (auto-add opencode), AC-011 (run_edit preselects current harness)",
+    "tests/test_detect_integration.py — parallel coverage for the two integration flows + apply_detection_to_config preserve test",
+    "CHANGELOG.md — [Unreleased] Added entry for the harness wizard step"
+  ],
+  "files_to_create": [],
+  "implementation_strategy": "TDD per-component:\n\n1. RED: write tests for AC-009/010/011 against wizard.run() and wizard.run_edit() (recording-select-side-effect for the harness menu shape and default index; auto-add assertion).\n2. GREEN: edit wizard.py — add the harness step in run() (default 0) and run_edit() (default = HARNESS_NAMES.index(config.harness)); auto-add opencode to frameworks when chosen.\n3. RED: write tests for the same behaviour in run_with_detection() and run_edit_with_detection() (paralleling tests in test_detect_integration.py).\n4. GREEN: edit wizard_integration.py — add the harness step in both flows.\n5. RED: write a test asserting apply_detection_to_config preserves config.harness through the merge (the non-interactive flow).\n6. GREEN: confirm or fix preservation in apply_detection_to_config.\n7. Add CHANGELOG entry.\n8. Run `make check`; coverage >= 80%; all tests green.\n\nAuto-add details:\n- The auto-add fires only when the chosen harness is 'opencode' AND 'opencode' is not already in answers['frameworks']. No double info message.\n- The info message is emitted once per wizard run (not per call to the menu).\n- HARNESS_NAMES is imported from clauded.config so the menu mapping stays single-source-of-truth."
+}

@@ -21,6 +21,7 @@ class TestWizardDistroSelection:
                     mock_menu_select.side_effect = [
                         "alpine",  # Distro selection (FIRST)
                         "3.12",  # Python version
+                        "claude-code",  # Harness selection (Story 03)
                     ]
                     mock_multi_select.side_effect = [
                         ["python"],  # Languages
@@ -55,6 +56,7 @@ class TestWizardDistroSelection:
                 ):
                     mock_menu_select.side_effect = [
                         "alpine",  # Distro selection
+                        "claude-code",  # Harness selection (Story 03)
                     ]
                     mock_multi_select.side_effect = [
                         [],  # Languages
@@ -97,6 +99,7 @@ class TestWizardDistroSelection:
                     # Distro should NOT be asked when override provided
                     mock_menu_select.side_effect = [
                         "3.12",  # Python version
+                        "claude-code",  # Harness selection (Story 03)
                     ]
                     mock_multi_select.side_effect = [
                         ["python"],  # Languages
@@ -128,7 +131,9 @@ class TestWizardDistroSelection:
                     patch("clauded.wizard.click.confirm") as mock_confirm,
                     patch("clauded.wizard.click.prompt", return_value=""),
                 ):
-                    mock_menu_select.side_effect = []
+                    mock_menu_select.side_effect = [
+                        "claude-code",  # Harness selection (Story 03)
+                    ]
                     mock_multi_select.side_effect = [
                         [],  # Languages
                         [],  # Tools
@@ -161,6 +166,7 @@ class TestWizardDistroSelection:
                 ):
                     mock_menu_select.side_effect = [
                         "ubuntu",  # User selects Ubuntu
+                        "claude-code",  # Harness selection (Story 03)
                     ]
                     mock_multi_select.side_effect = [
                         [],  # Languages
@@ -202,6 +208,7 @@ class TestWizardDistroSelection:
                 ):
                     mock_menu_select.side_effect = [
                         "ubuntu",  # User selects Ubuntu
+                        "claude-code",  # Harness selection (Story 03)
                     ]
                     mock_multi_select.side_effect = [
                         [],  # Languages
@@ -226,56 +233,57 @@ class TestWizardDistroIntegration:
 
     def test_run_with_detection_shows_distro_first(self, tmp_path: Path) -> None:
         """run_with_detection shows distro selection as first question."""
+        from clauded.detect.result import DetectionResult
         from clauded.detect.wizard_integration import run_with_detection
 
-        # _select_distro is defined in wizard.py and calls _menu_select there
-        with patch("clauded.wizard._menu_select") as mock_menu_select:
-            with patch(
+        # _select_distro is defined in wizard.py and calls _menu_select there;
+        # the harness step uses the _menu_select imported into wizard_integration.
+        with (
+            patch("clauded.wizard._menu_select") as mock_menu_select,
+            patch(
+                "clauded.detect.wizard_integration._menu_select"
+            ) as mock_integration_select,
+            patch(
                 "clauded.detect.wizard_integration._menu_multi_select"
-            ) as mock_multi_select:
-                with (
-                    patch(
-                        "clauded.detect.wizard_integration.click.confirm"
-                    ) as mock_confirm,
-                    patch(
-                        "clauded.detect.wizard_integration.click.prompt",
-                        return_value="",
-                    ),
-                ):
-                    with patch(
-                        "clauded.detect.wizard_integration.detect"
-                    ) as mock_detect:
-                        # Mock detection result
-                        from clauded.detect.result import DetectionResult
+            ) as mock_multi_select,
+            patch("clauded.detect.wizard_integration.click.confirm") as mock_confirm,
+            patch(
+                "clauded.detect.wizard_integration.click.prompt",
+                return_value="",
+            ),
+            patch("clauded.detect.wizard_integration.detect") as mock_detect,
+        ):
+            mock_detect.return_value = DetectionResult(
+                languages={}, versions={}, frameworks=set()
+            )
 
-                        mock_detect.return_value = DetectionResult(
-                            languages={}, versions={}, frameworks=set()
-                        )
+            mock_menu_select.side_effect = [
+                "alpine",  # Distro selection (FIRST)
+            ]
+            mock_integration_select.side_effect = [
+                "claude-code",  # Harness selection (Story 03)
+            ]
+            mock_multi_select.side_effect = [
+                [],  # Languages
+                [],  # Tools
+                [],  # Databases
+                [],  # Frameworks
+                [],  # Forward env
+            ]
+            mock_confirm.side_effect = [
+                True,
+                False,
+                False,
+            ]
 
-                        mock_menu_select.side_effect = [
-                            "alpine",  # Distro selection (FIRST)
-                        ]
-                        mock_multi_select.side_effect = [
-                            [],  # Languages
-                            [],  # Tools
-                            [],  # Databases
-                            [],  # Frameworks
-                            [],  # Forward env
-                        ]
-                        mock_confirm.side_effect = [
-                            True,
-                            False,
-                            False,
-                        ]
+            config = run_with_detection(tmp_path)
 
-                        config = run_with_detection(tmp_path)
+            # Verify distro selection was FIRST
+            assert mock_menu_select.call_count >= 1
+            first_call = mock_menu_select.call_args_list[0]
+            assert "Select Linux distribution:" in first_call[0][0]
 
-                        # Verify distro selection was FIRST
-                        assert mock_menu_select.call_count >= 1
-                        first_call = mock_menu_select.call_args_list[0]
-                        assert "Select Linux distribution:" in first_call[0][0]
-
-                        assert config.vm_distro == "alpine"
+            assert config.vm_distro == "alpine"
 
     def test_run_with_detection_respects_distro_override(self, tmp_path: Path) -> None:
         """run_with_detection respects distro_override parameter."""
@@ -306,7 +314,9 @@ class TestWizardDistroIntegration:
                             languages={}, versions={}, frameworks=set()
                         )
 
-                        mock_menu_select.side_effect = []
+                        mock_menu_select.side_effect = [
+                            "claude-code",  # Harness selection (Story 03)
+                        ]
                         mock_multi_select.side_effect = [
                             [],  # Languages
                             [],  # Tools

@@ -8,10 +8,12 @@ import yaml
 
 from clauded.config import (
     CURRENT_VERSION,
+    HARNESS_NAMES,
     Config,
     ConfigValidationError,
     ConfigVersionError,
     _migrate_config,
+    _validate_harness,
     _validate_runtime_version,
     _validate_version,
     _validate_version_pin,
@@ -1253,3 +1255,461 @@ environment:
 
         assert loaded.claude_code_version == "2.1.62"
         assert loaded.codex_version == "1.2.0"
+
+    def test_load_parses_opencode_version_pin(self, tmp_path: Path) -> None:
+        """Story 05: versions.opencode is parsed into Config.opencode_version."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+  distro: ubuntu
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+    - opencode
+harness: claude-code
+versions:
+  opencode: "1.14.33"
+""")
+
+        config = Config.load(config_path)
+
+        assert config.opencode_version == "1.14.33"
+
+    def test_opencode_version_round_trip(self, tmp_path: Path) -> None:
+        """Pinned opencode_version survives a save/load cycle."""
+        config = Config(
+            vm_name="clauded-test",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            vm_distro="ubuntu",
+            frameworks=["claude-code", "codex", "opencode"],
+            opencode_version="1.14.33",
+        )
+        config_path = tmp_path / ".clauded.yaml"
+        config.save(config_path)
+
+        text = config_path.read_text()
+        assert "opencode: 1.14.33" in text or "opencode: '1.14.33'" in text
+
+        loaded = Config.load(config_path)
+        assert loaded.opencode_version == "1.14.33"
+
+    def test_opencode_version_validation_rejects_injection(
+        self, tmp_path: Path
+    ) -> None:
+        """Bogus opencode pins (shell metacharacters) are rejected at load time."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+  distro: ubuntu
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+    - opencode
+harness: claude-code
+versions:
+  opencode: "1.14.33; rm -rf /"
+""")
+
+        with pytest.raises(ConfigValidationError, match="Invalid version pin"):
+            Config.load(config_path)
+
+    def test_opencode_version_latest_normalized_to_none(self, tmp_path: Path) -> None:
+        """opencode: 'latest' is normalized to None (matches existing pattern)."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text("""
+version: "1"
+vm:
+  name: clauded-test1234
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+  distro: ubuntu
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+    - opencode
+harness: claude-code
+versions:
+  opencode: "latest"
+""")
+
+        config = Config.load(config_path)
+
+        assert config.opencode_version is None
+
+    def test_opencode_version_omitted_emits_no_versions_entry(
+        self, tmp_path: Path
+    ) -> None:
+        """Save does not emit versions.opencode when opencode_version is None."""
+        config = Config(
+            vm_name="clauded-test",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            vm_distro="ubuntu",
+            frameworks=["claude-code", "codex", "opencode"],
+        )
+        config_path = tmp_path / ".clauded.yaml"
+        config.save(config_path)
+
+        text = config_path.read_text()
+        # When no version is pinned, the entire versions block is omitted.
+        assert "versions:" not in text
+        assert "opencode:" not in text or text.count("opencode") == 1
+
+
+class TestHarnessNamesConstant:
+    """The HARNESS_NAMES seam constant must be the single source of truth."""
+
+    def test_harness_names_tuple_shape(self) -> None:
+        """HARNESS_NAMES is a tuple of the three accepted harness identifiers."""
+        assert isinstance(HARNESS_NAMES, tuple)
+        assert HARNESS_NAMES == ("claude-code", "codex", "opencode")
+
+
+class TestValidateHarness:
+    """Unit-level tests for the _validate_harness helper."""
+
+    def test_none_defaults_to_claude_code(self) -> None:
+        """A missing/None harness value resolves to the default."""
+        assert _validate_harness(None, frameworks=[]) == "claude-code"
+
+    def test_known_values_pass_through(self) -> None:
+        """Each accepted name is returned unchanged."""
+        assert (
+            _validate_harness("claude-code", frameworks=["claude-code"])
+            == "claude-code"
+        )
+        assert _validate_harness("codex", frameworks=["codex"]) == "codex"
+        assert _validate_harness("opencode", frameworks=["opencode"]) == "opencode"
+
+    def test_unknown_value_lists_all_accepted_names(self) -> None:
+        """Unknown harness raises ConfigValidationError listing all three names."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            _validate_harness("gemini", frameworks=[])
+        message = str(exc_info.value)
+        assert "claude-code" in message
+        assert "codex" in message
+        assert "opencode" in message
+        assert "gemini" in message
+
+    def test_non_string_rejected(self) -> None:
+        """Non-string harness values (e.g. YAML true/numbers) are rejected."""
+        with pytest.raises(ConfigValidationError, match="harness"):
+            _validate_harness(True, frameworks=[])  # type: ignore[arg-type]
+        with pytest.raises(ConfigValidationError, match="harness"):
+            _validate_harness(1, frameworks=[])  # type: ignore[arg-type]
+
+    def test_opencode_without_framework_actionable_message(self) -> None:
+        """harness=opencode without opencode in frameworks names `clauded --edit`."""
+        with pytest.raises(ConfigValidationError) as exc_info:
+            _validate_harness("opencode", frameworks=["claude-code", "codex"])
+        assert "clauded --edit" in str(exc_info.value)
+
+    def test_claude_code_does_not_require_opencode_framework(self) -> None:
+        """INV-3: claude-code never triggers the opencode⇒framework rule."""
+        assert _validate_harness("claude-code", frameworks=[]) == "claude-code"
+
+    def test_codex_does_not_require_opencode_framework(self) -> None:
+        """INV-3: codex never triggers the opencode⇒framework rule."""
+        assert _validate_harness("codex", frameworks=[]) == "codex"
+
+
+class TestHarnessConfigLoad:
+    """Tests for harness loading via Config.load (AC-005, AC-006, AC-007, AC-022)."""
+
+    def _write_config(
+        self,
+        tmp_path: Path,
+        *,
+        harness_line: str = "",
+        frameworks: list[str] | None = None,
+    ) -> Path:
+        """Build a minimal valid YAML, optionally including a harness line."""
+        if frameworks is None:
+            frameworks = ["claude-code"]
+        framework_block = "\n".join(f"    - {fw}" for fw in frameworks) or "    []"
+        # When the list is empty, YAML wants `frameworks: []` inline.
+        if not frameworks:
+            framework_block = ""
+            frameworks_yaml = "  frameworks: []"
+        else:
+            frameworks_yaml = "  frameworks:\n" + framework_block
+
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text(
+            f"""
+version: "1"
+{harness_line}
+vm:
+  name: clauded-test1234
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test
+  guest: /test
+environment:
+  tools: []
+  databases: []
+{frameworks_yaml}
+"""
+        )
+        return config_path
+
+    def test_harness_defaults_to_claude_code_when_absent(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """AC-005: Missing harness key yields claude-code with no warning."""
+        config_path = self._write_config(tmp_path)
+
+        with caplog.at_level(logging.WARNING, logger="clauded.config"):
+            config = Config.load(config_path)
+
+        assert config.harness == "claude-code"
+        for record in caplog.records:
+            assert "harness" not in record.getMessage().lower()
+
+    def test_harness_unknown_value_rejected(self, tmp_path: Path) -> None:
+        """AC-006: Unknown harness raises with all three accepted names listed."""
+        config_path = self._write_config(tmp_path, harness_line="harness: gemini")
+
+        with pytest.raises(ConfigValidationError) as exc_info:
+            Config.load(config_path)
+        message = str(exc_info.value)
+        assert "claude-code" in message
+        assert "codex" in message
+        assert "opencode" in message
+
+    def test_harness_opencode_without_framework_rejected(self, tmp_path: Path) -> None:
+        """AC-007: harness=opencode missing opencode framework names clauded --edit."""
+        config_path = self._write_config(
+            tmp_path,
+            harness_line="harness: opencode",
+            frameworks=["claude-code", "codex"],
+        )
+
+        with pytest.raises(ConfigValidationError) as exc_info:
+            Config.load(config_path)
+        assert "clauded --edit" in str(exc_info.value)
+
+    def test_harness_opencode_with_framework_loads(self, tmp_path: Path) -> None:
+        """AC-007 positive case: harness=opencode + opencode in frameworks loads."""
+        config_path = self._write_config(
+            tmp_path,
+            harness_line="harness: opencode",
+            frameworks=["claude-code", "codex", "opencode"],
+        )
+
+        config = Config.load(config_path)
+
+        assert config.harness == "opencode"
+        assert "opencode" in config.frameworks
+
+    def test_harness_claude_code_with_empty_frameworks_loads(
+        self, tmp_path: Path
+    ) -> None:
+        """INV-3 positive: claude-code never requires opencode framework."""
+        config_path = self._write_config(
+            tmp_path, harness_line="harness: claude-code", frameworks=[]
+        )
+
+        config = Config.load(config_path)
+
+        assert config.harness == "claude-code"
+
+    def test_harness_codex_with_empty_frameworks_loads(self, tmp_path: Path) -> None:
+        """INV-3 positive: codex never requires opencode framework."""
+        config_path = self._write_config(
+            tmp_path, harness_line="harness: codex", frameworks=[]
+        )
+
+        config = Config.load(config_path)
+
+        assert config.harness == "codex"
+
+    def test_harness_non_string_value_rejected(self, tmp_path: Path) -> None:
+        """YAML scalars decoded to non-strings (e.g. true) raise cleanly."""
+        config_path = self._write_config(tmp_path, harness_line="harness: true")
+
+        with pytest.raises(ConfigValidationError, match="harness"):
+            Config.load(config_path)
+
+    def test_pre_epic_config_loads_clean(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """AC-022: pre-epic YAML (no harness:, no opencode, no versions.opencode)."""
+        config_path = tmp_path / ".clauded.yaml"
+        config_path.write_text(
+            """
+version: "1"
+vm:
+  name: clauded-legacy123
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /legacy/path
+  guest: /legacy/path
+environment:
+  python: "3.12"
+  node: "20"
+  tools: ["docker", "git"]
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+"""
+        )
+
+        with caplog.at_level(logging.WARNING, logger="clauded.config"):
+            config = Config.load(config_path)
+
+        assert config.harness == "claude-code"
+        for record in caplog.records:
+            assert "harness" not in record.getMessage().lower()
+
+
+class TestHarnessConfigSave:
+    """Tests for harness emission via Config.save (AC-008)."""
+
+    def test_save_always_emits_harness_field_for_default(self, tmp_path: Path) -> None:
+        """AC-008 + FR3: harness: line is emitted even at the default value."""
+        config = Config(
+            vm_name="clauded-default",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code"],
+        )
+        config_path = tmp_path / ".clauded.yaml"
+        config.save(config_path)
+
+        text = config_path.read_text()
+        assert "harness: claude-code" in text
+
+    def test_save_emits_harness_field_for_opencode(self, tmp_path: Path) -> None:
+        """AC-008: non-default harness round-trips via save then load."""
+        config = Config(
+            vm_name="clauded-oc",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code", "codex", "opencode"],
+            harness="opencode",
+        )
+        config_path = tmp_path / ".clauded.yaml"
+        config.save(config_path)
+
+        text = config_path.read_text()
+        assert "harness: opencode" in text
+
+        loaded = Config.load(config_path)
+        assert loaded.harness == "opencode"
+
+    def test_save_load_save_byte_stable_for_harness(self, tmp_path: Path) -> None:
+        """AC-008 round-trip stability: save → load → save preserves harness line."""
+        config = Config(
+            vm_name="clauded-stable",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code", "codex", "opencode"],
+            harness="opencode",
+        )
+        path1 = tmp_path / "first.yaml"
+        config.save(path1)
+        text1 = path1.read_text()
+
+        loaded = Config.load(path1)
+        path2 = tmp_path / "second.yaml"
+        loaded.save(path2)
+        text2 = path2.read_text()
+
+        # The harness line is stable across resave.
+        harness_line_1 = next(
+            line for line in text1.splitlines() if line.startswith("harness:")
+        )
+        harness_line_2 = next(
+            line for line in text2.splitlines() if line.startswith("harness:")
+        )
+        assert harness_line_1 == harness_line_2 == "harness: opencode"
+
+
+class TestHarnessFromWizard:
+    """Tests for harness pass-through in Config.from_wizard."""
+
+    def test_from_wizard_defaults_when_harness_absent(self, tmp_path: Path) -> None:
+        """from_wizard supplies the default harness when answers omits the key."""
+        config = Config.from_wizard(
+            answers={"frameworks": ["claude-code"]},
+            project_path=tmp_path / "project",
+        )
+        assert config.harness == "claude-code"
+
+    def test_from_wizard_passes_through_opencode(self, tmp_path: Path) -> None:
+        """from_wizard preserves the answer when supplied."""
+        config = Config.from_wizard(
+            answers={
+                "harness": "opencode",
+                "frameworks": ["claude-code", "codex", "opencode"],
+            },
+            project_path=tmp_path / "project",
+        )
+        assert config.harness == "opencode"
+
+    def test_from_wizard_save_load_roundtrip_preserves_harness(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-008 end-to-end: from_wizard → save → load preserves the value."""
+        config_path = tmp_path / ".clauded.yaml"
+        Config.from_wizard(
+            answers={
+                "harness": "opencode",
+                "frameworks": ["claude-code", "codex", "opencode"],
+            },
+            project_path=tmp_path / "project",
+        ).save(config_path)
+
+        loaded = Config.load(config_path)
+        assert loaded.harness == "opencode"

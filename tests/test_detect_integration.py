@@ -8,10 +8,14 @@ Tests verify:
 5. High/medium confidence items are pre-checked, low confidence items are not
 """
 
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
+from clauded.config import Config
 from clauded.detect.cli_integration import (
     create_wizard_defaults,
     display_detection_summary,
@@ -24,8 +28,11 @@ from clauded.detect.result import (
     VersionSpec,
 )
 from clauded.detect.wizard_integration import (
+    apply_detection_to_config,
     map_confidence_to_checked,
     normalize_version_for_choice,
+    run_edit_with_detection,
+    run_with_detection,
 )
 
 # ============================================================================
@@ -1190,3 +1197,435 @@ class TestSpecificExceptionHandling:
             assert defaults["python"] == "None"
             assert defaults["tools"] == []
             assert "claude-code" in defaults["frameworks"]
+
+
+class TestWizardIntegrationFrameworkOptions:
+    """Frameworks multi-selects in wizard_integration must offer opencode."""
+
+    @staticmethod
+    def _record_framework_items(
+        captured: list[list[tuple[str, str, bool]]],
+    ):
+        def side_effect(title, items):
+            if title == "Select frameworks:":
+                captured.append(list(items))
+                return []
+            if title == "Select languages:":
+                return [value for _label, value, pre in items if pre]
+            return []
+
+        return side_effect
+
+    @staticmethod
+    def _fake_confirm(prompt: str, default: bool = False, **_kwargs) -> bool:
+        if "Customize" in prompt:
+            return False
+        return True
+
+    def test_run_with_detection_offers_opencode(self, tmp_path: Path) -> None:
+        """run_with_detection (no detection) lists opencode in frameworks menu."""
+        captured: list[list[tuple[str, str, bool]]] = []
+        with (
+            patch("clauded.detect.wizard_integration._menu_multi_select") as mock_multi,
+            patch("clauded.detect.wizard_integration._menu_select") as mock_select,
+            patch(
+                "clauded.detect.wizard_integration._select_distro",
+                return_value="ubuntu",
+            ),
+            patch(
+                "clauded.detect.wizard_integration.click.confirm",
+                side_effect=self._fake_confirm,
+            ),
+            patch("clauded.detect.wizard_integration.click.prompt", return_value=""),
+        ):
+            mock_multi.side_effect = self._record_framework_items(captured)
+            mock_select.side_effect = lambda _t, items, default_index: items[
+                default_index
+            ][1]
+
+            run_with_detection(tmp_path, detection=None, debug=False)
+
+        assert captured, "frameworks multi-select was never invoked"
+        framework_values = {value for _label, value, _pre in captured[0]}
+        assert "opencode" in framework_values
+        assert "playwright" in framework_values
+
+    def test_run_edit_with_detection_offers_opencode(self, tmp_path: Path) -> None:
+        """run_edit_with_detection lists opencode in frameworks multi-select."""
+        config = Config(
+            vm_name="test-vm",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test/project",
+            mount_guest="/workspace",
+            python="3.12",
+            node="20",
+            frameworks=["claude-code", "codex"],
+        )
+        captured: list[list[tuple[str, str, bool]]] = []
+        with (
+            patch("clauded.detect.wizard_integration._menu_multi_select") as mock_multi,
+            patch("clauded.detect.wizard_integration._menu_select") as mock_select,
+            patch(
+                "clauded.detect.wizard_integration.click.confirm",
+                side_effect=self._fake_confirm,
+            ),
+            patch("clauded.detect.wizard_integration.click.prompt", return_value=""),
+            patch("clauded.detect.wizard_integration.detect") as mock_detect,
+        ):
+            mock_detect.return_value = DetectionResult(
+                languages=[],
+                versions={},
+                tools=[],
+                databases=[],
+                frameworks=[],
+                mcp_runtimes=[],
+                scan_stats=None,
+            )
+            mock_multi.side_effect = self._record_framework_items(captured)
+            mock_select.side_effect = lambda _t, items, default_index: items[
+                default_index
+            ][1]
+
+            run_edit_with_detection(config, tmp_path, debug=False)
+
+        assert captured, "frameworks multi-select was never invoked"
+        framework_values = {value for _label, value, _pre in captured[0]}
+        assert "opencode" in framework_values
+        assert "playwright" in framework_values
+
+    def test_run_with_detection_preselects_detected_frameworks(
+        self, tmp_path: Path
+    ) -> None:
+        """run_with_detection's framework menu must preselect from frameworks defaults.
+
+        Regression for a bug where the opencode/playwright preselection was wired
+        to `defaults["tools"]` instead of `defaults["frameworks"]`, so detection
+        of these frameworks never resulted in pre-checked menu entries.
+        """
+        captured: list[list[tuple[str, str, bool]]] = []
+        detection = DetectionResult(
+            languages=[],
+            versions={},
+            tools=[],
+            databases=[],
+            frameworks=[
+                DetectedItem(
+                    name="playwright",
+                    confidence="high",
+                    source_file="package.json",
+                    source_evidence="@playwright/test",
+                ),
+            ],
+            mcp_runtimes=set(),
+            scan_stats=None,
+        )
+        with (
+            patch("clauded.detect.wizard_integration._menu_multi_select") as mock_multi,
+            patch("clauded.detect.wizard_integration._menu_select") as mock_select,
+            patch(
+                "clauded.detect.wizard_integration._select_distro",
+                return_value="ubuntu",
+            ),
+            patch(
+                "clauded.detect.wizard_integration.click.confirm",
+                side_effect=self._fake_confirm,
+            ),
+            patch("clauded.detect.wizard_integration.click.prompt", return_value=""),
+        ):
+            mock_multi.side_effect = self._record_framework_items(captured)
+            mock_select.side_effect = lambda _t, items, default_index: items[
+                default_index
+            ][1]
+
+            run_with_detection(tmp_path, detection=detection, debug=False)
+
+        assert captured, "frameworks multi-select was never invoked"
+        playwright_entry = next(
+            (
+                (label, value, pre)
+                for label, value, pre in captured[0]
+                if value == "playwright"
+            ),
+            None,
+        )
+        assert playwright_entry is not None
+        assert playwright_entry[2] is True, (
+            "detected playwright should pre-check the frameworks menu entry; "
+            "if False, the menu is wired to the wrong defaults source"
+        )
+
+    def test_run_edit_with_detection_preselects_opencode_when_in_config(
+        self, tmp_path: Path
+    ) -> None:
+        """If config.frameworks contains opencode, the multi-select pre-checks it."""
+        config = Config(
+            vm_name="test-vm",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test/project",
+            mount_guest="/workspace",
+            vm_distro="ubuntu",
+            python="3.12",
+            node="20",
+            frameworks=["claude-code", "codex", "opencode"],
+        )
+        captured: list[list[tuple[str, str, bool]]] = []
+        with (
+            patch("clauded.detect.wizard_integration._menu_multi_select") as mock_multi,
+            patch("clauded.detect.wizard_integration._menu_select") as mock_select,
+            patch(
+                "clauded.detect.wizard_integration.click.confirm",
+                side_effect=self._fake_confirm,
+            ),
+            patch("clauded.detect.wizard_integration.click.prompt", return_value=""),
+            patch("clauded.detect.wizard_integration.detect") as mock_detect,
+        ):
+            mock_detect.return_value = DetectionResult(
+                languages=[],
+                versions={},
+                tools=[],
+                databases=[],
+                frameworks=[],
+                mcp_runtimes=[],
+                scan_stats=None,
+            )
+            mock_multi.side_effect = self._record_framework_items(captured)
+            mock_select.side_effect = lambda _t, items, default_index: items[
+                default_index
+            ][1]
+
+            run_edit_with_detection(config, tmp_path, debug=False)
+
+        assert captured, "frameworks multi-select was never invoked"
+        opencode_entry = next(
+            (
+                (label, value, pre)
+                for label, value, pre in captured[0]
+                if value == "opencode"
+            ),
+            None,
+        )
+        assert opencode_entry is not None
+        assert opencode_entry[2] is True, "opencode should be preselected"
+
+
+class TestWizardIntegrationHarnessStep:
+    """Story 03 harness step in run_with_detection / run_edit_with_detection."""
+
+    @staticmethod
+    def _capture_harness_call(
+        harness_calls: list[tuple[list[tuple[str, str]], int]],
+    ):
+        def side_effect(title, items, default_index):
+            if title == "Select harness:":
+                harness_calls.append((list(items), default_index))
+                return items[default_index][1]
+            return items[default_index][1]
+
+        return side_effect
+
+    @staticmethod
+    def _fake_confirm(prompt: str, default: bool = False, **_kwargs):
+        if "Customize" in prompt:
+            return False
+        return True
+
+    def test_run_with_detection_offers_harness_step(self, tmp_path: Path) -> None:
+        """run_with_detection presents the same harness menu as wizard.run()."""
+        harness_calls: list[tuple[list[tuple[str, str]], int]] = []
+        with (
+            patch("clauded.detect.wizard_integration._menu_multi_select") as mock_multi,
+            patch("clauded.detect.wizard_integration._menu_select") as mock_select,
+            patch(
+                "clauded.detect.wizard_integration._select_distro",
+                return_value="ubuntu",
+            ),
+            patch(
+                "clauded.detect.wizard_integration.click.confirm",
+                side_effect=self._fake_confirm,
+            ),
+            patch("clauded.detect.wizard_integration.click.prompt", return_value=""),
+        ):
+            mock_multi.side_effect = (
+                lambda title, items: [v for _l, v, pre in items if pre]
+                if title == "Select languages:"
+                else []
+            )
+            mock_select.side_effect = self._capture_harness_call(harness_calls)
+
+            run_with_detection(tmp_path, detection=None, debug=False)
+
+        assert harness_calls, "harness step was never invoked"
+        items, default_index = harness_calls[0]
+        values = [value for _label, value in items]
+        assert values == ["claude-code", "codex", "opencode"]
+        assert default_index == 0
+
+    def test_run_edit_with_detection_preselects_current_harness(
+        self, tmp_path: Path
+    ) -> None:
+        """run_edit_with_detection pre-selects config.harness via default_index."""
+        config = Config(
+            vm_name="test-vm",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test/project",
+            mount_guest="/workspace",
+            python="3.12",
+            node="20",
+            frameworks=["claude-code", "codex"],
+            harness="codex",
+        )
+        harness_calls: list[tuple[list[tuple[str, str]], int]] = []
+        with (
+            patch("clauded.detect.wizard_integration._menu_multi_select") as mock_multi,
+            patch("clauded.detect.wizard_integration._menu_select") as mock_select,
+            patch(
+                "clauded.detect.wizard_integration.click.confirm",
+                side_effect=self._fake_confirm,
+            ),
+            patch("clauded.detect.wizard_integration.click.prompt", return_value=""),
+            patch("clauded.detect.wizard_integration.detect") as mock_detect,
+        ):
+            mock_detect.return_value = DetectionResult(
+                languages=[],
+                versions={},
+                tools=[],
+                databases=[],
+                frameworks=[],
+                mcp_runtimes=[],
+                scan_stats=None,
+            )
+            mock_multi.side_effect = (
+                lambda title, items: [v for _l, v, pre in items if pre]
+                if title == "Select languages:"
+                else []
+            )
+            mock_select.side_effect = self._capture_harness_call(harness_calls)
+
+            result = run_edit_with_detection(config, tmp_path, debug=False)
+
+        assert harness_calls, "harness step was never invoked"
+        items, default_index = harness_calls[0]
+        assert items[default_index][1] == "codex"
+        assert result.harness == "codex"
+
+    def test_apply_detection_to_config_preserves_harness(self, tmp_path: Path) -> None:
+        """apply_detection_to_config (non-interactive) must not drop config.harness."""
+        config = Config(
+            vm_name="test-vm",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host=str(tmp_path),
+            mount_guest=str(tmp_path),
+            python="3.12",
+            node=None,
+            frameworks=["claude-code", "codex"],
+            harness="opencode",
+        )
+
+        detection = DetectionResult(
+            languages=[
+                DetectedLanguage(
+                    name="JavaScript",
+                    confidence="high",
+                    byte_count=1000,
+                    file_count=1,
+                    source_files=["index.js"],
+                )
+            ],
+            versions={
+                "node": VersionSpec(
+                    version="20.0.0",
+                    source_file="package.json",
+                    constraint_type="exact",
+                )
+            },
+            tools=[],
+            databases=[],
+            frameworks=[],
+            mcp_runtimes=[],
+            scan_stats=None,
+        )
+
+        with patch("clauded.detect.wizard_integration.detect", return_value=detection):
+            new_config, changed = apply_detection_to_config(
+                config, tmp_path, debug=False
+            )
+
+        assert changed, "detection should produce a change (node added)"
+        assert new_config.harness == "opencode", (
+            "apply_detection_to_config must preserve config.harness; "
+            f"got {new_config.harness!r}"
+        )
+
+    def test_apply_detection_to_config_preserves_all_persisted_fields(
+        self, tmp_path: Path
+    ) -> None:
+        """apply_detection_to_config must not drop any persisted Config field.
+
+        Regression for a class of bugs where the reconstructed Config silently
+        drops fields that aren't in the explicit ctor call. The harness-only
+        regression test caught the harness instance; this generalizes to all
+        formerly-dropped fields: previous_vm_name, playwright_browsers,
+        claude_code_version, codex_version, opencode_version.
+        """
+        config = Config(
+            vm_name="test-vm",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host=str(tmp_path),
+            mount_guest=str(tmp_path),
+            python="3.12",
+            node=None,
+            frameworks=["claude-code", "codex", "playwright"],
+            playwright_browsers=["chromium", "firefox"],
+            claude_code_version="2.1.62",
+            codex_version="0.45.0",
+            opencode_version="1.14.33",
+            harness="opencode",
+            previous_vm_name="prior-vm-name",
+        )
+
+        detection = DetectionResult(
+            languages=[
+                DetectedLanguage(
+                    name="JavaScript",
+                    confidence="high",
+                    byte_count=1000,
+                    file_count=1,
+                    source_files=["index.js"],
+                )
+            ],
+            versions={
+                "node": VersionSpec(
+                    version="20.0.0",
+                    source_file="package.json",
+                    constraint_type="exact",
+                )
+            },
+            tools=[],
+            databases=[],
+            frameworks=[],
+            mcp_runtimes=[],
+            scan_stats=None,
+        )
+
+        with patch("clauded.detect.wizard_integration.detect", return_value=detection):
+            new_config, changed = apply_detection_to_config(
+                config, tmp_path, debug=False
+            )
+
+        assert changed, "detection should produce a change (node added)"
+        assert new_config.previous_vm_name == "prior-vm-name"
+        assert new_config.playwright_browsers == ["chromium", "firefox"]
+        assert new_config.claude_code_version == "2.1.62"
+        assert new_config.codex_version == "0.45.0"
+        assert new_config.opencode_version == "1.14.33"
+        assert new_config.harness == "opencode"

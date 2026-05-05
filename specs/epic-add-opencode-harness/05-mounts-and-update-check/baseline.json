@@ -1,0 +1,11 @@
+{
+  "command": "make check",
+  "exit_code": 0,
+  "passed": 992,
+  "failed": 0,
+  "errors": 0,
+  "skipped": 0,
+  "coverage_percent": 85.61,
+  "captured_at": "2026-05-04T21:11:00Z",
+  "notes": "Baseline before Story 05 (mounts-and-update-check). Stories 01 (opencode-role-and-framework), 02 (harness-config-field), and 03 (wizard-harness-step) all on disk. Story 04 (harness-aware-launch) NOT yet on disk. ruff + mypy + pytest all green; coverage 85.61%. Story 05 consumes seams HarnessName (Story 02), produces OpencodeMounts and OpencodeVersionResolution."
+}

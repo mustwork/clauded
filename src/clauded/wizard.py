@@ -12,8 +12,37 @@ except ModuleNotFoundError as exc:  # pragma: no cover - import-time dependency 
         "Install it with your package manager or pip."
     ) from exc
 
-from .config import Config
+from .config import HARNESS_NAMES, Config
 from .constants import DEFAULT_LANGUAGES, LANGUAGE_CONFIG
+
+_HARNESS_MENU_ITEMS: list[tuple[str, str]] = [
+    ("Claude Code", "claude-code"),
+    ("Codex", "codex"),
+    ("opencode  [adds opencode to frameworks]", "opencode"),
+]
+
+
+def _apply_harness_to_answers(
+    answers: dict[str, str | list[str] | bool], chosen: str
+) -> None:
+    """Persist chosen harness on answers; auto-add opencode to frameworks if needed.
+
+    When chosen == "opencode" and "opencode" is absent from answers["frameworks"],
+    append it and emit a one-line info message. The auto-add never duplicates an
+    existing entry, so re-running the wizard with opencode already selected
+    produces no message.
+    """
+    answers["harness"] = chosen
+    if chosen != "opencode":
+        return
+    raw_frameworks = answers.get("frameworks", [])
+    frameworks: list[str] = (
+        list(raw_frameworks) if isinstance(raw_frameworks, list) else []
+    )
+    if "opencode" not in frameworks:
+        frameworks.append("opencode")
+        click.echo("opencode added to frameworks (required by harness selection).")
+    answers["frameworks"] = frameworks
 
 
 def _build_menu(
@@ -192,6 +221,7 @@ def run(project_path: Path, *, distro_override: str | None = None) -> Config:
     framework_selections = _menu_multi_select(
         "Select frameworks:",
         [
+            ("opencode", "opencode", False),
             ("playwright", "playwright", False),
         ],
     )
@@ -209,6 +239,14 @@ def run(project_path: Path, *, distro_override: str | None = None) -> Config:
     answers["frameworks"] = ["claude-code", "codex"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
+
+    # Harness selection: claude-code (default), codex, or opencode.
+    chosen_harness = _menu_select(
+        "Select harness:",
+        _HARNESS_MENU_ITEMS,
+        default_index=0,
+    )
+    _apply_harness_to_answers(answers, chosen_harness)
 
     # Playwright browser selection (if playwright was selected)
     if "playwright" in framework_selections:
@@ -379,6 +417,7 @@ def run_edit(config: Config, project_path: Path) -> Config:
     framework_selections = _menu_multi_select(
         "Select frameworks:",
         [
+            ("opencode", "opencode", "opencode" in config.frameworks),
             ("playwright", "playwright", "playwright" in config.frameworks),
         ],
     )
@@ -396,6 +435,17 @@ def run_edit(config: Config, project_path: Path) -> Config:
     answers["frameworks"] = ["claude-code", "codex"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
+
+    # Harness selection: pre-select the persisted harness.
+    harness_default = (
+        HARNESS_NAMES.index(config.harness) if config.harness in HARNESS_NAMES else 0
+    )
+    chosen_harness = _menu_select(
+        "Select harness:",
+        _HARNESS_MENU_ITEMS,
+        default_index=harness_default,
+    )
+    _apply_harness_to_answers(answers, chosen_harness)
 
     # Playwright browser selection (if playwright was selected)
     if "playwright" in framework_selections:

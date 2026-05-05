@@ -37,7 +37,7 @@ Isolated, per-project Lima VMs (MacOS) with automatic environment provisioning t
 - **Atomic Config Updates**: Automatic rollback on failure ensures config never references broken VMs
 - **Crash Recovery**: Detects and recovers from interrupted operations on startup
 - **Customizable Resources**: Configure CPU, memory, and disk allocation per project
-- **Workspace Mounting**: Your project plus `~/.claude` and `~/.codex` config directories are mounted in the VM
+- **Workspace Mounting**: Your project plus `~/.claude`, `~/.codex`, and (when `opencode` is in frameworks) `~/.config/opencode` and `~/.local/share/opencode` are mounted in the VM
 
 ## Supported Environments
 
@@ -80,7 +80,22 @@ Isolated, per-project Lima VMs (MacOS) with automatic environment provisioning t
 |-----------|-------------|----------|
 | Claude Code | AI-assisted development CLI | Node.js |
 | Codex | AI-assisted development CLI (OpenAI) | Node.js |
+| opencode | Provider-agnostic AI coding harness with TUI; opt-in (Ubuntu only) | None (static binary) |
 | Playwright | Browser automation and E2E testing | Node.js |
+
+### Choosing a harness
+
+Each project picks one **harness** — the AI coding TUI that `clauded` launches when you enter the VM shell. Allowed values: `claude-code` (default), `codex`, `opencode`. The choice is per project (persisted in `.clauded.yaml`).
+
+```bash
+clauded                          # Use the persisted harness
+clauded --harness opencode       # Override for this run only; .clauded.yaml unchanged
+clauded --edit                   # Persist a different harness via the wizard
+```
+
+The wizard prompts for the harness after the frameworks step. Picking `opencode` automatically adds it to the frameworks list, so the harness ⇒ framework rule is never violated through the wizard. Picking a harness via `--harness` whose framework is not in the config exits with an actionable message naming `clauded --edit`. `--harness` is silently ignored with `--reprovision`/`--detect`/`--stop`/`--destroy`/`--reboot`/`--force-stop`; with `--edit` it emits a one-line warning and the wizard runs normally.
+
+See [docs/configuration.md](docs/configuration.md#choosing-a-harness) for the dispatcher matrix and an example `.clauded.yaml` snippet.
 
 ## Requirements
 
@@ -235,6 +250,7 @@ Create or edit `.clauded.yaml` in your project root:
 
 ```yaml
 version: "1"
+harness: claude-code     # Active harness: claude-code (default) | codex | opencode
 vm:
   name: clauded-a1b2c3d4  # Auto-generated from project path
   distro: alpine         # Distribution: alpine (default) or ubuntu

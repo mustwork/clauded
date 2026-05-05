@@ -1,0 +1,319 @@
+{
+  "story_id": "04",
+  "story_name": "harness-aware-launch",
+  "phase_summary": "pre-impl questions captured before implementation; post-impl questions appended after.",
+  "pre_impl_questions": [
+    {
+      "id": "Q-Q01",
+      "category": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Is the LaunchSpec dataclass frozen (immutable) so a downstream caller cannot accidentally mutate the env dict it returns?",
+      "rationale": "The dispatcher is pure; an immutable result makes that property load-bearing. Boundary rule 1 alignment.",
+      "expected_evidence": "@dataclass(frozen=True) decorator on LaunchSpec; the env field is annotated dict[str, str] but a frozen dataclass prevents reassignment of the field itself. A mutation test asserts dataclasses.FrozenInstanceError is raised on attempted attribute reassignment."
+    },
+    {
+      "id": "Q-Q02",
+      "category": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Does _build_launch_spec contain ZERO subprocess / I/O calls — i.e. is it a pure dispatcher whose only inputs are the harness string and Config, and whose only output is a LaunchSpec?",
+      "rationale": "Pure-function discipline lets us unit-test the dispatcher without subprocess mocks; impurity here would force every dispatcher test to mock subprocess and would conflate concerns.",
+      "expected_evidence": "Source review: _build_launch_spec body contains no subprocess.run, no open(), no os.environ access, no print/click.echo. It branches on the harness string and returns a LaunchSpec."
+    },
+    {
+      "id": "Q-Q03",
+      "category": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Does the dispatcher dispatch on a complete enumeration of HARNESS_NAMES — i.e. would adding a fourth harness fail loudly rather than silently fall through?",
+      "rationale": "An if/elif chain ending without an else can silently emit an empty argv. The code should raise on an unexpected harness value (defensive — Config.load already validates, but defence-in-depth is cheap).",
+      "expected_evidence": "_build_launch_spec ends with an `else` (or equivalent) that raises ValueError naming the unexpected harness. A test asserts a deliberately-bogus harness value raises."
+    },
+    {
+      "id": "Q-A01",
+      "category": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Is LaunchSpec defined inside lima.py (internal seam) rather than exported from clauded.config or a new module?",
+      "rationale": "architecture.md §4 states LaunchSpec is internal — only LimaVM.shell()'s subprocess call site consumes it. Putting it in config.py would broaden the seam unnecessarily.",
+      "expected_evidence": "LaunchSpec defined in src/clauded/lima.py; not imported from any other module."
+    },
+    {
+      "id": "Q-A02",
+      "category": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Is harness_override a keyword-only parameter on LimaVM.__init__, preserving the positional-arg compatibility of LimaVM(config)?",
+      "rationale": "Existing call sites pass `LimaVM(config)` positionally. A keyword-only override avoids breaking them while still allowing cli.py to pass harness_override.",
+      "expected_evidence": "Signature is `def __init__(self, config: Config, *, harness_override: str | None = None)`. All existing test_lima.py call sites still work without modification."
+    },
+    {
+      "id": "Q-A03",
+      "category": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Is the --harness validation gate invoked ONLY on the shell-launch paths in cli.py main(), not on the early-return mode paths (--destroy/--stop/--reprovision/--detect/--reboot/--force-stop)?",
+      "rationale": "AC-015 says --harness is silently ignored with those flags; running the gate would either error or warn, breaking the contract.",
+      "expected_evidence": "Source review: _validate_harness_override is called only from the two shell-launch paths (no-config wizard-launch path AND existing-config launch path). The mode handlers (destroy/stop/etc.) do not reference harness."
+    },
+    {
+      "id": "Q-T01",
+      "category": "TEST",
+      "phase": "pre-impl",
+      "question": "Does the test suite cover BOTH halves of AC-012 — that the override takes effect AND that the persisted .clauded.yaml is not mutated by the override?",
+      "rationale": "The 'one invocation' phrase in AC-012 has two arms: behavioural override + non-persistence.",
+      "expected_evidence": "test_harness_flag_overrides_config_one_invocation reads the YAML file after invoke(...) and asserts harness=='claude-code' (unchanged); also asserts LimaVM was constructed with harness_override='opencode'."
+    },
+    {
+      "id": "Q-T02",
+      "category": "TEST",
+      "phase": "pre-impl",
+      "question": "Does AC-018 coverage include BOTH skip=True and skip=False to prove opencode ignores claude_dangerously_skip_permissions in both directions?",
+      "rationale": "An incomplete test (only skip=True) would let a future regression that adds the flag conditionally on skip=False sneak through.",
+      "expected_evidence": "test_build_launch_spec_opencode_ignores_skip_true AND test_build_launch_spec_opencode_ignores_skip_false both present and green."
+    },
+    {
+      "id": "Q-T03",
+      "category": "TEST",
+      "phase": "pre-impl",
+      "question": "Does the test suite assert that no env var is prepended with USE_BUILTIN_RIPGREP for ANY harness (boy-scout invariant), not just claude-code?",
+      "rationale": "The boy-scout removal is global; a regression that re-introduces the flag to one branch should fail the test.",
+      "expected_evidence": "test_build_launch_spec_no_use_builtin_ripgrep_for_any_harness parametrizes over all three harness names and asserts 'USE_BUILTIN_RIPGREP' is absent from spec.env keys. Plus test_shell_no_use_builtin_ripgrep_in_assembled_command asserts the substring is absent from the bash-lic command string."
+    },
+    {
+      "id": "Q-T04",
+      "category": "TEST",
+      "phase": "pre-impl",
+      "question": "Are the two pre-existing test_lima.py shell tests (lines 447, 470) updated in lockstep with the boy-scout removal?",
+      "rationale": "If left unchanged, those tests fail as soon as the prefix is removed and the make check gate trips.",
+      "expected_evidence": "git diff shows the literal 'USE_BUILTIN_RIPGREP=0 ' substring removed from those two assertion strings; pytest passes for both."
+    },
+    {
+      "id": "Q-S01",
+      "category": "SPEC",
+      "ac_id": "AC-012",
+      "phase": "pre-impl",
+      "question": "Does --harness opencode override Config.harness=claude-code for one invocation without persisting to .clauded.yaml?",
+      "rationale": "AC-012 verbatim.",
+      "expected_evidence": "test_harness_flag_overrides_config_one_invocation passes both arms (override observed at LimaVM construction; YAML harness key unchanged after main() returns)."
+    },
+    {
+      "id": "Q-S02",
+      "category": "SPEC",
+      "ac_id": "AC-013",
+      "phase": "pre-impl",
+      "question": "Does --harness gemini exit 2 with Click's standard 'Invalid value' error?",
+      "rationale": "AC-013 verbatim.",
+      "expected_evidence": "test_harness_flag_invalid_value_exits_2 asserts result.exit_code == 2 and 'Invalid value' substring in stderr."
+    },
+    {
+      "id": "Q-S03",
+      "category": "SPEC",
+      "ac_id": "AC-014",
+      "phase": "pre-impl",
+      "question": "Does --harness opencode against a config without opencode in frameworks exit 1 with a message containing 'clauded --edit'?",
+      "rationale": "AC-014 + FR6 verbatim.",
+      "expected_evidence": "test_harness_flag_missing_framework_exits_1 asserts exit_code == 1 and 'clauded --edit' substring in stderr/output."
+    },
+    {
+      "id": "Q-S04",
+      "category": "SPEC",
+      "ac_id": "AC-015",
+      "phase": "pre-impl",
+      "question": "Is --harness silently ignored with each of --reprovision/--detect/--stop/--destroy/--reboot/--force-stop, and warned with --edit?",
+      "rationale": "AC-015 + FR6 mode-flag interaction matrix.",
+      "expected_evidence": "Six tests (one per mode flag) assert behaviour matches the no-flag version. test_harness_flag_warns_with_edit asserts the one-line warning."
+    },
+    {
+      "id": "Q-S05",
+      "category": "SPEC",
+      "ac_id": "AC-016",
+      "phase": "pre-impl",
+      "question": "Does the dispatcher launch claude with --dangerously-skip-permissions iff config.claude_dangerously_skip_permissions, AND no USE_BUILTIN_RIPGREP=0 prefix?",
+      "rationale": "AC-016 verbatim, including the boy-scout half.",
+      "expected_evidence": "test_build_launch_spec_claude_code_with_skip + test_build_launch_spec_claude_code_without_skip + test_shell_launches_claude_when_harness_is_claude_code together cover both flag branches and the absence of USE_BUILTIN_RIPGREP=0."
+    },
+    {
+      "id": "Q-S06",
+      "category": "SPEC",
+      "ac_id": "AC-017",
+      "phase": "pre-impl",
+      "question": "Does the dispatcher launch codex with --dangerously-bypass-approvals-and-sandbox iff config.claude_dangerously_skip_permissions?",
+      "rationale": "AC-017 verbatim.",
+      "expected_evidence": "test_build_launch_spec_codex_{with,without}_skip + test_shell_launches_codex_when_harness_is_codex."
+    },
+    {
+      "id": "Q-S07",
+      "category": "SPEC",
+      "ac_id": "AC-018",
+      "phase": "pre-impl",
+      "question": "Does the dispatcher launch opencode with NO --dangerously-* flag regardless of config.claude_dangerously_skip_permissions?",
+      "rationale": "AC-018 + FR7 verbatim — opencode TUI does not accept the permission flag.",
+      "expected_evidence": "test_build_launch_spec_opencode_ignores_skip_true + test_build_launch_spec_opencode_ignores_skip_false + test_shell_launches_opencode_when_harness_is_opencode (asserts argv == ['opencode'] regardless of skip flag)."
+    },
+    {
+      "id": "Q-SEC01",
+      "category": "SECURITY",
+      "phase": "pre-impl",
+      "question": "Does any branch of the dispatcher allow user-controlled input to flow into the bash -lic command string in a way that could enable command injection?",
+      "rationale": "The argv tokens are joined with spaces and passed to `bash -lic` as a single shell command. If any token is user-controlled and not sanitised, it could enable injection. Currently the only inputs are HARNESS_NAMES literals (controlled allow-list) and the boolean claude_dangerously_skip_permissions — neither is user-controlled string content.",
+      "expected_evidence": "Source review: every token in the argv list is a hardcoded literal from a controlled set; no string interpolation from Config string fields appears in the dispatcher. The only Config field consulted (claude_dangerously_skip_permissions) is a bool, not a string."
+    },
+    {
+      "id": "Q-SEC02",
+      "category": "SECURITY",
+      "phase": "pre-impl",
+      "question": "Does Click's --harness Choice validation prevent arbitrary strings from reaching _build_launch_spec via the override path?",
+      "rationale": "Without Choice validation, --harness '$(pwn)' could in principle be inserted; with Choice, only the three allowed names are accepted before the dispatcher sees the value.",
+      "expected_evidence": "@click.option('--harness', type=click.Choice(HARNESS_NAMES), ...) is used; AC-013 test (gemini → exit 2) confirms invalid values are rejected at the Click layer before reaching main()'s body."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "id": "Q-P01",
+      "category": "QUALITY",
+      "phase": "post-impl",
+      "question": "Is LaunchSpec implemented as a frozen dataclass and verified by an immutability test (FrozenInstanceError)?",
+      "rationale": "Q-Q01 follow-through.",
+      "expected_evidence": "src/clauded/lima.py declares `@dataclass(frozen=True) class LaunchSpec`. tests/test_lima.py::TestLaunchSpec::test_launch_spec_is_frozen asserts dataclasses.FrozenInstanceError on attribute reassignment."
+    },
+    {
+      "id": "Q-P02",
+      "category": "QUALITY",
+      "phase": "post-impl",
+      "question": "Is _build_launch_spec a pure function with zero subprocess/I-O calls?",
+      "rationale": "Q-Q02 follow-through.",
+      "expected_evidence": "Source review of src/clauded/lima.py:_build_launch_spec — only branches on string literal, reads one Config bool, returns LaunchSpec. No subprocess, no open, no os.environ, no print/click.echo."
+    },
+    {
+      "id": "Q-P03",
+      "category": "QUALITY",
+      "phase": "post-impl",
+      "question": "Does _build_launch_spec raise on an unknown harness rather than silently fall through?",
+      "rationale": "Q-Q03 follow-through.",
+      "expected_evidence": "src/clauded/lima.py: function ends with `raise ValueError(...)` for unknown values. tests/test_lima.py::TestBuildLaunchSpec::test_unknown_harness_raises confirms."
+    },
+    {
+      "id": "Q-P04",
+      "category": "ARCHITECTURE",
+      "phase": "post-impl",
+      "question": "Is LaunchSpec imported only from clauded.lima (not from clauded.config or any other module)?",
+      "rationale": "Q-A01 follow-through.",
+      "expected_evidence": "grep -rn 'LaunchSpec' src/ shows definition+use in src/clauded/lima.py only. No imports of LaunchSpec from cli.py."
+    },
+    {
+      "id": "Q-P05",
+      "category": "ARCHITECTURE",
+      "phase": "post-impl",
+      "question": "Is harness_override a keyword-only param on LimaVM.__init__ that defaults to None?",
+      "rationale": "Q-A02 follow-through.",
+      "expected_evidence": "src/clauded/lima.py LimaVM.__init__ signature: `(self, config: Config, *, harness_override: str | None = None) -> None`."
+    },
+    {
+      "id": "Q-P06",
+      "category": "ARCHITECTURE",
+      "phase": "post-impl",
+      "question": "Is the validation gate (_validate_harness_override) invoked only on the shell-launch path, skipped for --reprovision/--reboot/--detect/--stop/--destroy/--force-stop?",
+      "rationale": "Q-A03 follow-through.",
+      "expected_evidence": "src/clauded/cli.py: _validate_harness_override is called once, guarded by `if not (reprovision or reboot)` and AFTER the early-return mode handlers (--destroy, --stop/--force-stop, --edit, --detect-alone). The mode-handler branches do not consult the harness flag."
+    },
+    {
+      "id": "Q-P07",
+      "category": "TEST",
+      "phase": "post-impl",
+      "question": "Did the make check gate pass with all 1035 tests green and lint/typecheck clean after Story 04 lands?",
+      "rationale": "Zero-tolerance regression policy.",
+      "expected_evidence": "make check exit 0; pytest reports 1035 passed (was 999 baseline; +36 new tests)."
+    },
+    {
+      "id": "Q-P08",
+      "category": "TEST",
+      "phase": "post-impl",
+      "question": "Did test coverage stay ≥ 80% with lima.py and cli.py at or above their pre-story coverage levels?",
+      "rationale": "Coverage gate.",
+      "expected_evidence": "Total 86.00% (was 83.44% pre-Story-04). lima.py 94% (was 93%); cli.py 86% (was 84%); both improved or held."
+    },
+    {
+      "id": "Q-P09",
+      "category": "TEST",
+      "phase": "post-impl",
+      "question": "Did the two pre-existing test_lima.py shell assertions get updated to drop the USE_BUILTIN_RIPGREP=0 prefix?",
+      "rationale": "Q-T04 follow-through.",
+      "expected_evidence": "git diff tests/test_lima.py shows the prefix removed from the assert_called_with(...) literals previously at lines 447 and 470."
+    },
+    {
+      "id": "Q-P10",
+      "category": "SPEC",
+      "ac_id": "AC-012",
+      "phase": "post-impl",
+      "question": "Is AC-012 satisfied — --harness opencode launches opencode this run, .clauded.yaml unchanged?",
+      "rationale": "Direct AC traceability.",
+      "expected_evidence": "tests/test_cli.py::TestHarnessFlagOverride::test_harness_flag_overrides_config_one_invocation passes; reads YAML after invoke and asserts harness=='claude-code'. tests/test_lima.py::TestLimaVMShellHarnessDispatch::test_shell_harness_override_takes_precedence covers the lima half."
+    },
+    {
+      "id": "Q-P11",
+      "category": "SPEC",
+      "ac_id": "AC-013",
+      "phase": "post-impl",
+      "question": "Is AC-013 satisfied — --harness gemini exits 2 with 'Invalid value'?",
+      "rationale": "Direct AC traceability.",
+      "expected_evidence": "tests/test_cli.py::TestHarnessFlagInvalidValue::test_harness_flag_invalid_value_exits_2 passes."
+    },
+    {
+      "id": "Q-P12",
+      "category": "SPEC",
+      "ac_id": "AC-014",
+      "phase": "post-impl",
+      "question": "Is AC-014 satisfied — exit 1 with 'clauded --edit' when --harness opencode lacks framework support?",
+      "rationale": "Direct AC traceability.",
+      "expected_evidence": "tests/test_cli.py::TestHarnessFlagMissingFramework::test_harness_flag_missing_framework_exits_1 passes."
+    },
+    {
+      "id": "Q-P13",
+      "category": "SPEC",
+      "ac_id": "AC-015",
+      "phase": "post-impl",
+      "question": "Is AC-015 satisfied — flag silently ignored with mode flags, warned with --edit?",
+      "rationale": "Direct AC traceability across 5 sub-tests.",
+      "expected_evidence": "TestHarnessFlagModeFlagInteractions tests cover --destroy/--stop/--reprovision/--detect (silent) and --edit (warning). All pass."
+    },
+    {
+      "id": "Q-P14",
+      "category": "SPEC",
+      "ac_id": "AC-016",
+      "phase": "post-impl",
+      "question": "Is AC-016 satisfied — claude-code dispatch with/without skip + no USE_BUILTIN_RIPGREP=0 prefix?",
+      "rationale": "Direct AC traceability.",
+      "expected_evidence": "TestBuildLaunchSpec::test_claude_code_with_skip + test_claude_code_without_skip + test_no_use_builtin_ripgrep_for_any_harness[claude-code] + TestLimaVMShellHarnessDispatch::test_shell_launches_claude_when_harness_is_claude_code + test_shell_no_use_builtin_ripgrep_in_assembled_command. All pass."
+    },
+    {
+      "id": "Q-P15",
+      "category": "SPEC",
+      "ac_id": "AC-017",
+      "phase": "post-impl",
+      "question": "Is AC-017 satisfied — codex dispatch with/without skip?",
+      "rationale": "Direct AC traceability.",
+      "expected_evidence": "TestBuildLaunchSpec::test_codex_with_skip + test_codex_without_skip + TestLimaVMShellHarnessDispatch::test_shell_launches_codex_when_harness_is_codex + test_shell_launches_codex_without_flag_when_skip_disabled. All pass."
+    },
+    {
+      "id": "Q-P16",
+      "category": "SPEC",
+      "ac_id": "AC-018",
+      "phase": "post-impl",
+      "question": "Is AC-018 satisfied — opencode launches with no --dangerously-* flag regardless of skip?",
+      "rationale": "Direct AC traceability for the FR7 hardening.",
+      "expected_evidence": "TestBuildLaunchSpec::test_opencode_ignores_skip_true + test_opencode_ignores_skip_false + TestLimaVMShellHarnessDispatch::test_shell_launches_opencode_when_harness_is_opencode (asserts argv == ['opencode'] regardless of skip). All pass."
+    },
+    {
+      "id": "Q-P17",
+      "category": "SECURITY",
+      "phase": "post-impl",
+      "question": "Q-SEC01 follow-through: are all argv tokens hardcoded literals or fixed-set values, with no user-controlled string interpolation in the dispatcher?",
+      "rationale": "Defence-in-depth review.",
+      "expected_evidence": "Source review of _build_launch_spec: every token in argv is a literal ('claude', 'codex', 'opencode', '--dangerously-skip-permissions', '--dangerously-bypass-approvals-and-sandbox'). No Config string fields are interpolated. The only Config field consulted is a bool (claude_dangerously_skip_permissions)."
+    },
+    {
+      "id": "Q-P18",
+      "category": "SECURITY",
+      "phase": "post-impl",
+      "question": "Q-SEC02 follow-through: does Click's Choice validation actually catch invalid values before main() body runs?",
+      "rationale": "Defence-in-depth review.",
+      "expected_evidence": "AC-013 test passes (exit 2 + 'Invalid value' before any main() body execution); decorator uses type=click.Choice(list(HARNESS_NAMES))."
+    }
+  ]
+}

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`opencode` framework option for Ubuntu VMs** — selecting `opencode` in the wizard's frameworks multi-select (or adding it to `frameworks:` in `.clauded.yaml`) installs the opencode binary into `~/.local/bin` via the official install script. The role resolves the latest GitHub release when `opencode_version` is unset, accepts a pin otherwise, and is idempotent across reruns. opencode is pre-Alpine-removal Ubuntu-only: `frameworks: [opencode]` with `vm.distro: alpine` raises a `ConfigValidationError` pointing at `--distro ubuntu`. No Node.js dependency is added.
+- **Wizard harness selection step** — `clauded` and `clauded --edit` now prompt for the active harness (`claude-code` / `codex` / `opencode`) after the frameworks multi-select. New configs default to `claude-code`; `--edit` pre-selects the persisted value. Picking `opencode` auto-adds it to `frameworks` (with an info-level message) so the harness ⇒ framework invariant cannot be violated through the wizard. Detection-driven flows (`run_with_detection` / `run_edit_with_detection`) gain the same step; `apply_detection_to_config` preserves the existing `harness` value through non-interactive merges.
+- **opencode user state mounted from host into VM** — when `opencode` is in `frameworks`, the host directories `~/.config/opencode` and `~/.local/share/opencode` are mounted writably into the VM (auto-created if missing). Auth tokens, MCP OAuth state, sessions, and TUI prefs persist across `clauded --destroy && clauded` cycles, matching the existing `~/.claude` / `~/.codex` pattern.
+- **opencode version pin (`versions.opencode`) and update-check parity** — `.clauded.yaml` accepts a top-level `versions.opencode` pin (validated identically to `versions.claude-code` / `versions.codex`). The CLI's framework-update prompt now includes opencode when it is in `frameworks`: a pinned version takes precedence; otherwise the latest is fetched from the GitHub releases API on the host (graceful skip on rate limit / network failure, matching the npm-fetch pattern). Confirming the prompt re-runs the official install script inside the VM at the resolved version.
+- **`--harness` CLI flag** — `clauded --harness <claude-code|codex|opencode>` overrides the persisted harness for one invocation without touching `.clauded.yaml`. Invalid values exit 2 with Click's standard "Invalid value" error. An override that targets a harness whose framework is not present (e.g. `--harness opencode` against a config without `opencode` in `frameworks`) exits 1 with a message naming `clauded --edit`. The flag is silently ignored with `--reprovision`/`--detect`/`--stop`/`--destroy`/`--reboot`/`--force-stop`; with `--edit` it emits a one-line warning and the wizard runs normally.
+
+### Changed
+
+- **`.clauded.yaml` carries an explicit top-level `harness:` field** — accepted values are `claude-code` (default), `codex`, and `opencode`. Existing configs without the field continue to load and behave identically (default is `claude-code`). Misconfigurations (unknown harness, or `harness: opencode` without `opencode` in `frameworks`) fail fast at load time with an actionable error pointing at `clauded --edit`.
+- **VM entrypoint command is now harness-driven** — `LimaVM.shell()` dispatches on the resolved harness (per-invocation override if `--harness` was passed, else `Config.harness`). `claude-code` launches `claude` (with `--dangerously-skip-permissions` iff `claude_dangerously_skip_permissions`); `codex` launches `codex` (with `--dangerously-bypass-approvals-and-sandbox` under the same condition); `opencode` launches the bare `opencode` TUI without any `--dangerously-*` flag regardless of `claude_dangerously_skip_permissions`. Default behaviour for users without `harness:` in their config is unchanged (claude-code).
+- **Documentation refreshed for the harness model** — `README.md` gains a "Choosing a harness" subsection plus `codex` and `opencode` rows in the frameworks table; `specs/spec.md` documents the `harness:` field, the `--harness` flag, and the harness ⇒ framework rule (FR4); `docs/configuration.md` adds a "Choosing a harness" section with the dispatcher matrix and a troubleshooting note for the harness ⇒ framework error, and refreshes the frameworks reference to include `codex` and `opencode`.
+
+### Removed
+
+- **`USE_BUILTIN_RIPGREP=0` env var prefix** — dropped from the launch command for all harnesses. The Alpine/musl ripgrep workaround is no longer load-bearing on Ubuntu and is going away with the upcoming Alpine-removal epic.
+
+### Fixed
+
+- **`apply_detection_to_config` silently dropped persisted config fields** — the non-interactive merge used by `clauded --reprovision --detect` reconstructed a fresh `Config` without carrying over `previous_vm_name`, `playwright_browsers`, `claude_code_version`, `codex_version`, or `opencode_version`. Re-saving the merged config would erase those values from `.clauded.yaml`. All five fields are now preserved alongside `harness`.
+- **`--harness` override leaked into shell launches under `--edit` / `--reprovision` / `--reboot`** — although the validation gate was correctly skipped (and `--edit` printed the documented warning), the override was still passed into `LimaVM`, so the post-edit/post-reprovision/post-reboot shell silently ran the override harness instead of the persisted one. The flag is now dropped to `None` in those modes per AC-015 / FR6.
+- **Detection-based framework preselection wired to the wrong defaults source** — the frameworks multi-select in `run_with_detection` was checking `defaults["tools"]` for `opencode` / `playwright` membership, so framework detection never resulted in pre-checked menu entries. The menu now reads `defaults["frameworks"]` like the other multi-selects read their own keys.
+
 ## [0.2.6] - 2026-04-27
 
 ### Fixed

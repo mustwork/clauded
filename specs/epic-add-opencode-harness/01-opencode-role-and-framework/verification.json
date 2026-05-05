@@ -1,0 +1,128 @@
+{
+  "story_id": "01",
+  "story_name": "opencode-role-and-framework",
+  "questions": [
+    {
+      "id": "Q-PRE-001",
+      "phase": "pre-impl",
+      "category": "QUALITY",
+      "question": "Does the new opencode role at roles/opencode-ubuntu/tasks/main.yml follow the existing role conventions (idempotent tasks via changed_when, register-and-debug pattern for verify, no shell pipes that defeat idempotency, top-level `---` document marker)?"
+    },
+    {
+      "id": "Q-PRE-002",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Is 'opencode' added to _ROLES_WITH_VARIANTS as a single entry (so _apply_distro_suffix produces 'opencode-ubuntu')? Is the NFR5 alpine guard in Provisioner.run() raised BEFORE role lookup so users don't see a cryptic missing-role error before the actionable distro message?"
+    },
+    {
+      "id": "Q-PRE-003",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Does _get_base_roles() append 'opencode' WITHOUT auto-adding 'node' (contrast with codex/playwright branches)? This matches AC-003: a VM with frameworks=[opencode] alone must not install Node.js."
+    },
+    {
+      "id": "Q-PRE-004",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "Are the 16-subset orthogonality tests for AC-021 parametrized over the powerset of {claude-code, codex, opencode, playwright}, asserting _get_base_roles() returns a valid (no-duplicate, dependency-ordered) role list for each subset? Are paired include/exclude tests written for opencode (test_includes_opencode_when_in_frameworks + test_excludes_opencode_when_absent)?"
+    },
+    {
+      "id": "Q-PRE-005",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "Does the alpine guard test (AC-023) construct a Config with vm_distro='alpine' and frameworks=['opencode'] and assert ConfigValidationError with a message that names '--distro ubuntu'? Are positive cases (Ubuntu + opencode passes; Alpine without opencode passes) included?"
+    },
+    {
+      "id": "Q-PRE-006",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "question": "Is the deferral of the _generate_playbook 'opencode_version' Ansible-var line to Story 05 explicitly handled? In Story 01 the role's own default for opencode_version must be 'latest' so the playbook stays independent of Config.opencode_version (which lands in Story 05)."
+    },
+    {
+      "id": "Q-PRE-007",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-001",
+      "question": "After Story 01 lands, can a user with frameworks=[opencode] and vm_distro=ubuntu provision such that 'which opencode' returns ~/.local/bin/opencode and 'opencode --version' succeeds? Does the role use OPENCODE_INSTALL_DIR=$HOME/.local/bin and --no-modify-path?"
+    },
+    {
+      "id": "Q-PRE-008",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-002",
+      "question": "When opencode_version is unset (Story 05 not yet landed), does the role default to 'latest' and resolve via tag_name from https://api.github.com/repos/anomalyco/opencode/releases/latest? Does it strip the leading 'v' from the tag (e.g., 'v1.14.33' -> '1.14.33')?"
+    },
+    {
+      "id": "Q-PRE-009",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-003",
+      "question": "Does _get_base_roles() with frameworks=['opencode'] and node=None produce a role list that does NOT include 'node'? Does the role itself have zero npm/Node.js task dependencies (no 'npm install', no 'node --version')?"
+    },
+    {
+      "id": "Q-PRE-010",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-004",
+      "question": "Is the role idempotent: rerunning the same playbook with the same opencode_version reports changed=false on the install task (the install script has internal short-circuits OR the task has a creates: pre-check)?"
+    },
+    {
+      "id": "Q-PRE-011",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-021",
+      "question": "Is the orthogonality test parametrized over all 16 subsets of {claude-code, codex, opencode, playwright}? Does each case produce a role list with no duplicates, the correct node-before-codex/playwright ordering preserved, and 'opencode' present iff in frameworks?"
+    },
+    {
+      "id": "Q-PRE-012",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-023",
+      "question": "Is the alpine guard test asserting both the exception type (ConfigValidationError) AND the message content ('--distro ubuntu' substring)? Is the guard raised at run() time (or earlier — provisioning entry), not lazily inside _get_base_roles?"
+    },
+    {
+      "id": "Q-PRE-013",
+      "phase": "pre-impl",
+      "category": "SECURITY",
+      "question": "Does the role's curl-to-bash install path follow project HTTP-via-subprocess conventions and use HTTPS only? If the install script writes outside $HOME/.local/bin or uses sudo, that escalation must be documented or restricted. Does the role avoid running 'curl | sudo bash'?"
+    },
+    {
+      "id": "Q-PRE-014",
+      "phase": "pre-impl",
+      "category": "SECURITY",
+      "question": "Are the four fragile-seam framework_options lists (wizard.py + 3x wizard_integration.py) all updated in lockstep? A single missed location creates a UX inconsistency where the user can pick opencode in one wizard flow but not another — and the missed flow could silently drop the framework on save."
+    },
+    {
+      "id": "Q-POST-001",
+      "phase": "post-impl",
+      "category": "ARCHITECTURE",
+      "question": "Implementation note: there are exactly FOUR `Select frameworks:` multi-select locations updated in lockstep — wizard.py:run() (around line 195), wizard.py:run_edit() (around line 382), wizard_integration.py:run_with_detection() (around line 170), and wizard_integration.py:run_edit_with_detection() (around line 736). The kickoff message implied 3 locations in wizard_integration.py; only 2 actually exist. Verifier should grep for `Select frameworks:` to confirm exactly 4 occurrences, all carrying the opencode entry."
+    },
+    {
+      "id": "Q-POST-002",
+      "phase": "post-impl",
+      "category": "TEST",
+      "question": "Implementation note: the 16-subset orthogonality parametrization yields exactly 16 cases via itertools.combinations(r in range(0, 5)) over {claude-code, codex, opencode, playwright}. Each asserts (a) no duplicate roles, (b) opencode/codex/playwright/claude_code presence iff in subset, (c) node ordered before codex and playwright when present, (d) opencode alone (no codex, no playwright) does not include node. Verifier should confirm these invariants suffice for AC-021."
+    },
+    {
+      "id": "Q-POST-003",
+      "phase": "post-impl",
+      "category": "SPEC",
+      "ac_id": "AC-002",
+      "question": "Implementation note: the role uses OPENCODE_VERSION env var alongside OPENCODE_INSTALL_DIR to pin the install script's target version. If the upstream install script does not honor OPENCODE_VERSION, the role must be adapted (e.g., use a `--version <ver>` script argument). Pre-merge integration test on a real Ubuntu VM is the authoritative verification (Story 07 deferred manual step)."
+    },
+    {
+      "id": "Q-POST-004",
+      "phase": "post-impl",
+      "category": "SPEC",
+      "ac_id": "AC-004",
+      "question": "Implementation note: idempotency is achieved by reading the currently-installed binary's `--version` into `installed_opencode_version` and gating the install task with `when: installed_opencode_version.stdout != resolved_opencode_version.stdout`. On a second run with unchanged config, the install task is skipped (changed=false). The verify-version task is `changed_when: false`. Verifier should confirm this matches AC-004."
+    },
+    {
+      "id": "Q-POST-005",
+      "phase": "post-impl",
+      "category": "SECURITY",
+      "question": "Implementation note: the role uses `curl -fsSL ... | bash` for the install script BUT runs unprivileged (`become: no`) and writes to `$HOME/.local/bin`. There is no `sudo` and no privilege escalation in this role. The GitHub API resolution is also unprivileged and uses HTTPS only. Verifier should confirm this matches the project's HTTP-via-subprocess conventions."
+    }
+  ]
+}

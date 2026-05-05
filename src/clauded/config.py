@@ -8,7 +8,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 
@@ -19,6 +19,15 @@ logger = logging.getLogger(__name__)
 
 # Current config schema version
 CURRENT_VERSION = "1"
+
+# Accepted values for the top-level `harness:` field in .clauded.yaml.
+# Single source of truth used by Config.load validation, the wizard menu, and
+# the --harness CLI flag's click.Choice (added by later stories).
+HARNESS_NAMES: tuple[str, ...] = ("claude-code", "codex", "opencode")
+
+# Documentation-only alias. Config.harness stores `str` for dataclass
+# compatibility; callers that want type-narrowing can opt in via this alias.
+HarnessName = Literal["claude-code", "codex", "opencode"]
 
 
 class ConfigVersionError(Exception):
@@ -178,6 +187,46 @@ def _validate_version_pin(key: str, value: str | None) -> str | None:
     return value
 
 
+def _validate_harness(value: object, frameworks: list[str]) -> str:
+    """Validate the harness identifier and enforce the harness ⇒ framework rule.
+
+    Args:
+        value: Raw harness value from YAML (or None when the key is absent).
+        frameworks: Already-parsed list of framework identifiers from the same
+            config; required for the harness ⇒ framework cross-check.
+
+    Returns:
+        Resolved harness name (defaults to "claude-code" when value is None).
+
+    Raises:
+        ConfigValidationError: When value is a non-string, an unknown harness,
+            or "opencode" without "opencode" in frameworks.
+    """
+    if value is None:
+        return "claude-code"
+
+    if not isinstance(value, str):
+        raise ConfigValidationError(
+            f"Invalid harness value: expected one of {list(HARNESS_NAMES)}, "
+            f"got {type(value).__name__}"
+        )
+
+    if value not in HARNESS_NAMES:
+        raise ConfigValidationError(
+            f"Unknown harness '{value}'. "
+            f"Accepted values: {', '.join(HARNESS_NAMES)}."
+        )
+
+    if value == "opencode" and "opencode" not in frameworks:
+        raise ConfigValidationError(
+            "harness 'opencode' requires 'opencode' in frameworks. "
+            "Run `clauded --edit` to add opencode to the frameworks list, "
+            "or pick a different harness."
+        )
+
+    return value
+
+
 def _validate_version(version: str | None) -> str:
     """Validate config version and return normalized version string.
 
@@ -275,6 +324,7 @@ class Config:
     # Framework version pins (None = "latest")
     claude_code_version: str | None = None
     codex_version: str | None = None
+    opencode_version: str | None = None
 
     # Claude Code settings
     claude_dangerously_skip_permissions: bool = True
@@ -287,6 +337,10 @@ class Config:
 
     # Host environment variables to forward into the VM shell session
     forward_env: list[str] = field(default_factory=list)
+
+    # Active coding harness for this project (claude-code | codex | opencode).
+    # Persisted at the top level of .clauded.yaml; always emitted by save().
+    harness: str = "claude-code"
 
     @classmethod
     def from_wizard(cls, answers: dict[str, Any], project_path: Path) -> "Config":
@@ -321,6 +375,7 @@ class Config:
             ssh_host_key_checking=answers.get("ssh_host_key_checking", True),
             keep_vm_running=answers.get("keep_vm_running", False),
             forward_env=answers.get("forward_env", []),
+            harness=answers.get("harness", "claude-code"),
         )
 
     @contextmanager
@@ -454,12 +509,18 @@ class Config:
             "claude-code", raw_versions.get("claude-code")
         )
         codex_pin = _validate_version_pin("codex", raw_versions.get("codex"))
+        opencode_pin = _validate_version_pin("opencode", raw_versions.get("opencode"))
 
         # Validate VM names for security
         vm_name = _validate_vm_name(data["vm"]["name"])
         previous_vm = data.get("vm", {}).get("previous_name")
         if previous_vm:
             previous_vm = _validate_vm_name(previous_vm)
+
+        # Validate harness AFTER frameworks parsing so the harness ⇒ framework
+        # invariant can be checked against the resolved frameworks list.
+        frameworks_value = env.get("frameworks") or []
+        harness_value = _validate_harness(data.get("harness"), frameworks_value)
 
         return cls(
             version=version,
@@ -485,6 +546,7 @@ class Config:
             playwright_browsers=env.get("playwright_browsers") or [],
             claude_code_version=claude_code_pin,
             codex_version=codex_pin,
+            opencode_version=opencode_pin,
             claude_dangerously_skip_permissions=data.get("claude", {}).get(
                 "dangerously_skip_permissions", True
             ),
@@ -492,6 +554,7 @@ class Config:
             keep_vm_running=data.get("vm", {}).get("keep_running", False),
             forward_env=data.get("vm", {}).get("forward_env") or [],
             previous_vm_name=previous_vm,
+            harness=harness_value,
         )
 
     def save(self, path: Path) -> None:
@@ -512,8 +575,9 @@ class Config:
         if self.forward_env:
             vm_data["forward_env"] = self.forward_env
 
-        data = {
+        data: dict[str, Any] = {
             "version": self.version,
+            "harness": self.harness,
             "vm": vm_data,
             "mount": {
                 "host": self.mount_host,
@@ -549,6 +613,8 @@ class Config:
             versions["claude-code"] = self.claude_code_version
         if self.codex_version:
             versions["codex"] = self.codex_version
+        if self.opencode_version:
+            versions["opencode"] = self.opencode_version
         if versions:
             data["versions"] = versions
 

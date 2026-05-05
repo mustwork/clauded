@@ -11,7 +11,7 @@ from pathlib import Path
 import click
 
 from . import __version__, wizard
-from .config import Config
+from .config import HARNESS_NAMES, Config
 from .detect import detect
 from .detect.cli_integration import display_detection_json
 from .detect.wizard_integration import (
@@ -22,6 +22,28 @@ from .detect.wizard_integration import (
 from .downloads import get_downloads
 from .lima import LimaVM, destroy_vm_by_name
 from .provisioner import Provisioner, __commit__
+
+
+def _validate_harness_override(harness: str | None, config: Config) -> None:
+    """Reject a --harness override that targets a framework not in the config.
+
+    Only fires when ``harness`` is non-None and resolves to ``opencode``
+    without ``opencode`` in ``config.frameworks``. claude-code and codex
+    always pass because those frameworks are non-configurable defaults
+    (HarnessName invariant 3).
+
+    Exits 1 with an actionable message naming ``clauded --edit`` per FR6 / AC-014.
+    """
+    if harness is None:
+        return
+    if harness == "opencode" and "opencode" not in config.frameworks:
+        click.echo(
+            "Error: --harness opencode requires 'opencode' in frameworks. "
+            "Run `clauded --edit` to add opencode to the frameworks list, "
+            "or pick a different harness.",
+            err=True,
+        )
+        raise SystemExit(1)
 
 
 def _sigint_handler(signum: int, frame: object) -> None:
@@ -314,6 +336,62 @@ def _handle_version_change(vm: LimaVM) -> bool:
     return should_reprovision
 
 
+def _get_latest_opencode_version() -> str | None:
+    """Resolve the latest opencode version from the GitHub releases API.
+
+    Diverges from _get_npm_latest_version: opencode is not on npm. The query
+    runs on the host (curl) rather than in the VM, mirroring the
+    _get_latest_claude_code_version host-side pattern. Returns None on every
+    recoverable failure (network error, non-200, malformed body, missing
+    tag_name) — same skip-on-failure shape as _get_npm_latest_version.
+
+    Returns:
+        Latest version string (e.g. "1.14.33") or None on failure.
+    """
+    url = "https://api.github.com/repos/anomalyco/opencode/releases/latest"
+    try:
+        result = subprocess.run(
+            ["curl", "-fsSL", url],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return None
+        # Match a tag_name field with an optional leading 'v' prefix.
+        match = re.search(r'"tag_name"\s*:\s*"v?(\d+\.\d+\.\d+)"', result.stdout)
+        return match.group(1) if match else None
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+        return None
+
+
+def _update_opencode(vm: LimaVM, version_str: str) -> bool:
+    """Run the opencode install script inside the VM at a specific version.
+
+    The version flows through the OPENCODE_VERSION env var (not interpolated
+    unsafely into a shell command). Installs into $HOME/.local/bin via
+    OPENCODE_INSTALL_DIR with --no-modify-path, matching the role's contract.
+
+    Args:
+        vm: LimaVM instance
+        version_str: Version to install (e.g. "1.14.33")
+
+    Returns:
+        True if the install script returned 0; False otherwise.
+    """
+    cmd = (
+        "set -e && "
+        f'export OPENCODE_VERSION="{version_str}" && '
+        'export OPENCODE_INSTALL_DIR="$HOME/.local/bin" && '
+        "curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path"
+    )
+    result = subprocess.run(
+        ["limactl", "shell", vm.name, "--", "bash", "-lc", cmd],
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def _get_latest_claude_code_version() -> str | None:
     """Resolve the latest Claude Code version from GCS on the host.
 
@@ -365,6 +443,12 @@ def _resolve_framework_versions(config: Config, vm: LimaVM) -> dict[str, str | N
         else:
             resolved["codex"] = _get_npm_latest_version(vm, "@openai/codex")
 
+    if "opencode" in config.frameworks:
+        if config.opencode_version:
+            resolved["opencode"] = config.opencode_version
+        else:
+            resolved["opencode"] = _get_latest_opencode_version()
+
     return resolved
 
 
@@ -396,6 +480,12 @@ def _check_library_updates(vm: LimaVM, config: Config) -> None:
         if installed and target and installed != target:
             changes.append(("Codex", installed, target, "codex"))
 
+    if "opencode" in desired and desired["opencode"]:
+        installed = _get_vm_tool_version(vm, "opencode --version")
+        target = desired["opencode"]
+        if installed and target and installed != target:
+            changes.append(("opencode", installed, target, "opencode"))
+
     if not changes:
         return
 
@@ -418,6 +508,8 @@ def _check_library_updates(vm: LimaVM, config: Config) -> None:
             ok = _update_claude_code(vm, config, target)
         elif kind == "codex":
             ok = _update_codex(vm, target)
+        elif kind == "opencode":
+            ok = _update_opencode(vm, target)
         else:
             ok = False
         if ok:
@@ -612,6 +704,15 @@ def _handle_crash_recovery(config: Config, config_path: Path) -> None:
     default=None,
     help="Linux distribution to use (alpine or ubuntu)",
 )
+@click.option(
+    "--harness",
+    type=click.Choice(list(HARNESS_NAMES)),
+    default=None,
+    help=(
+        "Override the active coding harness for this invocation "
+        "(claude-code | codex | opencode). Persisted value is unchanged."
+    ),
+)
 def main(
     destroy: bool,
     reprovision: bool,
@@ -623,6 +724,7 @@ def main(
     no_detect: bool = False,
     debug: bool = False,
     distro: str | None = None,
+    harness: str | None = None,
 ) -> None:
     """clauded - Isolated, per-project Lima VMs.
 
@@ -681,7 +783,7 @@ def main(
             raise SystemExit(1)
 
         config = Config.load(config_path)
-        vm = LimaVM(config)
+        vm = LimaVM(config, harness_override=harness)
 
         if vm.exists():
             vm.destroy()
@@ -699,7 +801,7 @@ def main(
             raise SystemExit(1)
 
         config = Config.load(config_path)
-        vm = LimaVM(config)
+        vm = LimaVM(config, harness_override=harness)
 
         if not vm.exists() or not vm.is_running():
             click.echo(f"VM '{vm.name}' is not running.")
@@ -724,9 +826,19 @@ def main(
             click.echo("No .clauded.yaml found. Run 'clauded' to create one.")
             raise SystemExit(1)
 
+        if harness is not None:
+            click.echo(
+                "--harness is ignored with --edit; "
+                "use the wizard step to persist a harness change.",
+                err=True,
+            )
+            # Drop the override so the post-edit shell launch honours the
+            # persisted harness (per AC-015 / FR6).
+            harness = None
+
         config = Config.load(config_path)
         _handle_crash_recovery(config, config_path)
-        vm = LimaVM(config)
+        vm = LimaVM(config, harness_override=harness)
 
         if not vm.exists():
             click.echo(f"VM '{vm.name}' does not exist. Run 'clauded' to create it.")
@@ -751,7 +863,7 @@ def main(
             ) as old_vm_name:
                 click.echo("\nUpdated .clauded.yaml")
                 # Re-create LimaVM with new config (name might have changed)
-                vm = LimaVM(new_config)
+                vm = LimaVM(new_config, harness_override=harness)
                 provisioner = Provisioner(new_config, vm, debug=debug)
                 provisioner.run()
 
@@ -807,7 +919,16 @@ def main(
         config = Config.load(config_path)
         _handle_crash_recovery(config, config_path)
 
-    vm = LimaVM(config)
+    # Validate --harness override against the resolved config — but only on the
+    # shell-launch path. With --reprovision or --reboot the harness flag is
+    # silently ignored per AC-015 / FR6: drop the override before LimaVM is
+    # built so the eventual shell launch honours the persisted harness.
+    if reprovision or reboot:
+        harness = None
+    else:
+        _validate_harness_override(harness, config)
+
+    vm = LimaVM(config, harness_override=harness)
     provisioned = False  # Track if provisioning ran (need SSH reconnect for groups)
 
     # VM doesn't exist? Create and provision

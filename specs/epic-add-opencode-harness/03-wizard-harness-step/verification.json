@@ -1,0 +1,101 @@
+{
+  "story_id": "03",
+  "story_name": "wizard-harness-step",
+  "questions": [
+    {
+      "id": "Q-PRE-001",
+      "phase": "pre-impl",
+      "category": "QUALITY",
+      "question": "Is the harness menu rendered with three entries in the documented order (claude-code first, codex second, opencode third) and stable labels matching what the user reads in the spec? Does the menu use the existing `_menu_select` helper (no new menu primitive)?"
+    },
+    {
+      "id": "Q-PRE-002",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Does wizard.py import HARNESS_NAMES from clauded.config (single source of truth) rather than hardcoding the tuple, so a future addition of a fourth harness automatically updates the menu? Does the menu position 0 always correspond to 'claude-code'?"
+    },
+    {
+      "id": "Q-PRE-003",
+      "phase": "pre-impl",
+      "category": "ARCHITECTURE",
+      "question": "Does the auto-add behaviour fire ONLY when chosen harness == 'opencode' AND 'opencode' not already in answers['frameworks']? Is the info-level message emitted exactly once and only when the auto-add actually adds the framework (no double message on a config that already has opencode)?"
+    },
+    {
+      "id": "Q-PRE-004",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "Are the three menu-shape tests written with recording-select-side-effect (capture the items list passed to _menu_select)? Do they assert the three menu values are exactly ('claude-code', 'codex', 'opencode') in that order, AND that the default_index equals HARNESS_NAMES.index(config.harness) for run_edit?"
+    },
+    {
+      "id": "Q-PRE-005",
+      "phase": "pre-impl",
+      "category": "TEST",
+      "question": "Does the auto-add test (AC-010) start from a config that lacks 'opencode' in frameworks and assert the resulting Config.frameworks contains 'opencode' AFTER the wizard returns? Is there a paired negative case asserting NO duplicate is added when 'opencode' is already in frameworks?"
+    },
+    {
+      "id": "Q-PRE-006",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-009",
+      "question": "Does wizard.run() prompt for harness selection AFTER the frameworks step? Does the menu show three entries (Claude Code, Codex, opencode) with claude-code as the default cursor position for a fresh project (no existing config)?"
+    },
+    {
+      "id": "Q-PRE-007",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-010",
+      "question": "After the user picks 'opencode' as harness in the wizard with answers['frameworks'] = ['playwright'] (missing opencode), does the resulting Config.frameworks contain 'opencode' (alongside the always-on claude-code/codex defaults and the chosen 'playwright')? Is an info-level message emitted explaining the auto-add?"
+    },
+    {
+      "id": "Q-PRE-008",
+      "phase": "pre-impl",
+      "category": "SPEC",
+      "ac_id": "AC-011",
+      "question": "Does wizard.run_edit() pre-select the existing harness via default_index = HARNESS_NAMES.index(config.harness)? With a config of harness='codex' and an unchanged menu choice, does the saved config still have harness='codex'?"
+    },
+    {
+      "id": "Q-PRE-009",
+      "phase": "pre-impl",
+      "category": "SECURITY",
+      "question": "Does the wizard's harness step avoid persisting the answer outside Config.from_wizard? Specifically, no env-var fallback, no global state mutation. The chosen value flows through answers dict only."
+    },
+    {
+      "id": "Q-PRE-010",
+      "phase": "pre-impl",
+      "category": "SECURITY",
+      "question": "Does apply_detection_to_config (the non-interactive merge flow) PRESERVE config.harness without prompting and without dropping it? A detect-only run must not silently revert harness to the default."
+    },
+    {
+      "id": "Q-POST-001",
+      "phase": "post-impl",
+      "category": "ARCHITECTURE",
+      "question": "Implementation note: a single shared helper `wizard._apply_harness_to_answers(answers, chosen)` performs both the harness-write and the auto-add-to-frameworks side effect. Both wizard.run/run_edit and wizard_integration.run_with_detection/run_edit_with_detection import and call this helper. The HARNESS_NAMES tuple is imported from clauded.config — single source of truth across the codebase."
+    },
+    {
+      "id": "Q-POST-002",
+      "phase": "post-impl",
+      "category": "ARCHITECTURE",
+      "question": "Implementation note: apply_detection_to_config (line ~492) was missing harness from its Config(...) reconstruction; this would have silently reset harness to 'claude-code' on any detect-only update. Story 03 fixes this by adding `harness=config.harness` to the Config constructor call. Test test_apply_detection_to_config_preserves_harness in test_detect_integration.py guards against regression."
+    },
+    {
+      "id": "Q-POST-003",
+      "phase": "post-impl",
+      "category": "TEST",
+      "question": "Implementation note: existing tests in test_wizard_distro.py used iterator-style mock_menu_select.side_effect = [\"alpine\", \"3.12\"] which now needed an extra 'claude-code' element for the harness step. All 8 such tests updated. The fix is mechanical and does not alter the original test intent."
+    },
+    {
+      "id": "Q-POST-004",
+      "phase": "post-impl",
+      "category": "SPEC",
+      "ac_id": "AC-009",
+      "question": "Implementation note: the harness menu items are defined as a module-level constant `_HARNESS_MENU_ITEMS` in wizard.py, mapping display labels ('Claude Code' / 'Codex' / 'opencode  [adds opencode to frameworks]') to the same strings as HARNESS_NAMES. The opencode label deliberately includes the auto-add hint so the user knows what will happen before picking it."
+    },
+    {
+      "id": "Q-POST-005",
+      "phase": "post-impl",
+      "category": "SPEC",
+      "ac_id": "AC-010",
+      "question": "Implementation note: the auto-add side effect emits 'opencode added to frameworks (required by harness selection).' via click.echo only when the auto-add actually appends the framework (i.e. it was not already present). Re-running with opencode already in frameworks is a no-op (no duplicate, no second message)."
+    }
+  ]
+}

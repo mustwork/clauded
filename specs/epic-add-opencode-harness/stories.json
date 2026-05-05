@@ -1,0 +1,213 @@
+{
+  "epic_name": "add-opencode-harness",
+  "created_at": "2026-05-04T00:00:00Z",
+  "updated_at": "2026-05-04T00:00:00Z",
+  "total_stories": 6,
+  "stories": [
+    {
+      "id": "01",
+      "name": "opencode-role-and-framework",
+      "title": "Add opencode Ansible role and framework opt-in",
+      "description": "Introduce opencode as a third installable framework on Ubuntu, alongside the existing claude-code, codex, and playwright entries. The harness abstraction is NOT introduced in this story — opencode is plumbed as an opt-in framework only, exactly mirroring the playwright pattern. After this story lands, a user can pick opencode in the wizard's frameworks multi-select, and provisioning installs the binary on PATH. Launch behaviour is unchanged (claude is still the entrypoint).\n\nImplementation scope:\n- src/clauded/roles/opencode-ubuntu/tasks/main.yml (NEW): resolve target version (pinned via opencode_version playbook var, else fetch tag_name from https://api.github.com/repos/anomalyco/opencode/releases/latest); run the official install script as the unprivileged VM user with OPENCODE_INSTALL_DIR=$HOME/.local/bin and --no-modify-path; verify with opencode --version; idempotent on rerun. No Node.js dependency. No interactive flows (no opencode auth login). No ~/.config/opencode/opencode.json pre-population.\n- src/clauded/provisioner.py: add 'opencode' to _ROLES_WITH_VARIANTS (frozenset around lines 23-55); in _get_base_roles() (lines 257-323) append 'opencode' to the role list when 'opencode' in config.frameworks (mirror the playwright branch at lines 315-319; do NOT auto-add the node role — opencode is a static binary); raise ConfigValidationError when vm.distro == 'alpine' and 'opencode' in config.frameworks with a message pointing at --distro ubuntu and the epic-remove-alpine-support spec.\n- src/clauded/wizard.py: add 'opencode' as a selectable option in the frameworks multi-select around line 196 (not as a hardcoded default — opt-in, parallel to playwright). Frameworks-only edit; no harness step yet.\n- src/clauded/detect/wizard_integration.py: add 'opencode' to all three framework-options lists at lines 186, 396, 752 (fragile seam — every location must change in lockstep).\n- src/clauded/provisioner.py _generate_playbook: pass 'opencode_version': self.config.opencode_version or 'latest' into Ansible vars (mirrors codex_version at line 375). Note: Config.opencode_version field lands in Story 05; this story can read it as getattr(self.config, 'opencode_version', None) or 'latest' OR Story 05 backfills the playbook-var line. Recommended: defer the playbook-var line to Story 05 and pass 'latest' verbatim from the role's default in this story (the role accepts a literal 'latest' string and falls back to GitHub API resolution).\n- tests/test_provisioner.py: add test_includes_opencode_when_in_frameworks and test_excludes_opencode_when_absent (paired-include-exclude pattern at lines 372/431); add test_opencode_does_not_auto_include_node (contrast with the codex pattern at line 381); add test_opencode_alpine_raises (NFR5 guard); parametrize over the 16 subsets of {claude-code, codex, opencode, playwright} for AC-021.\n- tests/test_wizard.py: add test_frameworks_multiselect_offers_opencode (recording-select-side-effect pattern); ensure existing tests still pass without harness step.\n- CHANGELOG.md: under [Unreleased], add an Added entry for the opencode framework option.\n\nObservable change after this story merges: a user running 'clauded' on Ubuntu can pick 'opencode' in the frameworks multi-select; after provisioning, 'which opencode' inside the VM returns ~/.local/bin/opencode and 'opencode --version' succeeds. Launch entrypoint is unchanged (still claude). On Alpine, picking opencode raises a clear ConfigValidationError.\n\nEdge cases:\n- Pre-existing legacy opencode binary on PATH (Go-era < 0.1.x): documented but not auto-removed (Ubuntu apt has no opencode; the install script overwrites $HOME/.local/bin/opencode so no shadow conflict in our setup).\n- Network failure during GitHub API resolution: the install script retries once internally; an Ansible task failure is recoverable on rerun (NFR4).\n- A pre-Alpine-removal config with vm.distro=alpine + frameworks=[opencode] hits the NFR5 guard before any provisioning runs.",
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-021", "AC-023"],
+      "owning_module": "provisioner.py + roles/opencode-ubuntu/ + wizard.py (frameworks-only) + detect/wizard_integration.py",
+      "depends_on": [],
+      "seam_contracts_consumed": [],
+      "seam_contracts_produced": [],
+      "scope": {
+        "includes": [
+          "src/clauded/roles/opencode-ubuntu/tasks/main.yml",
+          "src/clauded/provisioner.py (_ROLES_WITH_VARIANTS, _get_base_roles, NFR5 guard)",
+          "src/clauded/wizard.py (frameworks multi-select option only)",
+          "src/clauded/detect/wizard_integration.py (all 3 framework-options lists)",
+          "tests/test_provisioner.py",
+          "tests/test_wizard.py (frameworks-list assertions)",
+          "CHANGELOG.md"
+        ],
+        "excludes": [
+          "Config.harness field",
+          "Config.opencode_version field (Story 05)",
+          "--harness CLI flag",
+          "lima.py launch dispatcher",
+          "lima.py opencode mount blocks (Story 05)",
+          "wizard harness selection step (Story 03)",
+          "_get_latest_opencode_version / _update_opencode helpers (Story 05)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": [],
+      "status": "done",
+      "notes": "Pre-Alpine-removal targeting: role lives at roles/opencode-ubuntu/, opencode is added to _ROLES_WITH_VARIANTS, NFR5 distro guard is active, no opencode-alpine variant. Fragile seam: framework_options_list duplicated across wizard.py:196 and wizard_integration.py:{186,396,752} — all 4 must update in lockstep. Story produces no formal seam contract; downstream stories (02..05) add the harness layer on top."
+    },
+    {
+      "id": "02",
+      "name": "harness-config-field",
+      "title": "Add harness field to Config with load/save and validation",
+      "description": "Introduce the harness abstraction at the Config layer. Adds the Config.harness field (default 'claude-code') with load/save support and the harness ⇒ framework validation rule. No wizard, CLI, or launch behaviour changes in this story; the field is dormant until later stories consume it. Backward compatibility is the headline guarantee: pre-epic .clauded.yaml files (no 'harness:' line) load identically to today.\n\nImplementation scope:\n- src/clauded/config.py:\n  - Add module-level constant HARNESS_NAMES: tuple[str, ...] = ('claude-code', 'codex', 'opencode'). (Plain str on the dataclass for compatibility; Literal type alias is documentation only.)\n  - Config dataclass (lines 234-290): add 'harness: str = \"claude-code\"' field.\n  - Config.load() (lines 401-495): read top-level 'harness' key from YAML; default to 'claude-code' when absent; raise ConfigValidationError listing HARNESS_NAMES when value is not in the set; after loading, enforce harness ⇒ framework rule — if config.harness == 'opencode' and 'opencode' not in config.frameworks, raise ConfigValidationError with the FR4 message (must include the literal substring 'clauded --edit'). claude-code and codex always pass this invariant because they are non-configurable defaults.\n  - Config.save() (lines 497-558): always emit 'harness:' as a top-level key (sibling of vm:, mount:, environment:); explicit-when-default by design (FR3).\n  - Config.from_wizard() (lines 292-324): accept 'harness' key from answers dict; default to 'claude-code' when absent; preserve existing answers-dict shape for all other keys.\n- tests/test_config.py:\n  - test_harness_defaults_to_claude_code_when_absent (AC-005): load fixture YAML lacking 'harness:'; assert config.harness == 'claude-code' and no warning emitted.\n  - test_harness_unknown_value_rejected (AC-006): load fixture with 'harness: gemini'; assert ConfigValidationError; assert message contains 'claude-code', 'codex', 'opencode'.\n  - test_harness_opencode_without_framework_rejected (AC-007): load fixture with 'harness: opencode' and frameworks=[claude-code, codex]; assert ConfigValidationError; assert message contains 'clauded --edit'. Add positive cases asserting harness=claude-code and harness=codex do NOT raise even when opencode is absent from frameworks.\n  - test_harness_round_trip (AC-008): Config.from_wizard({'harness': 'opencode', 'frameworks': ['claude-code', 'codex', 'opencode'], ...}).save() then load; assert YAML text contains 'harness: opencode' and reloaded config.harness == 'opencode'.\n  - test_pre_epic_config_loads_clean (AC-022): use a pre-epic fixture (no harness:, no opencode in frameworks, no versions.opencode) and assert config.harness == 'claude-code', no errors, no warnings.\n- CHANGELOG.md: under [Unreleased], add a Changed entry noting that .clauded.yaml now carries an explicit 'harness:' field; existing configs default to claude-code.\n\nObservable change after this story merges: .clauded.yaml files written by Config.save() carry an explicit 'harness: claude-code' line. Loading existing configs without the field still works. Misconfigured configs (unknown harness, or harness=opencode without opencode in frameworks) fail fast with actionable error messages. Behaviour at runtime is unchanged — lima.py still hardcodes claude.\n\nEdge cases:\n- Empty YAML / minimal config: harness defaults to claude-code via the dataclass default.\n- Config with harness=opencode but frameworks list is None / missing: same error as 'opencode not in frameworks'.\n- Round-trip stability: save → load → save produces byte-identical YAML for the harness field.",
+      "acceptance_criteria": ["AC-005", "AC-006", "AC-007", "AC-008", "AC-022"],
+      "owning_module": "config.py",
+      "depends_on": [],
+      "seam_contracts_consumed": [],
+      "seam_contracts_produced": ["HarnessName"],
+      "scope": {
+        "includes": [
+          "src/clauded/config.py (Config.harness field, HARNESS_NAMES constant, load/save/from_wizard plumbing, validation)",
+          "tests/test_config.py (harness coverage)",
+          "CHANGELOG.md"
+        ],
+        "excludes": [
+          "Config.opencode_version field (Story 05 — versions block extension)",
+          "Wizard harness step (Story 03)",
+          "--harness CLI flag (Story 04)",
+          "lima.py launch dispatcher (Story 04)",
+          "Provisioner / role changes (Story 01)",
+          "Documentation (Story 06)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": ["pre-epic .clauded.yaml fixture (no harness: line, no opencode, no versions.opencode) for AC-022"],
+      "status": "done",
+      "notes": "Produces seam HarnessName: HARNESS_NAMES tuple + Config.harness field shape, persistence key 'harness:' at top level, default 'claude-code', invariants 1-3 from architecture.md §4. Independent of Story 01 — can land in either order. Validation runs at load time, not lazily — invalid configs fail before any VM operation."
+    },
+    {
+      "id": "03",
+      "name": "wizard-harness-step",
+      "title": "Add harness selection step to wizard create and edit flows",
+      "description": "Add the 'Select harness' menu after the existing 'Select frameworks' multi-select in both wizard.run() and wizard.run_edit(). The step offers three entries (claude-code default, codex, opencode) and writes the choice to the wizard's answers dict, which Config.from_wizard() (Story 02) already accepts. Auto-add behaviour: when the user picks opencode as harness, the wizard appends 'opencode' to answers['frameworks'] (if not already present) with an info-level message. This avoids the awkward 'go back and tick the box' loop and prevents the Story 02 validation error from firing on wizard-written configs.\n\nImplementation scope:\n- src/clauded/wizard.py:\n  - In run() (line 125), after the frameworks multi-select (lines 192-211): add a single-select harness menu using the existing _menu_select helper. Three entries displayed as 'Claude Code', 'Codex', 'opencode  [adds opencode to frameworks]'. Underlying values: 'claude-code', 'codex', 'opencode'. Default index: 0 (claude-code) for new configs.\n  - When the chosen harness is 'opencode', append 'opencode' to answers['frameworks'] if absent, and print an info-level message: 'opencode added to frameworks (required by harness selection).'\n  - Store answers['harness'] = chosen value.\n  - In run_edit() (line 303): mirror the new step. Default index pre-selected from the loaded Config.harness (0/1/2 for claude-code/codex/opencode). The same auto-add applies.\n- src/clauded/detect/wizard_integration.py: if any of the three integration flows construct Config.from_wizard from a partial answers dict, ensure they pass through 'harness' (preserving the existing config's harness when not interactively prompted). Read the current value from the loaded Config; do not re-prompt in detect-only flows.\n- tests/test_wizard.py:\n  - test_wizard_offers_harness_selection (AC-009): mock _menu_select; assert the harness menu is presented with three entries in order; assert default index is 0 for new configs.\n  - test_wizard_auto_adds_opencode_to_frameworks (AC-010): simulate answers {'harness': 'opencode', 'frameworks': ['playwright']}; assert resulting Config.frameworks contains 'opencode' (and the always-on defaults).\n  - test_run_edit_preserves_harness (AC-011): load a Config with harness='codex'; run run_edit with no menu changes (mocked _menu_select returns the pre-selected index); assert saved config still has harness='codex'.\n- CHANGELOG.md: under [Unreleased], Added entry for the wizard harness step.\n\nObservable change after this story merges: 'clauded' (no flag) on a fresh project shows the new 'Select harness' step; saved .clauded.yaml carries 'harness:'. 'clauded --edit' presents the step with the current value pre-selected. Picking opencode auto-adds it to frameworks. Launch behaviour is still claude (lima.py refactor lands in Story 04).\n\nEdge cases:\n- User picks opencode but later unchecks it from frameworks via --edit: the auto-add re-applies on save, OR the harness ⇒ framework validation (Story 02) catches it. Wizard prefers the auto-add path so the user never sees the validation error.\n- run_edit on a config where harness is already opencode and frameworks already contains opencode: no-op auto-add, no info message printed twice.\n- Detect-integration flows that don't run the full wizard: harness field preserved from the loaded config; not re-prompted.",
+      "acceptance_criteria": ["AC-009", "AC-010", "AC-011"],
+      "owning_module": "wizard.py + detect/wizard_integration.py",
+      "depends_on": ["02"],
+      "seam_contracts_consumed": ["HarnessName"],
+      "seam_contracts_produced": [],
+      "scope": {
+        "includes": [
+          "src/clauded/wizard.py (harness menu in run() and run_edit())",
+          "src/clauded/detect/wizard_integration.py (preserve harness through partial answers flows)",
+          "tests/test_wizard.py (harness step coverage)",
+          "CHANGELOG.md"
+        ],
+        "excludes": [
+          "Config.harness field (Story 02 — already lands)",
+          "--harness CLI flag (Story 04)",
+          "lima.py launch dispatcher (Story 04)",
+          "Provisioner / role changes (Story 01)",
+          "Documentation (Story 06)"
+        ]
+      },
+      "complexity": "medium",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": [],
+      "status": "done",
+      "notes": "Consumes seam HarnessName from Story 02. Wizard relies on Config.from_wizard accepting 'harness' (added in Story 02). Auto-add side effect mirrors the existing non-configurable-default-injection pattern at wizard.py:209 — but applied conditionally for opencode. Mock strategy: patch clauded.wizard._menu_select at function boundary (existing test pattern)."
+    },
+    {
+      "id": "04",
+      "name": "harness-aware-launch",
+      "title": "Refactor lima.py shell launch into harness dispatcher and add --harness CLI flag",
+      "description": "Replace the hardcoded 'claude' entrypoint in LimaVM.shell() with a small dispatcher that branches on the effective harness (per-invocation override if --harness was passed, else config.harness). Add the --harness Click option to cli.py and plumb the override into LimaVM. Drop the USE_BUILTIN_RIPGREP=0 env var from the claude-code branch (boy-scout cleanup; the Alpine/musl ripgrep workaround is no longer load-bearing on Ubuntu and is going away with epic-remove-alpine-support anyway).\n\nThis is the headline behaviour-changing story. After it merges, 'clauded --harness opencode' enters the opencode TUI; 'clauded' with harness=codex in config enters codex; existing default behaviour (no harness in config, no flag) continues to enter claude.\n\nImplementation scope:\n- src/clauded/lima.py:\n  - LimaVM.__init__ (lines 55-57): add 'harness_override: str | None = None' parameter; store on self.\n  - LimaVM.shell() (lines 202-248): replace the hardcoded claude_cmd construction (lines 213-218) with a dispatcher. Resolve effective harness: self.harness_override or self.config.harness. Build a LaunchSpec (argv list + env dict) per the §4 contract:\n    - claude-code: argv=['claude'] + (['--dangerously-skip-permissions'] if self.config.claude_dangerously_skip_permissions else []); env={}.\n    - codex: argv=['codex'] + (['--dangerously-bypass-approvals-and-sandbox'] if self.config.claude_dangerously_skip_permissions else []); env={}.\n    - opencode: argv=['opencode']; env={}; NO --dangerously-* flag regardless of claude_dangerously_skip_permissions (FR7, AC-018).\n  - Render the LaunchSpec into the existing limactl shell invocation (full_cmd construction). USE_BUILTIN_RIPGREP=0 is removed entirely — not migrated to the claude branch, not preserved anywhere.\n- src/clauded/cli.py:\n  - Add Click option: @click.option('--harness', type=click.Choice(['claude-code', 'codex', 'opencode']), default=None, help='...'). Invalid value → exit code 2 (Click standard).\n  - In main() (lines 576-937), before constructing LimaVM, validate: if harness flag is set and the resolved harness is not in config.frameworks (claude-code and codex always pass; only opencode can fail), exit 1 with the FR6 message including 'clauded --edit'.\n  - Pass harness_override=harness into LimaVM(config, harness_override=harness).\n  - Interaction with mode flags: --harness silently ignored with --reprovision/--detect/--stop/--destroy/--reboot/--force-stop; with --edit, emit a one-line warning ('--harness is ignored with --edit; use the wizard step to persist a harness change') and run the wizard normally.\n- tests/test_lima.py:\n  - test_shell_launches_claude_when_harness_is_claude_code (AC-016): mock subprocess; assert argv contains 'claude'; assert USE_BUILTIN_RIPGREP=0 is NOT in env. Parametrize claude_dangerously_skip_permissions ∈ {True, False}; assert flag presence accordingly.\n  - test_shell_launches_codex_when_harness_is_codex (AC-017): assert argv contains 'codex'; assert --dangerously-bypass-approvals-and-sandbox presence per claude_dangerously_skip_permissions.\n  - test_shell_launches_opencode_when_harness_is_opencode (AC-018): assert argv == ['opencode']; assert no --dangerously-* flag regardless of claude_dangerously_skip_permissions.\n  - test_harness_override_takes_precedence: set config.harness='claude-code' and harness_override='opencode'; assert opencode is launched.\n- tests/test_cli.py:\n  - test_harness_flag_overrides_config_one_invocation (AC-012): use isolated_filesystem + inline YAML; run with --harness opencode; assert launch builder receives 'opencode'; assert .clauded.yaml file mtime/content unchanged.\n  - test_harness_flag_invalid_value_exits_2 (AC-013): CliRunner; --harness gemini; assert exit_code == 2; assert stderr contains 'Invalid value'.\n  - test_harness_flag_missing_framework_exits_1 (AC-014): config has harness=claude-code, frameworks=[claude-code, codex]; run with --harness opencode; assert exit_code == 1; assert stderr contains 'clauded --edit'.\n  - test_harness_flag_ignored_with_mode_flags (AC-015): one test per combination (--reprovision, --detect, --stop, --destroy); assert behaviour matches the no-flag version. Plus test_harness_flag_warns_with_edit asserting the one-line warning.\n- CHANGELOG.md: under [Unreleased], Added entry for --harness flag; Changed entry for VM entrypoint now harness-driven; Removed entry for USE_BUILTIN_RIPGREP=0 env var.\n\nObservable change after this story merges: behaviour finally tracks the harness field. 'clauded --harness opencode' enters the opencode TUI (assuming opencode is in frameworks — Story 01 ensures it can be). 'clauded' with harness=codex enters codex. Default unchanged for users who don't touch harness.\n\nEdge cases:\n- harness=opencode in config but Story 01 has not landed: blocked at the dependency level (architects coordinate ordering).\n- Override targets a harness whose framework is not installed: caught by the FR6 validation before any subprocess runs.\n- --harness with --edit: warning emitted but the flag does NOT bypass the wizard's harness step (the wizard remains the canonical place to persist the choice; ADR-001).\n- LaunchSpec env dict is currently always empty after the boy-scout removal; keep the field for symmetry and future-proofing — do not flatten the dataclass.",
+      "acceptance_criteria": ["AC-012", "AC-013", "AC-014", "AC-015", "AC-016", "AC-017", "AC-018"],
+      "owning_module": "lima.py + cli.py",
+      "depends_on": ["02", "03"],
+      "seam_contracts_consumed": ["HarnessName"],
+      "seam_contracts_produced": ["LaunchSpec"],
+      "scope": {
+        "includes": [
+          "src/clauded/lima.py (LimaVM.__init__ harness_override param, LimaVM.shell() dispatcher, USE_BUILTIN_RIPGREP=0 removal)",
+          "src/clauded/cli.py (--harness Click option, validation, plumbing into LimaVM, mode-flag interaction)",
+          "tests/test_lima.py (per-harness launch coverage)",
+          "tests/test_cli.py (--harness flag coverage)",
+          "CHANGELOG.md"
+        ],
+        "excludes": [
+          "Opencode mounts in lima.py (Story 05)",
+          "_get_latest_opencode_version / _update_opencode (Story 05)",
+          "Provisioner / role changes (Story 01)",
+          "Wizard harness step (Story 03)",
+          "Documentation (Story 06)"
+        ]
+      },
+      "complexity": "high",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": [],
+      "status": "done",
+      "notes": "Consumes HarnessName (Story 02). Produces LaunchSpec (internal to lima.py — only LimaVM.shell()'s subprocess call site consumes it). Boy-scout: USE_BUILTIN_RIPGREP=0 is removed in this PR per architecture.md §3 rule 7 — explicitly authorized exception. Mock strategy for tests: patch subprocess.run / limactl invocation at function boundary; isolated_filesystem + inline YAML for CLI tests."
+    },
+    {
+      "id": "05",
+      "name": "mounts-and-update-check",
+      "title": "Mount opencode user state and add update-check parity",
+      "description": "Round out the opencode integration with two operational concerns: persistence of opencode user state across VM lifecycle (auth tokens, MCP OAuth, sessions, TUI prefs) and version-update prompt parity with claude-code/codex. Adds two host mounts in lima.py, a Config.opencode_version pin field, and the cli.py helpers that let the existing update-check loop include opencode.\n\nImplementation scope:\n- src/clauded/lima.py:\n  - In _generate_lima_config (around the existing claude_dir / codex_dir mount blocks at lines 380-418), add two unconditional host mounts when 'opencode' in self.config.frameworks:\n    - host ~/.config/opencode ↔ guest ~/.config/opencode\n    - host ~/.local/share/opencode ↔ guest ~/.local/share/opencode\n  - Both paths created on the host with mkdir(exist_ok=True, parents=True) before YAML generation, matching the existing claude_dir.mkdir(exist_ok=True) pattern.\n  - The existing claude_dir and codex_dir mounts remain unconditional (consistent with the existing pattern documented in exploration.json).\n- src/clauded/config.py:\n  - Add 'opencode_version: str | None = None' to the Config dataclass (lines 234-290), parallel to claude_code_version and codex_version.\n  - Config.load() (lines 446-456): add opencode_pin = _validate_version_pin('opencode', raw_versions.get('opencode')); store on the instance.\n  - Config.save() (lines 546-553): emit versions['opencode'] = self.opencode_version when pinned (conditional-versions-block pattern).\n- src/clauded/cli.py:\n  - New helper _get_latest_opencode_version() -> str | None: fetches https://api.github.com/repos/anomalyco/opencode/releases/latest via subprocess.run with curl, parses tag_name (vX.Y.Z), strips the leading 'v', returns the version string. Returns None on any failure (network, non-200, parse error, rate limit) — matches the existing _get_npm_latest_version skip-on-failure pattern.\n  - New helper _update_opencode(vm, version_str) -> bool: runs the install script inside the VM via limactl shell with '--version <version_str>'. Returns True on returncode == 0.\n  - Extend _resolve_framework_versions (line 356): when 'opencode' in config.frameworks, resolve resolved['opencode'] = config.opencode_version if pinned, else _get_latest_opencode_version() (note: NOT in-VM npm; uses the host curl path).\n  - Extend _check_library_updates (line 387): include opencode in the comparison loop. Use _get_vm_tool_version(vm, 'opencode --version') for the installed value; dispatch to _update_opencode on user confirmation.\n- src/clauded/provisioner.py: extend _generate_playbook to pass 'opencode_version': self.config.opencode_version or 'latest' into Ansible vars (parallel to the codex_version line at 375). The Story 01 role already accepts the 'latest' sentinel.\n- tests/test_lima.py:\n  - test_mounts_opencode_dirs_when_in_frameworks (AC-019, unit half): assert Lima YAML includes both mount entries when 'opencode' in config.frameworks; mkdir called on both host paths.\n  - test_does_not_mount_opencode_dirs_when_absent: contrast case (paired-include-exclude pattern).\n- tests/test_config.py:\n  - test_opencode_version_round_trip: save config with opencode_version='1.14.33'; reload; assert preserved.\n  - test_opencode_version_validation: assert _validate_version_pin rejects bogus values for 'opencode' (parallel to existing codex tests at lines 1039-1080).\n- tests/test_version_check.py:\n  - test_opencode_update_detected (AC-020): mock _get_latest_opencode_version and _get_vm_tool_version; assert prompt is built with installed and target versions; assert dispatch to _update_opencode.\n  - test_opencode_pin_overrides_latest: pinned version takes precedence; _get_latest_opencode_version not called.\n  - test_get_latest_opencode_version_parses_github_api: mock subprocess.run returning a sample GitHub releases API response; assert tag_name parsed correctly (with leading-v stripped).\n  - test_get_latest_opencode_version_returns_none_on_failure: mock non-200 / network error; assert None returned.\n- CHANGELOG.md: under [Unreleased], Added entries for opencode mount points, opencode update check, and Config.opencode_version pin.\n\nObservable change after this story merges: opencode auth survives 'clauded --destroy && clauded' cycles (matching the user expectation set by claude-code and codex). Version-update prompts now include opencode when it's in frameworks. Users can pin a specific opencode version via versions.opencode in .clauded.yaml.\n\nEdge cases:\n- GitHub API rate limit (403/429): _get_latest_opencode_version returns None; _check_library_updates silently skips opencode for that run (no error to user; matches existing graceful-skip pattern).\n- Host directories already exist: mkdir(exist_ok=True) is a no-op.\n- User pins versions.opencode but opencode is not in frameworks: pin is preserved on save but unused at runtime; no validation error (parallel to codex_version when codex is somehow absent — though codex is non-configurable).\n- Mount conflict across multiple projects: same pattern as ~/.claude and ~/.codex — a single host directory is mounted into every VM. Documented and accepted (Risk Analysis row 5 in spec).",
+      "acceptance_criteria": ["AC-019", "AC-020"],
+      "owning_module": "lima.py + cli.py + config.py + provisioner.py",
+      "depends_on": ["01", "02"],
+      "seam_contracts_consumed": ["HarnessName"],
+      "seam_contracts_produced": ["OpencodeMounts", "OpencodeVersionResolution"],
+      "scope": {
+        "includes": [
+          "src/clauded/lima.py (opencode mount blocks)",
+          "src/clauded/config.py (Config.opencode_version field, load/save plumbing)",
+          "src/clauded/cli.py (_get_latest_opencode_version, _update_opencode, _resolve_framework_versions extension, _check_library_updates extension)",
+          "src/clauded/provisioner.py (_generate_playbook opencode_version var)",
+          "tests/test_lima.py (mount coverage)",
+          "tests/test_config.py (opencode_version pin coverage)",
+          "tests/test_version_check.py (update-check coverage)",
+          "CHANGELOG.md"
+        ],
+        "excludes": [
+          "Wizard harness step (Story 03)",
+          "--harness CLI flag (Story 04)",
+          "lima.py launch dispatcher (Story 04)",
+          "Role / framework opt-in (Story 01)",
+          "Documentation (Story 06)"
+        ]
+      },
+      "complexity": "high",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": [],
+      "status": "done",
+      "notes": "Depends on Story 01 (binary on PATH for the update path to be meaningful) and Story 02 (Config field for opencode_version follows the same load/save pattern). Produces seams OpencodeMounts and OpencodeVersionResolution per architecture.md §4. Diverges from npm-registry-via-VM pattern: opencode versioning hits GitHub API via host curl, not npm-in-VM. _get_latest_opencode_version returning None on failure is the correct behaviour (mirrors _get_npm_latest_version), not an error path."
+    },
+    {
+      "id": "06",
+      "name": "documentation",
+      "title": "Update README, spec, configuration docs, and CHANGELOG",
+      "description": "Final story: documentation pass. Updates the four documentation surfaces to describe the harness concept, the --harness flag, the opencode framework, and the harness ⇒ framework validation rule. Consolidates the [Unreleased] CHANGELOG entries from Stories 01-05 into a coherent section. Acts as the test gate for the epic — AC-024 requires 'make check' green at this story boundary, which forces all earlier stories' tests to coexist cleanly.\n\nImplementation scope:\n- README.md:\n  - Frameworks table: add an 'opencode' row with a one-line description ('Provider-agnostic AI coding harness; opt-in') and the install method note.\n  - New 'Choosing a harness' subsection explaining the three options and showing the example invocations:\n    - clauded --harness opencode    (one-off override)\n    - clauded --edit                (persist via wizard)\n  - Brief note that the harness is project-local (.clauded.yaml carries the value).\n- specs/spec.md:\n  - Add 'opencode' to the runtime/framework list.\n  - Document the harness config field (allowed values, default).\n  - Document the --harness flag (override-only semantics; ADR-001).\n  - Document the harness ⇒ framework validation rule (FR4).\n  - Per project CLAUDE.md: keep specs/spec.md focused on what/why; no concrete file paths or code snippets.\n- docs/configuration.md:\n  - New 'Choosing a harness' section with the FR7 dispatcher matrix (claude-code | codex | opencode → command construction → permission flag).\n  - Example .clauded.yaml snippet showing harness: opencode + frameworks list with opencode + optional versions.opencode pin.\n  - Brief troubleshooting note for the harness ⇒ framework error (with the exact 'clauded --edit' fix).\n- CHANGELOG.md:\n  - Consolidate [Unreleased] entries from Stories 01-05 into a coherent section. Verify all six categories (Added, Changed, Deprecated, Removed, Fixed, Security) are correctly used. Specifically:\n    - Added: opencode framework, --harness flag, harness wizard step, opencode mount points, opencode update check, Config.opencode_version pin.\n    - Changed: VM entrypoint command is now harness-driven (default claude-code; behaviour unchanged for users without harness in config).\n    - Removed: USE_BUILTIN_RIPGREP=0 env var from claude-code launch (boy-scout, Story 04).\n  - DO NOT release-tag in this story — Story 07 (release tagging) is deferred per spec Implementation Decisions.\n- Verification:\n  - Run 'make check' (lint + typecheck + pytest with coverage). All tests green; coverage ≥ 80 %.\n  - grep -rn 'harness' README.md specs/spec.md docs/configuration.md CHANGELOG.md to confirm coverage in each file (AC-025 verification step).\n  - grep -rn 'opencode-alpine' src/ to confirm no Alpine-specific opencode code accidentally landed (verification plan step 4).\n\nObservable change after this story merges: documentation reflects the harness model; users can find canonical answers about --harness and the harness ⇒ framework rule; CHANGELOG.md [Unreleased] is ready for release tagging (deferred to manual post-merge step).\n\nEdge cases:\n- Lint/typecheck gate trips on a stale doc reference: AC-024 protects against this.\n- A subsequent unrelated PR lands an [Unreleased] entry between Story 05 and Story 06: re-consolidate at merge time; do not delete unrelated entries.\n- README's frameworks table has formatting expectations: check rendered Markdown locally before committing.",
+      "acceptance_criteria": ["AC-024", "AC-025"],
+      "owning_module": "README.md + specs/spec.md + docs/configuration.md + CHANGELOG.md",
+      "depends_on": ["01", "02", "03", "04", "05"],
+      "seam_contracts_consumed": [],
+      "seam_contracts_produced": [],
+      "scope": {
+        "includes": [
+          "README.md (frameworks table row, Choosing a harness subsection)",
+          "specs/spec.md (opencode runtime, harness config field, --harness flag, harness ⇒ framework rule)",
+          "docs/configuration.md (Choosing a harness section, dispatcher matrix, .clauded.yaml example)",
+          "CHANGELOG.md (consolidated [Unreleased] section)",
+          "Final make check pass"
+        ],
+        "excludes": [
+          "Code changes",
+          "New tests (existing tests must pass; no new coverage added in this story)",
+          "Release tagging (Story 07, deferred manual step)",
+          "End-to-end VM provisioning validation (Story 07, deferred manual step)"
+        ]
+      },
+      "complexity": "low",
+      "mock_dependencies": [],
+      "introduces_mocks": [],
+      "test_fixtures": [],
+      "status": "done",
+      "notes": "Acts as the epic-wide test gate: AC-024 requires make check green here. No code changes; documentation only. Story 07 (e2e VM exercise + release tagging) is deferred per spec Implementation Decisions and is the user's manual post-merge responsibility. specs/spec.md edit must respect project CLAUDE.md rule: high-level requirements only, no concrete paths or code snippets."
+    }
+  ],
+  "story_order": ["01", "02", "03", "04", "05", "06"],
+  "dependency_notes": "Stories 01 and 02 are independent and can land in either order. Story 03 depends on Story 02 (wizard reads/writes Config.harness via Config.from_wizard). Story 04 depends on Stories 02 and 03 (override needs the field; flag interactions need wizard precedence rules). Story 05 depends on Story 01 (binary on PATH for the update path to be meaningful) and Story 02 (Config.opencode_version follows the same load/save pattern as Config.harness). Story 06 depends on Stories 01-05 (documentation consolidates all behavioural changes; AC-024 make-check gate runs at this boundary). Story 07 (release tagging + e2e VM exercise) is deferred per spec Implementation Decisions and is a manual post-merge step.",
+  "mock_resolution_plan": "No temporary mocks required. Stories use existing patterns: function-boundary-patch for _get_latest_*_version helpers (Story 05); discriminating-lambda-mock for _get_vm_tool_version (Story 05); recording-select-side-effect for _menu_select / _menu_multi_select (Stories 01, 03); paired-include-exclude-methods for test_provisioner.py (Story 01) and test_lima.py mounts (Story 05); isolated-filesystem-yaml for CliRunner-based CLI tests (Story 04). All four mock strategies are pre-existing in the repo per exploration.json patterns_to_reuse."
+}

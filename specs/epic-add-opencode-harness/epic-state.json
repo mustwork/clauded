@@ -1,0 +1,113 @@
+{
+  "epic_name": "add-opencode-harness",
+  "status": "done",
+  "phase": "COMPLETE",
+  "created_at": "2026-05-04T00:00:00Z",
+  "updated_at": "2026-05-04T23:05:00Z",
+  "completed_stories": ["02", "01", "03", "04", "05", "06"],
+  "active_stories": [],
+  "held_stories": [],
+  "final_metrics": {
+    "tests_passing": 1044,
+    "tests_baseline": 935,
+    "tests_added": 109,
+    "coverage_percent": 86.00,
+    "coverage_gate": 80,
+    "lint_clean": true,
+    "typecheck_clean": true,
+    "all_25_acs_covered": true,
+    "mocks_unresolved": 0,
+    "stories_completed": 6,
+    "stories_escalated": 0
+  },
+  "completed_at": "2026-05-04T23:05:00Z",
+  "escalated_stories": [],
+  "last_mile_review_skips": [
+    {
+      "story_id": "02",
+      "reason": "Environment lacks node binary required by ollama-companion.mjs and codex-companion.mjs; user authorized 'assume node will be available, proceed.' on 2026-05-04.",
+      "compensating_evidence": "24/24 VQs PASS; make check green; 83.44% coverage; AC traceability verified."
+    },
+    {
+      "story_id": "01",
+      "reason": "Same environmental constraint and standing user authorization as Story 02.",
+      "compensating_evidence": "19/19 VQs PASS (14 pre-impl + 5 post-impl); make check green at 85.41% coverage; provisioner.py at 90%; AC-001/002/003/004/021/023 traced; NFR5 alpine guard verified to fire before _get_base_roles."
+    },
+    {
+      "story_id": "03",
+      "reason": "Same environmental constraint and standing user authorization as Story 02.",
+      "compensating_evidence": "15/15 VQs PASS (10 pre-impl + 5 post-impl); make check green at 85.61% coverage; AC-009/010/011 traced; latent bug fixed in apply_detection_to_config (was silently resetting harness on clauded --detect)."
+    },
+    {
+      "story_id": "04",
+      "reason": "Same environmental constraint and standing user authorization as Story 02.",
+      "compensating_evidence": "36/36 VQs PASS (18 pre-impl + 18 post-impl); make check green; AC-012/013/014/015/016/017/018 (7 ACs) all traced; LaunchSpec frozen dataclass with hardcoded argv literals (no command injection); USE_BUILTIN_RIPGREP=0 fully removed."
+    },
+    {
+      "story_id": "05",
+      "reason": "Same environmental constraint and standing user authorization as Story 02.",
+      "compensating_evidence": "14/14 VQs PASS (9 pre-impl + 5 post-impl); make check green at 1035 tests, 86.00% coverage (lima.py 94%, cli.py 86%, provisioner.py 90%); AC-019/020 traced. 2 verification rounds: round-1 paused on cross-story collision in tests/test_lima.py; round-2 unblocked after Story 04 landed."
+    }
+  ],
+  "process_findings": [
+    {
+      "discovered_at": "2026-05-04T20:25:00Z",
+      "story_id": "01",
+      "category": "agent-protocol-ambiguity",
+      "summary": "Architect-1's role brief said 'spawn a base:integration-architect subagent' without specifying the mechanism. Architect-1 used SendMessage targeting a non-existent teammate name; the message succeeded as routed but had no recipient and no work was done. Story 01 sat idle for ~4 hours before status check surfaced the issue.",
+      "remediation": "Architect-1 took direct ownership of Story 01 implementation. Lead clarified that subagent spawning uses the Agent tool with subagent_type='base:integration-architect', not SendMessage (which targets named teammates only). Future architect role briefs in /base:feature must specify Agent-tool semantics explicitly.",
+      "scope": "meta — affects /base:feature skill prompt for all future epics"
+    },
+    {
+      "discovered_at": "2026-05-04T21:35:00Z",
+      "story_id": "04+05",
+      "category": "lead-coordination-time-race",
+      "summary": "Lead sent a 'hold on Story 05 due to file overlap with Story 04' message to architect-1 at ~20:51, but architect-1 had already started Story 05's baseline at 20:48. The hold instruction arrived after work was committed-direction. Architect-2's Story 04 baseline (captured at 20:53) explicitly observed the in-flight Story 05 diff and adapted by scoping Story 04 to LimaVM.shell() (different function from Story 05's _generate_lima_config). Both stories ended up running concurrent without conflicts.",
+      "remediation": "No action needed for this run — file-level orthogonality at the function level was sufficient. For future epics: when serializing on file overlap, the hold message should be sent BEFORE the architect kicks off the held story (i.e., when verifying the prior dependency) rather than reactively after it's already running. Or: trust architects to manage function-level orthogonality themselves and skip the hold.",
+      "scope": "team-lead coordination practice"
+    },
+    {
+      "discovered_at": "2026-05-04T21:15:00Z",
+      "story_id": "03",
+      "category": "boy-scout-bug-fix",
+      "summary": "Architect-1 discovered apply_detection_to_config (wizard_integration.py:506) was missing harness=config.harness from its Config(...) reconstruction — would have silently reset harness on any clauded --detect run. Fixed in Story 03 with regression test test_apply_detection_to_config_preserves_harness.",
+      "remediation": "Captured by Story 03's verification (Q-POST-002 + regression test).",
+      "scope": "project — already fixed in code"
+    },
+    {
+      "discovered_at": "2026-05-04T22:25:00Z",
+      "story_id": "04+05",
+      "category": "story-coordination-gap",
+      "summary": "Stories 04 and 05 both modified lima.py AND tests/test_lima.py. The architects' function-level orthogonality assumption was correct for production code, but tests/test_lima.py acquired Story 04 test classes (TestBuildLaunchSpec / TestLimaVMShellHarnessDispatch) before Story 04's matching production code (LaunchSpec / _build_launch_spec) had landed in the tree. This caused a test-collection ImportError that made Story 05's verifier gate impossible to clear independently. Resolved naturally once architect-2 finished Story 04, but Story 05 spent verification round 1 paused.",
+      "remediation": "No action for this run. For future epics: stories that share a file should be flagged in stories.json via a 'shared_files_with' field, and the planner should declare whether that file's tests can collect cleanly when only one of the producers has landed. Treat shared-test-file overlap as a stronger signal than shared-production-file overlap because pytest collection fails atomically per module.",
+      "scope": "meta — affects /base:feature planner role and stories.json schema"
+    }
+  ],
+  "implementation_decisions": {
+    "alpine_state": "pre-removal",
+    "arch_debate": false,
+    "story_07_release": "deferred-manual"
+  },
+  "story_assignments": {
+    "architect-1": ["01", "03", "05"],
+    "architect-2": ["02", "04", "06"]
+  },
+  "active_stories": ["01", "02"],
+  "phase_history": [
+    {
+      "phase": "SPEC_VALIDATED",
+      "timestamp": "2026-05-04T00:00:00Z",
+      "trigger": "validation_passed_with_user_clarifications"
+    },
+    {
+      "phase": "STORIES_PLANNED",
+      "timestamp": "2026-05-04T14:31:00Z",
+      "trigger": "planner_finished_stories.json"
+    },
+    {
+      "phase": "STORIES_DISPATCHED",
+      "timestamp": "2026-05-04T14:31:00Z",
+      "trigger": "architects_kicked_off_in_parallel"
+    }
+  ]
+}

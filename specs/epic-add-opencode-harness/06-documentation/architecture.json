@@ -1,0 +1,192 @@
+{
+  "story_id": "06",
+  "story_name": "documentation",
+  "title": "Update README, spec, configuration docs, and CHANGELOG",
+  "owning_files": [
+    "README.md",
+    "specs/spec.md",
+    "docs/configuration.md",
+    "CHANGELOG.md"
+  ],
+  "epic_architecture_ref": "specs/epic-add-opencode-harness/architecture.md",
+  "epic_architecture_section": "§5 Implementation Constraints (CHANGELOG, coverage); FR12",
+
+  "paradigm": {
+    "level": "documentation_pass",
+    "boundary": "no_code_change",
+    "rationale": "Documentation-only story: human-facing description of the harness concept, the --harness flag, the opencode framework, the harness ⇒ framework rule, and the boy-scout USE_BUILTIN_RIPGREP=0 removal. Acts as the epic-wide test gate — AC-024 forces make check to remain green and coverage ≥80% AT this story boundary, which means earlier stories' tests must coexist cleanly. AC-025 requires grep audits of the documentation surfaces."
+  },
+
+  "produces_seams": [],
+  "consumes_seams": [],
+
+  "components": [
+    {
+      "id": "C1",
+      "name": "README.md frameworks table extension",
+      "kind": "doc edit",
+      "location": "README.md §Supported Environments / Frameworks & Tools table",
+      "responsibility": "Add codex and opencode rows so the table truthfully describes the supported frameworks. Codex was added in a previous epic and is currently absent from this table — boy-scout fix to land alongside the opencode addition.",
+      "rationale": "AC-025 grep audit checks that 'opencode' appears in README.md. The table is the natural place. Adding the missing codex row in the same edit is a tiny boy-scout per CLAUDE.md."
+    },
+    {
+      "id": "C2",
+      "name": "README.md 'Choosing a harness' subsection",
+      "kind": "new doc section",
+      "location": "README.md, after the existing frameworks/configuration content (around §Configuration or as a peer to existing usage subsections)",
+      "responsibility": "Explain the three harness options (claude-code, codex, opencode), the --harness flag (override-only), and the wizard step. Show the example invocation `clauded --harness opencode` and `clauded --edit`. Note that the harness is project-local (.clauded.yaml carries the value).",
+      "rationale": "User-facing landing page must teach the new concept; AC-025 grep also matches 'harness' here."
+    },
+    {
+      "id": "C3",
+      "name": "specs/spec.md harness model documentation",
+      "kind": "doc edit",
+      "location": "specs/spec.md — Configuration Management section + CLI Interface section + relevant frameworks list",
+      "responsibility": "Add 'opencode' to runtime/framework lists, document the harness config field (allowed values, default), the --harness flag (override-only semantics; ADR-001), and the harness ⇒ framework validation rule (FR4).",
+      "constraint": "Per project CLAUDE.md (Documentation Guidelines): keep specs/spec.md focused on what/why; no concrete file paths or code snippets. ADR-001 in this codebase's specs/spec.md history refers to the override-only design decision documented in spec.md of the epic, not to a separate ADR file. Reference the high-level requirement, not the implementation."
+    },
+    {
+      "id": "C4",
+      "name": "docs/configuration.md 'Choosing a harness' section",
+      "kind": "new doc section",
+      "location": "docs/configuration.md — new section after the existing 'Claude Code Permissions' section but before 'Minimal Configuration'",
+      "responsibility": "Document harness config field with the FR7 dispatcher matrix (claude-code | codex | opencode → command construction → permission flag). Show an example .clauded.yaml snippet with harness: opencode, frameworks containing opencode, and optional versions.opencode pin. Provide a brief troubleshooting note for the harness ⇒ framework error (with the exact 'clauded --edit' fix). Update the frameworks section to include codex and opencode entries; remove the stale 'USE_BUILTIN_RIPGREP=0' bullet from the claude-code framework entry (boy-scout — Story 04 removed that env var)."
+    },
+    {
+      "id": "C5",
+      "name": "CHANGELOG.md [Unreleased] consolidation",
+      "kind": "doc edit",
+      "location": "CHANGELOG.md [Unreleased] section",
+      "responsibility": "Verify the existing Stories-01-05 entries (added by each architect in their story PR) are correctly bucketed under Added / Changed / Removed. Add Story 06's own entry under Changed for the documentation refresh. DO NOT release-tag — Story 07 is deferred per spec Implementation Decisions.",
+      "constraint": "DO NOT delete or rewrite earlier stories' entries. Add a Story-06 documentation-update entry only."
+    },
+    {
+      "id": "C6",
+      "name": "tests/test_documentation.py grep audit",
+      "kind": "new test file",
+      "location": "tests/test_documentation.py (new file)",
+      "responsibility": "Lock in AC-025 mechanically via grep-based assertions: the three required terms (opencode, harness, --harness) appear at least once in each of README.md, specs/spec.md, docs/configuration.md, CHANGELOG.md. Plus a negative assertion that 'USE_BUILTIN_RIPGREP' no longer appears in any non-CHANGELOG doc (the CHANGELOG correctly mentions the removal). Plus a verification-plan-step-4 negative grep: 'opencode-alpine' must NOT appear anywhere under src/.",
+      "rationale": "AC-025 says 'Manual review; grep for harness in those files yields the expected coverage.' A test that runs that grep at make-check time turns the manual check into a regression-resistant invariant. Story-06-only test; no production code changes."
+    }
+  ],
+
+  "boundary_rules_compliance": [
+    "Rule 1 (no cross-module imports): n/a — doc-only.",
+    "Rule 2 (Config single source of truth): n/a.",
+    "Rule 3 (no HTTP client): n/a.",
+    "Rule 4 (no test-only adaptations): the new test_documentation.py asserts properties of the docs themselves, not test-only production code. Compliant.",
+    "Rule 5 (fragile seam coordination): n/a — no shared list duplications touched.",
+    "Rule 6 (no `if 'test' in env`): n/a.",
+    "Rule 7 (boy-scout USE_BUILTIN_RIPGREP=0 removal): Story 04 already removed it from production code; Story 06 removes the stale documentation reference (boy-scout doc cleanup, in-scope for the documentation pass)."
+  ],
+
+  "implementation_constraints_compliance": [
+    "Pre-Alpine-removal targeting: docs may still reference Alpine; not changed in this epic (alpine-removal is a separate epic).",
+    "Coverage ≥ 80%: AC-024 hard requirement. Verified at story boundary by `uv run pytest --cov=clauded`.",
+    "CHANGELOG.md [Unreleased]: Story 06's contribution is a Changed entry for the documentation refresh. Earlier stories' entries are preserved.",
+    "No interactive flows: n/a.",
+    "GitHub API: n/a.",
+    "FR9: not modified.",
+    "Backward compatibility: docs describe pre-epic configs as still loading cleanly (default harness=claude-code).",
+    "Each story leaves codebase green: enforced by make check."
+  ],
+
+  "test_strategy": {
+    "framework": "pytest",
+    "patterns_to_reuse": ["plain Path-based file reads + substring/regex assertions"],
+    "files_to_create": ["tests/test_documentation.py"],
+    "new_test_cases": [
+      {
+        "name": "test_readme_mentions_opencode_harness_and_flag",
+        "ac": "AC-025",
+        "shape": "Read README.md; assert 'opencode' substring + 'harness' substring + '--harness' substring all present."
+      },
+      {
+        "name": "test_spec_mentions_opencode_harness_and_flag",
+        "ac": "AC-025",
+        "shape": "Read specs/spec.md; assert 'opencode' + 'harness' + '--harness' all present."
+      },
+      {
+        "name": "test_configuration_md_mentions_opencode_harness_and_flag",
+        "ac": "AC-025",
+        "shape": "Read docs/configuration.md; assert 'opencode' + 'harness' + '--harness' all present."
+      },
+      {
+        "name": "test_changelog_mentions_opencode_harness_and_flag",
+        "ac": "AC-025",
+        "shape": "Read CHANGELOG.md; assert 'opencode' + 'harness' + '--harness' all present in the [Unreleased] section."
+      },
+      {
+        "name": "test_no_use_builtin_ripgrep_in_user_facing_docs",
+        "ac": "AC-024 (boy-scout) + Story 04 invariant",
+        "shape": "Read README.md, docs/configuration.md, specs/spec.md; assert 'USE_BUILTIN_RIPGREP' substring is absent. (CHANGELOG.md is excluded — it correctly mentions the removal.)"
+      },
+      {
+        "name": "test_no_opencode_alpine_in_src",
+        "ac": "verification plan step 4",
+        "shape": "Walk src/; assert no file contains 'opencode-alpine'."
+      },
+      {
+        "name": "test_changelog_unreleased_not_empty",
+        "ac": "AC-025 sanity",
+        "shape": "Parse CHANGELOG.md; assert the [Unreleased] section contains at least one of Added/Changed/Removed/Fixed/Deprecated/Security with non-empty content."
+      }
+    ],
+    "patterns_to_avoid": [
+      "Do NOT add a conftest.py.",
+      "Do NOT create temporary docs files.",
+      "Do NOT commit a /docs/* changelog drift — single CHANGELOG.md at repo root."
+    ]
+  },
+
+  "implementation_plan_outline": [
+    "Step 1 (TDD red, docs): write tests/test_documentation.py with grep-based assertions covering AC-025 and the boy-scout no-USE_BUILTIN_RIPGREP-in-docs invariant. Run pytest; confirm failures (the target strings will be missing or stale).",
+    "Step 2 (CHANGELOG): inspect existing [Unreleased] entries from Stories 01-05; verify bucketing; add a single Story 06 Changed entry for the documentation refresh.",
+    "Step 3 (docs/configuration.md): add a 'Choosing a harness' section with the dispatcher matrix and example .clauded.yaml. Update the frameworks section to add codex and opencode entries; remove the stale 'USE_BUILTIN_RIPGREP=0' bullet from claude-code.",
+    "Step 4 (specs/spec.md): add 'opencode' to the frameworks list in the Module Responsibilities and Config Schema sections; document the harness field (allowed values + default); document the --harness flag in the CLI Options; document FR4 (harness ⇒ framework). Per CLAUDE.md, keep it high-level.",
+    "Step 5 (README.md): add codex and opencode rows to the frameworks table; add a 'Choosing a harness' subsection with the canonical examples.",
+    "Step 6 (gate): make check + pytest --cov; confirm all tests pass and coverage ≥ 80%.",
+    "Step 7 (cleanup): no temp files; story directory contains only architecture.json, baseline.json, verification.json, result.json."
+  ],
+
+  "risks_and_mitigations": [
+    {
+      "risk": "Adding codex rows to the README frameworks table is technically scope-creep relative to AC-025 (which only requires opencode/harness/flag mentions).",
+      "mitigation": "CLAUDE.md authorizes the boy-scout rule for small adjacent issues spotted in passing. The existing table is misleading without codex (it has been a framework for a previous epic). One row addition is appropriate scope; not expanding into a refactor."
+    },
+    {
+      "risk": "specs/spec.md edits can drift into implementation detail (file paths, code snippets) — explicitly forbidden by project CLAUDE.md.",
+      "mitigation": "Story 06 architecture pre-commits to high-level wording only. The new content names the field, allowed values, the flag, and the validation rule; it does NOT name file paths, function names, or code excerpts."
+    },
+    {
+      "risk": "The grep-based audit test is brittle if a future doc renames 'opencode' to e.g. 'OpenCode'.",
+      "mitigation": "Use case-insensitive substring matching ('opencode' lower-case is the canonical brand spelling per the spec; Title-case mentions are stylistic rephrasings of the same name). Asserting case-insensitive '.lower()' coverage is acceptable for the audit."
+    },
+    {
+      "risk": "Coverage might tip below 80% if the new test_documentation.py file exposes uncovered branches in the docs-related code (there is none today, but caution is warranted).",
+      "mitigation": "test_documentation.py has no production-code dependencies; it walks doc files directly. It cannot reduce coverage; it can only increase the test count."
+    },
+    {
+      "risk": "An unrelated PR may land [Unreleased] entries between Story 05 and Story 06 (per stories.json's noted edge case).",
+      "mitigation": "The CHANGELOG audit test simply checks the [Unreleased] section is non-empty and mentions the harness. Unrelated entries do not invalidate Story 06 — they are simply additional content."
+    }
+  ],
+
+  "verification_anchors": {
+    "ac_to_artifact": {
+      "AC-024": "make check exit 0 + pytest --cov reports total ≥ 80%",
+      "AC-025": "test_readme_mentions_opencode_harness_and_flag + test_spec_mentions_opencode_harness_and_flag + test_configuration_md_mentions_opencode_harness_and_flag + test_changelog_mentions_opencode_harness_and_flag + test_no_use_builtin_ripgrep_in_user_facing_docs"
+    }
+  },
+
+  "story_directory_files": ["architecture.json", "baseline.json", "verification.json", "result.json"],
+
+  "out_of_scope_explicitly": [
+    "Code changes (no production code touched in this story).",
+    "New test coverage of code paths (only doc-audit tests added).",
+    "Release tagging (Story 07, deferred manual step).",
+    "End-to-end VM provisioning validation (Story 07, deferred manual step).",
+    "Alpine support documentation rewrites (separate epic).",
+    "Architecture docs in docs/architecture.md (out of FR12 scope; specs/spec.md is the canonical architecture surface for this epic)."
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "story_id": "01",
+  "status": "done",
+  "verification_rounds": 1,
+  "final_outcome": "accepted",
+  "verified_at": "2026-05-04T20:55:00Z",
+  "verified_by": "verifier",
+  "last_mile_review": {
+    "ollama": "skipped",
+    "codex": "skipped",
+    "skip_reason": "Last-mile two-stage adversarial review skipped on user directive (2026-05-04). Environment lacks node binary required by ollama-companion.mjs and codex-companion.mjs; user authorized 'assume node will be available, proceed.' All 14 pre-impl + 5 post-impl verification questions PASS, make check green at 85.41% coverage, AC-001/002/003/004/021/023 traceability sound."
+  },
+  "files_created": [
+    "src/clauded/roles/opencode-ubuntu/tasks/main.yml"
+  ],
+  "files_modified": [
+    "src/clauded/provisioner.py",
+    "src/clauded/wizard.py",
+    "src/clauded/detect/wizard_integration.py",
+    "tests/test_provisioner.py",
+    "tests/test_wizard.py",
+    "tests/test_detect_integration.py",
+    "CHANGELOG.md"
+  ],
+  "tests_added": 28,
+  "tests_passing": 985,
+  "coverage_percent": 85.41,
+  "verification_rounds": 0,
+  "completed_at": "2026-05-04T20:50:00Z",
+  "notes": "Story 01 implemented directly by architect-1 after the SendMessage spawn protocol failed to instantiate a working subagent. All scope items in stories.json story 01 covered: opencode-ubuntu Ansible role created; provisioner.py adds opencode to _ROLES_WITH_VARIANTS and to _get_base_roles (NO node auto-add); NFR5 alpine guard raises ConfigValidationError citing --distro ubuntu; wizard.py adds opencode option in both run() and run_edit() framework lists; wizard_integration.py adds opencode option in both run_with_detection() and run_edit_with_detection() framework lists (4 locations updated in lockstep); CHANGELOG [Unreleased] Added entry for opencode framework. Tests cover paired include/exclude, no-node-auto-add, ubuntu pass, alpine block (positive AND negative cases), _ROLES_WITH_VARIANTS membership, 16-subset orthogonality parametrization (AC-021), wizard frameworks-list assertions for 4 locations, preselection behaviour for run_edit_with_detection. Deferred per team-lead: _generate_playbook opencode_version Ansible-var line (lands in Story 05); the role itself accepts the literal 'latest' sentinel as default. make check green; coverage 85.41% (>= 80% gate). In-flight QA (ollama:review / codex:review) skipped: environment lacks node binary required by codex-companion.mjs / ollama-companion.mjs (same authorized exemption recorded in epic-state.json last_mile_review_skips for Story 02). Verifier inherits the QA responsibility."
+}

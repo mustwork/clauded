@@ -1,0 +1,211 @@
+{
+  "story_id": "02",
+  "story_name": "harness-config-field",
+  "phase_summary": "pre-impl questions captured before integration-architect spawn; post-impl questions appended after implementation completes",
+  "pre_impl_questions": [
+    {
+      "id": "Q-Q01",
+      "category": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Does Config.load raise ConfigValidationError with a single, actionable message when the harness value is unknown, listing exactly the three accepted values (claude-code, codex, opencode)?",
+      "rationale": "AC-006 demands the message contains all three values; we want a single canonical phrasing rather than ad-hoc strings sprinkled across helpers.",
+      "expected_evidence": "Test test_harness_unknown_value_rejected asserts pytest.raises(ConfigValidationError); assert 'claude-code' in str(exc); 'codex' in str(exc); 'opencode' in str(exc). Implementation: _validate_harness builds the message from the HARNESS_NAMES tuple so it cannot drift."
+    },
+    {
+      "id": "Q-Q02",
+      "category": "QUALITY",
+      "phase": "pre-impl",
+      "question": "Does the implementation avoid duplicating the harness-name list (anti-DRY) — i.e. is HARNESS_NAMES the single source of truth used by both the validator's allow-list and the validator's error message?",
+      "rationale": "Boundary rule 1 + project hygiene; preventing future drift if a fourth harness is added.",
+      "expected_evidence": "grep -nE 'claude-code.*codex.*opencode|HARNESS_NAMES' src/clauded/config.py shows HARNESS_NAMES referenced from the validator and the error-message construction; the literal triple is not repeated in the source."
+    },
+    {
+      "id": "Q-A01",
+      "category": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Is HARNESS_NAMES a module-level constant on src/clauded/config.py (per architecture.md §4 contract) rather than a class-level attribute or a value buried inside Config?",
+      "rationale": "Stories 03 and 04 will import HARNESS_NAMES at module level (`from clauded.config import HARNESS_NAMES`). A class-level attribute would force `Config.HARNESS_NAMES` and an awkward import.",
+      "expected_evidence": "Module-level `HARNESS_NAMES: tuple[str, ...] = (...)` near the top of config.py, importable as `from clauded.config import HARNESS_NAMES`."
+    },
+    {
+      "id": "Q-A02",
+      "category": "ARCHITECTURE",
+      "phase": "pre-impl",
+      "question": "Is harness validation invoked from Config.load AFTER the frameworks list has been parsed (so INV-2 can check 'opencode' in frameworks)?",
+      "rationale": "INV-2 cross-references frameworks; ordering matters. Validating before frameworks is parsed would force passing raw YAML, defeating the helper.",
+      "expected_evidence": "In Config.load, the call to _validate_harness occurs AFTER the line that resolves `frameworks_value = env.get('frameworks') or []` (or equivalent), and BEFORE the cls(...) return."
+    },
+    {
+      "id": "Q-T01",
+      "category": "TEST",
+      "phase": "pre-impl",
+      "question": "Does the test suite include a positive variant for AC-007 — that loading a YAML with harness=claude-code or harness=codex and an empty frameworks list does NOT raise — explicitly exercising INV-3?",
+      "rationale": "Without these positive tests, a future refactor could over-tighten the validation and break AC-022 silently.",
+      "expected_evidence": "tests/test_config.py contains test_harness_claude_code_does_not_require_opencode_framework and test_harness_codex_does_not_require_opencode_framework, both green."
+    },
+    {
+      "id": "Q-T02",
+      "category": "TEST",
+      "phase": "pre-impl",
+      "question": "Does the AC-022 backward-compat test assert NO warnings are logged in addition to NO errors raised?",
+      "rationale": "AC-022 description explicitly mentions 'no warnings'. A naive implementation might log a warning when `harness:` is missing.",
+      "expected_evidence": "test_pre_epic_config_loads_clean uses caplog.at_level(WARNING) and asserts no records mention 'harness' (or stronger: no records on the clauded.config logger during the load call)."
+    },
+    {
+      "id": "Q-T03",
+      "category": "TEST",
+      "phase": "pre-impl",
+      "question": "Does the AC-008 round-trip test verify byte-stable resave (save → load → save produces identical YAML for the harness field), guarding against pyyaml ordering drift?",
+      "rationale": "Round-trip stability is the spec's edge-case for AC-008; without this assertion a serializer change could silently reorder.",
+      "expected_evidence": "test_harness_round_trip_byte_stability reads the YAML text twice (after first save and after resave) and asserts equality of the harness-line."
+    },
+    {
+      "id": "Q-S01",
+      "category": "SPEC",
+      "ac_id": "AC-005",
+      "phase": "pre-impl",
+      "question": "Is the default value 'claude-code' applied when a YAML omits the `harness:` key, with config.harness == 'claude-code' and no warning emitted?",
+      "rationale": "AC-005 verbatim.",
+      "expected_evidence": "test_harness_defaults_to_claude_code_when_absent: load fixture without harness key; assert config.harness == 'claude-code' and caplog (WARNING+) is empty."
+    },
+    {
+      "id": "Q-S02",
+      "category": "SPEC",
+      "ac_id": "AC-006",
+      "phase": "pre-impl",
+      "question": "Does Config.load reject unknown harness values with ConfigValidationError whose message lists 'claude-code', 'codex', and 'opencode'?",
+      "rationale": "AC-006 verbatim.",
+      "expected_evidence": "test_harness_unknown_value_rejected asserts the exception type and that all three accepted-name strings appear in str(exc)."
+    },
+    {
+      "id": "Q-S03",
+      "category": "SPEC",
+      "ac_id": "AC-007",
+      "phase": "pre-impl",
+      "question": "Does Config.load raise ConfigValidationError with the literal substring 'clauded --edit' when harness=opencode but 'opencode' is not in frameworks, while harness ∈ {claude-code, codex} with empty/non-opencode frameworks does NOT raise?",
+      "rationale": "AC-007 verbatim, plus the architecture.md §4 INV-3 positive case.",
+      "expected_evidence": "test_harness_opencode_without_framework_rejected asserts ConfigValidationError + 'clauded --edit' substring; positive variants for claude-code and codex assert no raise."
+    },
+    {
+      "id": "Q-S04",
+      "category": "SPEC",
+      "ac_id": "AC-008",
+      "phase": "pre-impl",
+      "question": "Does Config.save always emit `harness:` as a top-level key, even when the value equals the default 'claude-code'?",
+      "rationale": "AC-008 + FR3 explicit-when-default. Distinguishes pre-epic implicit defaults from post-epic explicit defaults.",
+      "expected_evidence": "test_harness_save_always_emits_field: Config(harness='claude-code').save(path); read raw text; assert 'harness: claude-code' line present. Plus test_harness_round_trip_opencode for the non-default value."
+    },
+    {
+      "id": "Q-S05",
+      "category": "SPEC",
+      "ac_id": "AC-022",
+      "phase": "pre-impl",
+      "question": "Does loading a pre-epic .clauded.yaml (no `harness:`, no opencode in frameworks, no versions.opencode) succeed with config.harness == 'claude-code', no errors, no warnings?",
+      "rationale": "AC-022 backward-compat hard requirement.",
+      "expected_evidence": "test_pre_epic_config_loads_clean uses an inline pre-epic YAML; asserts config.harness == 'claude-code' and the WARNING-level caplog is clean."
+    },
+    {
+      "id": "Q-SEC01",
+      "category": "SECURITY",
+      "phase": "pre-impl",
+      "question": "Is there any way a malicious or malformed YAML could cause _validate_harness to bypass the allow-list — e.g. by passing a non-string, a list, or a YAML-bool that pyyaml decodes to True/False?",
+      "rationale": "pyyaml.safe_load decodes YAML scalars to Python types based on the literal; `harness: yes` would yield `True`. Without a type guard the membership check would pass on no string types but error opaquely.",
+      "expected_evidence": "_validate_harness rejects non-string types with ConfigValidationError (parallel to _validate_version_pin's isinstance(value, str) guard at config.py:162). A test asserts that `harness: 1` and `harness: true` raise ConfigValidationError with a clear message."
+    },
+    {
+      "id": "Q-SEC02",
+      "category": "SECURITY",
+      "phase": "pre-impl",
+      "question": "Are the validation error messages free of unsafe interpolation (no shell-injection risk, no untrusted-format-string handling)?",
+      "rationale": "Defensive review; ConfigValidationError messages reach the user terminal, but they are display-only and there's no shell exec on this path. Verify that the user-supplied harness value is interpolated as a quoted string in the message and that no f-string treats it as format spec.",
+      "expected_evidence": "Source review of _validate_harness shows the offending value is interpolated via f-string with explicit quoting (e.g. f\"Unknown harness '{value}'\") and not treated as a format spec or template."
+    }
+  ],
+  "post_impl_questions": [
+    {
+      "id": "Q-P01",
+      "category": "QUALITY",
+      "phase": "post-impl",
+      "question": "Does the implementation actually use HARNESS_NAMES at every harness-string site (validator allow-list, validator error message), so the literal triple appears exactly once in the source?",
+      "rationale": "Q-Q02 requires no DRY violation. Verify by greping after implementation.",
+      "expected_evidence": "grep -nE '\"claude-code\"\\s*,\\s*\"codex\"' src/clauded/config.py shows ONE match (the HARNESS_NAMES tuple definition). The validator's error messages reference HARNESS_NAMES via list()/join(), not a hand-typed triple."
+    },
+    {
+      "id": "Q-P02",
+      "category": "ARCHITECTURE",
+      "phase": "post-impl",
+      "question": "Does the harness key appear in the saved YAML at the top level immediately after `version:` (per architecture.json C5), so the harness selection is visible at the top of the file?",
+      "rationale": "Visual ordering matters for human-readable configs and matches the architecture.json placement decision.",
+      "expected_evidence": "Save a Config and inspect the YAML: line 1 = `version: '1'`, line 2 = `harness: claude-code`, line 3 = `vm:` and beyond."
+    },
+    {
+      "id": "Q-P03",
+      "category": "TEST",
+      "phase": "post-impl",
+      "question": "Are all 22 new test cases (TestHarnessNamesConstant, TestValidateHarness, TestHarnessConfigLoad, TestHarnessConfigSave, TestHarnessFromWizard) green, and does the existing 935-test baseline remain green (957 total)?",
+      "rationale": "Zero-tolerance regression policy.",
+      "expected_evidence": "make check exit 0; pytest reports 957 passed."
+    },
+    {
+      "id": "Q-P04",
+      "category": "TEST",
+      "phase": "post-impl",
+      "question": "Does test coverage on src/clauded/config.py remain at or above 95% after the new code lands?",
+      "rationale": "config.py is the owning module; new code should be well-tested.",
+      "expected_evidence": "pytest --cov=clauded reports config.py coverage ≥ 95%. Actual measurement: 98%."
+    },
+    {
+      "id": "Q-P05",
+      "category": "SPEC",
+      "ac_id": "AC-005",
+      "phase": "post-impl",
+      "question": "Is AC-005 satisfied by test_harness_defaults_to_claude_code_when_absent + test_pre_epic_config_loads_clean?",
+      "rationale": "Direct AC traceability.",
+      "expected_evidence": "Both tests pass; assertions cover (a) default value (b) no warning emitted."
+    },
+    {
+      "id": "Q-P06",
+      "category": "SPEC",
+      "ac_id": "AC-006",
+      "phase": "post-impl",
+      "question": "Is AC-006 satisfied by test_harness_unknown_value_rejected, including the 'all three names in message' assertion?",
+      "rationale": "Direct AC traceability.",
+      "expected_evidence": "Test passes; message asserted to contain claude-code, codex, opencode."
+    },
+    {
+      "id": "Q-P07",
+      "category": "SPEC",
+      "ac_id": "AC-007",
+      "phase": "post-impl",
+      "question": "Is AC-007 satisfied by test_harness_opencode_without_framework_rejected, INCLUDING the positive variants for claude-code and codex (INV-3)?",
+      "rationale": "Direct AC traceability + invariant 3.",
+      "expected_evidence": "Negative test asserts ConfigValidationError + 'clauded --edit' substring. Positive variants test_harness_claude_code_with_empty_frameworks_loads and test_harness_codex_with_empty_frameworks_loads pass."
+    },
+    {
+      "id": "Q-P08",
+      "category": "SPEC",
+      "ac_id": "AC-008",
+      "phase": "post-impl",
+      "question": "Is AC-008 satisfied by test_save_always_emits_harness_field_for_default + test_save_emits_harness_field_for_opencode + test_save_load_save_byte_stable_for_harness + test_from_wizard_save_load_roundtrip_preserves_harness?",
+      "rationale": "Direct AC traceability + round-trip stability sub-requirement.",
+      "expected_evidence": "All four tests pass; YAML text asserted to contain `harness: <value>`."
+    },
+    {
+      "id": "Q-P09",
+      "category": "SPEC",
+      "ac_id": "AC-022",
+      "phase": "post-impl",
+      "question": "Is AC-022 satisfied by test_pre_epic_config_loads_clean (no harness:, no opencode in frameworks, no versions.opencode → harness defaults to claude-code, no errors, no warnings)?",
+      "rationale": "Hard backward-compat requirement.",
+      "expected_evidence": "Test passes; caplog at WARNING+ contains no records mentioning 'harness' for the clauded.config logger."
+    },
+    {
+      "id": "Q-P10",
+      "category": "SECURITY",
+      "phase": "post-impl",
+      "question": "Did the non-string YAML defense (Q-SEC01) land — does `harness: true` raise ConfigValidationError with a clear message?",
+      "rationale": "pyyaml decodes `harness: true` to a Python bool; without an isinstance guard the membership check would pass silently for some bool truthiness paths.",
+      "expected_evidence": "test_harness_non_string_value_rejected (load-level) and test_non_string_rejected (helper-level) both pass; isinstance(value, str) guard present in _validate_harness."
+    }
+  ]
+}

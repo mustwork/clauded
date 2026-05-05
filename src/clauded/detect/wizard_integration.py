@@ -8,10 +8,16 @@ from pathlib import Path
 
 import click
 
-from ..config import Config
+from ..config import HARNESS_NAMES, Config
 from ..constants import LANGUAGE_CONFIG
 from ..spinner import spinner
-from ..wizard import _menu_multi_select, _menu_select, _select_distro
+from ..wizard import (
+    _HARNESS_MENU_ITEMS,
+    _apply_harness_to_answers,
+    _menu_multi_select,
+    _menu_select,
+    _select_distro,
+)
 from . import detect
 from .result import DetectionResult
 
@@ -148,6 +154,10 @@ def run_with_detection(
     detected_databases = (
         set(databases_default) if isinstance(databases_default, list) else set()
     )
+    frameworks_default = defaults.get("frameworks", [])
+    detected_frameworks = (
+        set(frameworks_default) if isinstance(frameworks_default, list) else set()
+    )
     tool_selections = _menu_multi_select(
         "Select tools:",
         [
@@ -169,7 +179,8 @@ def run_with_detection(
     framework_selections = _menu_multi_select(
         "Select frameworks:",
         [
-            ("playwright", "playwright", "playwright" in detected_tools),
+            ("opencode", "opencode", "opencode" in detected_frameworks),
+            ("playwright", "playwright", "playwright" in detected_frameworks),
         ],
     )
     selections = tool_selections + database_selections + framework_selections
@@ -186,6 +197,14 @@ def run_with_detection(
     answers["frameworks"] = ["claude-code", "codex"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
+
+    # Harness selection: claude-code (default), codex, or opencode.
+    chosen_harness = _menu_select(
+        "Select harness:",
+        _HARNESS_MENU_ITEMS,
+        default_index=0,
+    )
+    _apply_harness_to_answers(answers, chosen_harness)
 
     # Playwright browser selection (if playwright was selected)
     if "playwright" in framework_selections:
@@ -473,6 +492,7 @@ def apply_detection_to_config(
         vm_image=config.vm_image,
         mount_host=config.mount_host,
         mount_guest=config.mount_guest,
+        previous_vm_name=config.previous_vm_name,
         python=str(merged["python"]) if merged["python"] != "None" else None,
         node=str(merged["node"]) if merged["node"] != "None" else None,
         java=str(merged["java"]) if merged["java"] != "None" else None,
@@ -484,10 +504,15 @@ def apply_detection_to_config(
         tools=list(merged.get("tools", [])),
         databases=list(merged.get("databases", [])),
         frameworks=list(merged.get("frameworks", [])),
+        playwright_browsers=list(config.playwright_browsers or []),
+        claude_code_version=config.claude_code_version,
+        codex_version=config.codex_version,
+        opencode_version=config.opencode_version,
         claude_dangerously_skip_permissions=config.claude_dangerously_skip_permissions,
         ssh_host_key_checking=config.ssh_host_key_checking,
         keep_vm_running=config.keep_vm_running,
         forward_env=list(config.forward_env or []),
+        harness=config.harness,
     )
 
     return new_config, True
@@ -735,6 +760,7 @@ def run_edit_with_detection(
     framework_selections = _menu_multi_select(
         "Select frameworks:",
         [
+            ("opencode", "opencode", "opencode" in merged_frameworks),
             ("playwright", "playwright", "playwright" in merged_frameworks),
         ],
     )
@@ -752,6 +778,17 @@ def run_edit_with_detection(
     answers["frameworks"] = ["claude-code", "codex"] + [
         s for s in selections if s not in tool_options and s not in database_options
     ]
+
+    # Harness selection: pre-select the persisted harness.
+    harness_default = (
+        HARNESS_NAMES.index(config.harness) if config.harness in HARNESS_NAMES else 0
+    )
+    chosen_harness = _menu_select(
+        "Select harness:",
+        _HARNESS_MENU_ITEMS,
+        default_index=harness_default,
+    )
+    _apply_harness_to_answers(answers, chosen_harness)
 
     # Playwright browser selection (if playwright was selected)
     if "playwright" in framework_selections:

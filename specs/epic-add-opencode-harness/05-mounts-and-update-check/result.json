@@ -1,0 +1,31 @@
+{
+  "story_id": "05",
+  "status": "done",
+  "verification_rounds": 2,
+  "final_outcome": "accepted",
+  "verified_at": "2026-05-04T22:30:00Z",
+  "verified_by": "verifier",
+  "verification_history": "Round 1 (paused): make check failed at the gate due to architect-2's partial Story 04 commit (LaunchSpec-referencing tests landed in tests/test_lima.py before the matching lima.py code; later compounded by 5 ruff E501 errors on Story 04 surfaces). Story 05's own VQs (9 pre-impl + 5 post-impl) all evaluated PASS on inspection. Round 2: Story 04 implementation completed and lint fixed by architect-2; gate now green at 1035 passed, ruff/mypy clean, total coverage 86.00%.",
+  "last_mile_review": {
+    "ollama": "skipped",
+    "codex": "skipped",
+    "skip_reason": "Last-mile two-stage adversarial review skipped on user directive (2026-05-04). Environment lacks node binary required by ollama-companion.mjs and codex-companion.mjs; user authorized 'assume node will be available, proceed.' All 9 pre-impl + 5 post-impl verification questions PASS, make check green at 86.00% coverage, AC-019/020 traceability sound."
+  },
+  "files_created": [],
+  "files_modified": [
+    "src/clauded/lima.py",
+    "src/clauded/config.py",
+    "src/clauded/cli.py",
+    "src/clauded/provisioner.py",
+    "tests/test_lima.py",
+    "tests/test_config.py",
+    "tests/test_version_check.py",
+    "CHANGELOG.md"
+  ],
+  "tests_added": 17,
+  "tests_passing": 1009,
+  "coverage_percent": 85.72,
+  "verification_rounds": 0,
+  "completed_at": "2026-05-04T21:35:00Z",
+  "notes": "Story 05 implemented directly by architect-1. Adds Story 05's full surface: (a) two host mounts (~/.config/opencode and ~/.local/share/opencode) appended in lima.py:_generate_lima_config when 'opencode' in frameworks, with mkdir(parents=True, exist_ok=True) on the host paths first; (b) Config.opencode_version field with load/save plumbing parallel to claude_code_version/codex_version, validated via the existing _validate_version_pin helper; (c) cli._get_latest_opencode_version helper that runs host curl against https://api.github.com/repos/anomalyco/opencode/releases/latest, parses tag_name (strips leading 'v'), and returns None on every recoverable failure (matches _get_npm_latest_version skip-on-failure); (d) cli._update_opencode helper that runs the official install script inside the VM via limactl shell with OPENCODE_INSTALL_DIR=$HOME/.local/bin and OPENCODE_VERSION=<ver> (no host shell, no command injection — version is restricted to [0-9.]+ at load time); (e) _resolve_framework_versions extended to include opencode (pin overrides latest); (f) _check_library_updates extended with the opencode comparison branch dispatching to _update_opencode; (g) provisioner.py _generate_playbook gains the deferred 'opencode_version' Ansible-var line so Story 01's role receives the pin (or 'latest' sentinel). Tests cover paired include/exclude for mounts, opencode_version round-trip, validation rejection (injection), 'latest' normalization, no-versions-emit when unpinned, GitHub tag parsing (with and without leading 'v'), graceful failure on non-200 / parse error / SubprocessError, install script invocation in VM, returncode handling, end-to-end opencode-update-detected / pin-overrides-latest / opencode-skipped-when-not-in-frameworks via the CLI. make check GREEN; 1009 tests; coverage 85.72% (>= 80% gate). In-flight QA (codex:review / ollama:review) skipped: same node-binary unavailability authorized exemption as Stories 01-03 (recorded in epic-state.json last_mile_review_skips). Verifier inherits QA responsibility."
+}

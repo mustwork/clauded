@@ -971,3 +971,340 @@ class TestReprovisionWithDetect:
 
             data = json.loads(result.output)
             assert "languages" in data
+
+
+# --- Story 04 (--harness flag and harness-aware launch) -------------------
+
+
+@pytest.fixture
+def harness_config_yaml() -> str:
+    """Config containing opencode in frameworks (AC-012 setup)."""
+    return """version: "1"
+harness: claude-code
+vm:
+  name: clauded-h4test
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test/project
+  guest: /test/project
+environment:
+  python: "3.12"
+  node: "20"
+  tools:
+    - docker
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+    - opencode
+"""
+
+
+@pytest.fixture
+def harness_config_yaml_no_opencode() -> str:
+    """Config WITHOUT opencode in frameworks (AC-014 setup)."""
+    return """version: "1"
+harness: claude-code
+vm:
+  name: clauded-h4test
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test/project
+  guest: /test/project
+environment:
+  python: "3.12"
+  tools:
+    - docker
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+"""
+
+
+class TestHarnessFlagOverride:
+    """AC-012: --harness <name> overrides Config.harness for one invocation."""
+
+    def test_harness_flag_overrides_config_one_invocation(
+        self, runner: CliRunner, harness_config_yaml: str
+    ) -> None:
+        """--harness opencode launches opencode this run; .clauded.yaml unchanged."""
+        with runner.isolated_filesystem():
+            config_path = Path(".clauded.yaml")
+            config_path.write_text(harness_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-h4test"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--harness", "opencode"])
+
+            assert result.exit_code == 0, result.output
+            # LimaVM was constructed with harness_override='opencode' at least once.
+            override_seen = any(
+                call.kwargs.get("harness_override") == "opencode"
+                for call in MockVM.call_args_list
+            )
+            assert override_seen, MockVM.call_args_list
+
+            # Persisted YAML harness key is unchanged.
+            import yaml as _yaml
+
+            with open(config_path) as f:
+                data = _yaml.safe_load(f)
+            assert data["harness"] == "claude-code"
+
+
+class TestHarnessFlagInvalidValue:
+    """AC-013: Click rejects values outside the allowed set with exit 2."""
+
+    def test_harness_flag_invalid_value_exits_2(self, runner: CliRunner) -> None:
+        """--harness gemini exits 2 with Click's 'Invalid value' error."""
+        result = runner.invoke(main, ["--harness", "gemini"])
+
+        assert result.exit_code == 2
+        assert "Invalid value" in result.output
+
+
+class TestHarnessFlagMissingFramework:
+    """AC-014: --harness opencode against a config lacking opencode exits 1."""
+
+    def test_harness_flag_missing_framework_exits_1(
+        self, runner: CliRunner, harness_config_yaml_no_opencode: str
+    ) -> None:
+        """exit_code==1 with 'clauded --edit' in stderr."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(harness_config_yaml_no_opencode)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-h4test"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--harness", "opencode"])
+
+        assert result.exit_code == 1, result.output
+        assert "clauded --edit" in result.output
+
+
+class TestHarnessFlagModeFlagInteractions:
+    """AC-015: --harness silently ignored with mode flags; warned with --edit."""
+
+    def test_harness_flag_silently_ignored_with_destroy(
+        self, runner: CliRunner, harness_config_yaml_no_opencode: str
+    ) -> None:
+        """--harness <whatever> with --destroy: behaviour matches plain --destroy.
+
+        The validation gate must NOT fire here even though the chosen harness
+        is not in frameworks; the mode handler returns early before validation.
+        """
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(harness_config_yaml_no_opencode)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(
+                    main, ["--harness", "opencode", "--destroy"], input="n\n"
+                )
+
+            assert result.exit_code == 0, result.output
+            mock_vm.destroy.assert_called_once()
+            assert "clauded --edit" not in result.output
+
+    def test_harness_flag_silently_ignored_with_stop(
+        self, runner: CliRunner, harness_config_yaml_no_opencode: str
+    ) -> None:
+        """--harness with --stop: stop runs, no validation."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(harness_config_yaml_no_opencode)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--harness", "opencode", "--stop"])
+
+            assert result.exit_code == 0, result.output
+            mock_vm.stop.assert_called_once()
+
+    def test_harness_flag_silently_ignored_with_reprovision(
+        self, runner: CliRunner, harness_config_yaml_no_opencode: str
+    ) -> None:
+        """--harness with --reprovision: provisioner runs, no validation."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(harness_config_yaml_no_opencode)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-h4test"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                with patch("clauded.cli.Provisioner") as MockProvisioner:
+                    mock_provisioner = MagicMock()
+                    MockProvisioner.return_value = mock_provisioner
+
+                    result = runner.invoke(
+                        main, ["--harness", "opencode", "--reprovision"]
+                    )
+
+            assert result.exit_code == 0, result.output
+            assert "clauded --edit" not in result.output
+
+    def test_harness_flag_silently_ignored_with_detect(self, runner: CliRunner) -> None:
+        """--harness with --detect (alone): detect-only path returns early."""
+        with runner.isolated_filesystem():
+            result = runner.invoke(main, ["--harness", "opencode", "--detect"])
+
+            assert result.exit_code == 0
+            import json
+
+            data = json.loads(result.output)
+            assert "languages" in data
+
+    def test_harness_flag_warns_with_edit(
+        self, runner: CliRunner, harness_config_yaml: str
+    ) -> None:
+        """--harness with --edit: one-line warning + wizard runs normally."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(harness_config_yaml)
+
+            with patch("clauded.cli._require_interactive_terminal", return_value=None):
+                with patch("clauded.cli.LimaVM") as MockVM:
+                    mock_vm = MagicMock()
+                    mock_vm.exists.return_value = True
+                    mock_vm.is_running.return_value = True
+                    mock_vm.name = "clauded-h4test"
+                    mock_vm.count_active_sessions.return_value = 0
+                    MockVM.return_value = mock_vm
+
+                    with patch("clauded.cli.run_edit_with_detection") as mock_edit:
+                        # Return a passthrough config (no atomic-update churn)
+                        mock_edit.side_effect = lambda c, p, **kw: c
+
+                        with patch("clauded.cli.Provisioner") as MockProvisioner:
+                            MockProvisioner.return_value = MagicMock()
+
+                            result = runner.invoke(
+                                main, ["--harness", "opencode", "--edit"]
+                            )
+
+            assert "ignored with --edit" in result.output
+            mock_edit.assert_called_once()
+
+    def test_harness_flag_with_edit_drops_override(
+        self, runner: CliRunner, harness_config_yaml: str
+    ) -> None:
+        """AC-015: --harness with --edit must NOT alter the post-edit shell launch.
+
+        Regression for a bug where the warning was emitted but the override was
+        still passed to LimaVM, so the launched shell silently ran the override
+        harness instead of the persisted one.
+        """
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(harness_config_yaml)
+
+            with patch("clauded.cli._require_interactive_terminal", return_value=None):
+                with patch("clauded.cli.LimaVM") as MockVM:
+                    mock_vm = MagicMock()
+                    mock_vm.exists.return_value = True
+                    mock_vm.is_running.return_value = True
+                    mock_vm.name = "clauded-h4test"
+                    mock_vm.count_active_sessions.return_value = 0
+                    MockVM.return_value = mock_vm
+
+                    with patch("clauded.cli.run_edit_with_detection") as mock_edit:
+                        mock_edit.side_effect = lambda c, p, **kw: c
+
+                        with patch("clauded.cli.Provisioner") as MockProvisioner:
+                            MockProvisioner.return_value = MagicMock()
+
+                            runner.invoke(main, ["--harness", "opencode", "--edit"])
+
+            override_values = [
+                call.kwargs.get("harness_override") for call in MockVM.call_args_list
+            ]
+            assert override_values, "LimaVM was never constructed"
+            assert all(v is None for v in override_values), (
+                f"--harness override leaked into LimaVM construction under --edit; "
+                f"expected all None, got {override_values}"
+            )
+
+    def test_harness_flag_with_reprovision_drops_override(
+        self, runner: CliRunner, harness_config_yaml: str
+    ) -> None:
+        """AC-015: --harness with --reprovision must NOT alter the launched shell.
+
+        Regression for a bug where the validation gate was correctly skipped,
+        but the override was still propagated to LimaVM and the launched shell
+        silently used the override harness.
+        """
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(harness_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-h4test"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                with patch("clauded.cli.Provisioner") as MockProvisioner:
+                    MockProvisioner.return_value = MagicMock()
+
+                    runner.invoke(main, ["--harness", "opencode", "--reprovision"])
+
+            override_values = [
+                call.kwargs.get("harness_override") for call in MockVM.call_args_list
+            ]
+            assert override_values, "LimaVM was never constructed"
+            assert all(v is None for v in override_values), (
+                f"--harness override leaked into LimaVM construction under "
+                f"--reprovision; expected all None, got {override_values}"
+            )
+
+    def test_harness_flag_with_reboot_drops_override(
+        self, runner: CliRunner, harness_config_yaml: str
+    ) -> None:
+        """AC-015: --harness with --reboot must NOT alter the launched shell."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(harness_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-h4test"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                runner.invoke(main, ["--harness", "opencode", "--reboot"])
+
+            override_values = [
+                call.kwargs.get("harness_override") for call in MockVM.call_args_list
+            ]
+            assert override_values, "LimaVM was never constructed"
+            assert all(v is None for v in override_values), (
+                f"--harness override leaked into LimaVM construction under "
+                f"--reboot; expected all None, got {override_values}"
+            )

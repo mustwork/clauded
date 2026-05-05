@@ -881,3 +881,307 @@ class TestConfigVersionsPersistence:
             data = yaml.safe_load(f)
 
         assert data["versions"] == {"claude-code": "2.1.62"}
+
+
+@pytest.fixture
+def config_yaml_with_opencode() -> str:
+    """Provide config YAML with opencode in frameworks (Story 05)."""
+    return """version: "1"
+vm:
+  name: clauded-testcli1-abc123
+  distro: ubuntu
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test/project
+  guest: /test/project
+environment:
+  python: "3.12"
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+    - opencode
+harness: claude-code
+"""
+
+
+@pytest.fixture
+def config_yaml_with_opencode_pinned() -> str:
+    """opencode framework + pinned versions.opencode."""
+    return """version: "1"
+vm:
+  name: clauded-testcli1-abc123
+  distro: ubuntu
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test/project
+  guest: /test/project
+environment:
+  python: "3.12"
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+    - codex
+    - opencode
+harness: claude-code
+versions:
+  opencode: "1.14.32"
+"""
+
+
+class TestOpencodeVersionResolution:
+    """Story 05: _get_latest_opencode_version + _update_opencode helpers."""
+
+    def test_get_latest_parses_github_tag_name(self) -> None:
+        """tag_name from the GitHub releases API is parsed; leading 'v' stripped."""
+        from clauded.cli import _get_latest_opencode_version
+
+        sample_response = '{"tag_name": "v1.14.33", "name": "opencode 1.14.33"}'
+        with patch("clauded.cli.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout=sample_response)
+
+            version = _get_latest_opencode_version()
+
+        assert version == "1.14.33"
+
+    def test_get_latest_returns_none_on_non_zero_returncode(self) -> None:
+        """Network failure / non-200 -> None (matches _get_npm_latest_version)."""
+        from clauded.cli import _get_latest_opencode_version
+
+        with patch("clauded.cli.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=22, stdout="")
+
+            version = _get_latest_opencode_version()
+
+        assert version is None
+
+    def test_get_latest_returns_none_on_missing_tag_name(self) -> None:
+        """Malformed JSON / missing tag_name -> None."""
+        from clauded.cli import _get_latest_opencode_version
+
+        with patch("clauded.cli.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout='{"unrelated": "field"}'
+            )
+
+            version = _get_latest_opencode_version()
+
+        assert version is None
+
+    def test_get_latest_returns_none_on_subprocess_error(self) -> None:
+        """Timeout / SubprocessError / FileNotFoundError -> None, no exception."""
+        import subprocess as subprocess_mod
+
+        from clauded.cli import _get_latest_opencode_version
+
+        with patch("clauded.cli.subprocess.run") as mock_run:
+            mock_run.side_effect = subprocess_mod.TimeoutExpired(cmd="curl", timeout=10)
+
+            version = _get_latest_opencode_version()
+
+        assert version is None
+
+    def test_get_latest_uses_https_with_timeout(self) -> None:
+        """Helper uses HTTPS, no shell=True, finite timeout."""
+        from clauded.cli import _get_latest_opencode_version
+
+        with patch("clauded.cli.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout='{"tag_name": "v1.0.0"}'
+            )
+
+            _get_latest_opencode_version()
+
+        args, kwargs = mock_run.call_args
+        argv = args[0]
+        assert argv[0] == "curl"
+        assert any(
+            arg.startswith("https://") for arg in argv
+        ), f"_get_latest_opencode_version must use HTTPS only; got {argv}"
+        assert kwargs.get("timeout") is not None, "must pass a timeout"
+        assert kwargs.get("shell", False) is False
+
+    def test_update_opencode_runs_install_script_in_vm(self) -> None:
+        """_update_opencode invokes limactl shell with the install script."""
+        from clauded.cli import _update_opencode
+
+        mock_vm = MagicMock()
+        mock_vm.name = "test-vm"
+        with patch("clauded.cli.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+
+            ok = _update_opencode(mock_vm, "1.14.33")
+
+        assert ok is True
+        args, _kwargs = mock_run.call_args
+        argv = args[0]
+        assert argv[0] == "limactl"
+        assert "shell" in argv
+        # The version is passed via env var, not interpolated unsafely.
+        joined = " ".join(argv)
+        assert "OPENCODE_VERSION" in joined
+        assert "1.14.33" in joined
+
+    def test_update_opencode_returns_false_on_install_failure(self) -> None:
+        """Non-zero returncode -> False."""
+        from clauded.cli import _update_opencode
+
+        mock_vm = MagicMock()
+        mock_vm.name = "test-vm"
+        with patch("clauded.cli.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=1)
+
+            ok = _update_opencode(mock_vm, "1.14.33")
+
+        assert ok is False
+
+
+class TestOpencodeUpdateCheck:
+    """Story 05 / AC-020: opencode included in _check_library_updates."""
+
+    def _mock_vm(self, MockVM: MagicMock) -> MagicMock:
+        mock_vm = MagicMock()
+        mock_vm.exists.return_value = True
+        mock_vm.is_running.return_value = True
+        mock_vm.name = "clauded-testcli1-abc123"
+        mock_vm.get_vm_distro.return_value = "ubuntu"
+        mock_vm.get_vm_metadata.return_value = {
+            "version": "0.1.0",
+            "commit": "abc1234",
+        }
+        mock_vm.count_active_sessions.return_value = 0
+        MockVM.return_value = mock_vm
+        return mock_vm
+
+    def test_opencode_update_detected(
+        self, runner: CliRunner, config_yaml_with_opencode: str
+    ) -> None:
+        """Mismatch between installed and latest opencode shows in update prompt."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(config_yaml_with_opencode)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch("clauded.cli.__commit__", "abc1234"),
+                patch("clauded.cli.__version__", "0.1.0"),
+                patch(
+                    "clauded.cli._get_vm_tool_version",
+                    side_effect=lambda vm, cmd: {
+                        "claude --version": "2.1.62",
+                        "codex --version": "1.0.5",
+                        "opencode --version": "1.14.32",
+                    }[cmd],
+                ),
+                patch(
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.1.62",
+                ),
+                patch(
+                    "clauded.cli._get_npm_latest_version",
+                    return_value="1.0.5",
+                ),
+                patch(
+                    "clauded.cli._get_latest_opencode_version",
+                    return_value="1.14.33",
+                ),
+            ):
+                self._mock_vm(MockVM)
+
+                result = runner.invoke(main, [], input="n\ny\n")
+
+                assert "opencode" in result.output.lower()
+                assert "1.14.32" in result.output
+                assert "1.14.33" in result.output
+
+    def test_opencode_pin_overrides_latest(
+        self, runner: CliRunner, config_yaml_with_opencode_pinned: str
+    ) -> None:
+        """Config.opencode_version pin takes precedence; _get_latest is NOT called."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(config_yaml_with_opencode_pinned)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch("clauded.cli.__commit__", "abc1234"),
+                patch("clauded.cli.__version__", "0.1.0"),
+                patch(
+                    "clauded.cli._get_vm_tool_version",
+                    side_effect=lambda vm, cmd: {
+                        "claude --version": "2.1.62",
+                        "codex --version": "1.0.5",
+                        "opencode --version": "1.14.32",
+                    }[cmd],
+                ),
+                patch(
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.1.62",
+                ),
+                patch(
+                    "clauded.cli._get_npm_latest_version",
+                    return_value="1.0.5",
+                ),
+                patch(
+                    "clauded.cli._get_latest_opencode_version",
+                    return_value="999.999.999",
+                ) as mock_latest,
+            ):
+                self._mock_vm(MockVM)
+
+                # Pin matches installed (1.14.32) -> NO change in output.
+                result = runner.invoke(main, [], input="n\ny\n")
+
+                mock_latest.assert_not_called()
+                # No prompt entry for opencode since pinned == installed.
+                assert "Framework version changes" not in result.output
+
+    def test_opencode_skipped_when_not_in_frameworks(
+        self, runner: CliRunner, config_yaml: str
+    ) -> None:
+        """opencode not in frameworks -> _get_latest_opencode_version not called."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(config_yaml)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch("clauded.cli.__commit__", "abc1234"),
+                patch("clauded.cli.__version__", "0.1.0"),
+                patch(
+                    "clauded.cli._get_vm_tool_version",
+                    side_effect=lambda vm, cmd: (
+                        "2.1.62" if "claude" in cmd else "1.0.5"
+                    ),
+                ),
+                patch(
+                    "clauded.cli._get_latest_claude_code_version",
+                    return_value="2.1.62",
+                ),
+                patch(
+                    "clauded.cli._get_npm_latest_version",
+                    return_value="1.0.5",
+                ),
+                patch(
+                    "clauded.cli._get_latest_opencode_version",
+                    return_value="1.14.33",
+                ) as mock_latest,
+            ):
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1-abc123"
+                mock_vm.get_vm_distro.return_value = "alpine"
+                mock_vm.get_vm_metadata.return_value = {
+                    "version": "0.1.0",
+                    "commit": "abc1234",
+                }
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                runner.invoke(main, [], input="y\n")
+
+                mock_latest.assert_not_called()

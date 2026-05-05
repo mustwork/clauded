@@ -1,15 +1,21 @@
 """Tests for clauded.provisioner module."""
 
 import getpass
+import itertools
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from clauded.config import Config
+from clauded.config import Config, ConfigValidationError
 from clauded.lima import LimaVM
-from clauded.provisioner import _ENV_ALLOWLIST, Provisioner, _filter_env
+from clauded.provisioner import (
+    _ENV_ALLOWLIST,
+    _ROLES_WITH_VARIANTS,
+    Provisioner,
+    _filter_env,
+)
 
 
 @pytest.fixture
@@ -399,6 +405,175 @@ class TestProvisionerGetBaseRoles:
         assert "codex" in roles
         # Node should come before codex (dependency order)
         assert roles.index("node") < roles.index("codex")
+
+    def test_includes_opencode_when_in_frameworks(self) -> None:
+        """opencode role included when opencode in frameworks."""
+        config = Config(
+            vm_name="clauded-opencode",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            vm_distro="ubuntu",
+            node=None,
+            frameworks=["opencode"],
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+
+        roles = provisioner._get_base_roles()
+
+        assert "opencode" in roles
+
+    def test_excludes_opencode_when_absent(self, minimal_config: Config) -> None:
+        """opencode role excluded when opencode not in frameworks."""
+        vm = LimaVM(minimal_config)
+        provisioner = Provisioner(minimal_config, vm)
+
+        roles = provisioner._get_base_roles()
+
+        assert "opencode" not in roles
+
+    def test_opencode_does_not_auto_include_node(self) -> None:
+        """opencode is a static binary; no Node.js dependency."""
+        config = Config(
+            vm_name="clauded-opencode",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            vm_distro="ubuntu",
+            node=None,  # Node not explicitly configured
+            frameworks=["opencode"],
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+
+        roles = provisioner._get_base_roles()
+
+        assert "node" not in roles
+        assert "opencode" in roles
+
+    def test_opencode_alpine_raises(self) -> None:
+        """NFR5: opencode + alpine raises ConfigValidationError mentioning ubuntu."""
+        config = Config(
+            vm_name="clauded-opencode-alpine",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            vm_distro="alpine",
+            node=None,
+            frameworks=["opencode"],
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+
+        with pytest.raises(ConfigValidationError) as excinfo:
+            provisioner.run()
+
+        message = str(excinfo.value)
+        assert "--distro ubuntu" in message
+        assert "opencode" in message
+
+    def test_opencode_ubuntu_does_not_raise_at_role_resolution(self) -> None:
+        """opencode + ubuntu is permitted; _get_base_roles succeeds."""
+        config = Config(
+            vm_name="clauded-opencode-ubuntu",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            vm_distro="ubuntu",
+            node=None,
+            frameworks=["opencode"],
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+
+        roles = provisioner._get_base_roles()
+
+        assert "opencode" in roles
+
+    def test_alpine_without_opencode_not_blocked(self) -> None:
+        """Alpine remains valid for configs that do not request opencode."""
+        config = Config(
+            vm_name="clauded-alpine-no-opencode",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            vm_distro="alpine",
+            node=None,
+            frameworks=["claude-code", "codex"],
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+
+        roles = provisioner._get_base_roles()
+
+        assert "opencode" not in roles
+        assert "codex" in roles
+
+    def test_opencode_added_to_roles_with_variants(self) -> None:
+        """_ROLES_WITH_VARIANTS contains opencode so distro suffix is applied."""
+        assert "opencode" in _ROLES_WITH_VARIANTS
+
+    @pytest.mark.parametrize(
+        "frameworks_subset",
+        [
+            list(combo)
+            for r in range(0, 5)
+            for combo in itertools.combinations(
+                ["claude-code", "codex", "opencode", "playwright"], r
+            )
+        ],
+    )
+    def test_framework_orthogonality_subsets(
+        self, frameworks_subset: list[str]
+    ) -> None:
+        """AC-021: every subset of the four frameworks resolves cleanly."""
+        config = Config(
+            vm_name="clauded-orthog",
+            cpus=2,
+            memory="4GiB",
+            disk="10GiB",
+            mount_host="/path/to/project",
+            mount_guest="/workspace",
+            vm_distro="ubuntu",
+            node=None,
+            frameworks=list(frameworks_subset),
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+
+        roles = provisioner._get_base_roles()
+
+        # No duplicates
+        assert len(roles) == len(set(roles))
+        # opencode present iff requested
+        assert ("opencode" in roles) == ("opencode" in frameworks_subset)
+        # codex present iff requested
+        assert ("codex" in roles) == ("codex" in frameworks_subset)
+        # playwright present iff requested
+        assert ("playwright" in roles) == ("playwright" in frameworks_subset)
+        # claude_code role present iff claude-code in frameworks (role uses underscore)
+        assert ("claude_code" in roles) == ("claude-code" in frameworks_subset)
+        # Dependency ordering: node before npm-using frameworks
+        if "codex" in roles:
+            assert "node" in roles
+            assert roles.index("node") < roles.index("codex")
+        if "playwright" in roles:
+            assert "node" in roles
+            assert roles.index("node") < roles.index("playwright")
+        # opencode is a static binary; never forces node
+        if "opencode" in roles and "codex" not in roles and "playwright" not in roles:
+            assert "node" not in roles
 
     def test_full_config_has_all_roles(self, full_config: Config) -> None:
         """Full config produces all 23 roles."""

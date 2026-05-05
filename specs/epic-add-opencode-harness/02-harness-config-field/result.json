@@ -1,0 +1,151 @@
+{
+  "story_id": "02",
+  "story_name": "harness-config-field",
+  "owner": "architect-2",
+  "completed_at": "2026-05-04T14:55:00Z",
+  "status": "done",
+  "verification_rounds": 1,
+  "final_outcome": "accepted",
+  "verified_at": "2026-05-04T17:05:00Z",
+  "verified_by": "verifier",
+  "last_mile_review": {
+    "ollama": "skipped",
+    "codex": "skipped",
+    "skip_reason": "Last-mile two-stage adversarial review skipped on user directive (2026-05-04). Environment lacks node binary required by ollama-companion.mjs and codex-companion.mjs; user authorized 'assume node will be available, proceed.' All 24 verification questions PASS, make check green at 83.44% coverage, AC traceability sound."
+  },
+
+  "summary": "Introduced the HarnessName seam at the Config layer. Added HARNESS_NAMES tuple, HarnessName Literal alias, _validate_harness helper, Config.harness str field (default 'claude-code'), and load/save/from_wizard plumbing. .clauded.yaml now carries an explicit top-level `harness:` key (FR3 explicit-when-default). Harness ⇒ framework rule (INV-2) enforced at load time; pre-epic configs without `harness:` load identically to today (AC-022). No CLI/wizard/launch behaviour changes — those land in Stories 03-05.",
+
+  "files_modified": [
+    {
+      "path": "src/clauded/config.py",
+      "kind": "modified",
+      "changes": [
+        "Added module-level HARNESS_NAMES: tuple[str, ...] = ('claude-code', 'codex', 'opencode') (single source of truth).",
+        "Added HarnessName: Literal[...] alias (documentation-only per architecture.md §4).",
+        "Added _validate_harness(value, frameworks) -> str helper alongside the existing _validate_* family. Accepts None (defaults to 'claude-code'), rejects non-strings and unknown values, enforces opencode⇒framework rule with 'clauded --edit' guidance.",
+        "Added Config.harness: str = 'claude-code' dataclass field after forward_env.",
+        "Wired Config.from_wizard to read answers.get('harness', 'claude-code').",
+        "Wired Config.load to call _validate_harness(data.get('harness'), frameworks_value) AFTER frameworks parsing and pass the result into cls(...).",
+        "Wired Config.save to emit `harness:` as the second top-level key (between version and vm); always emitted regardless of value (FR3)."
+      ]
+    },
+    {
+      "path": "tests/test_config.py",
+      "kind": "modified",
+      "changes": [
+        "Imported HARNESS_NAMES and _validate_harness alongside the existing public/private symbols.",
+        "Added 22 new test cases across 5 classes covering AC-005, AC-006, AC-007 (incl. INV-3 positive variants), AC-008 (incl. round-trip byte stability), AC-022, and the helper-level boundary tests."
+      ]
+    },
+    {
+      "path": "CHANGELOG.md",
+      "kind": "modified",
+      "changes": [
+        "[Unreleased] / Changed: noted top-level `harness:` field, default claude-code, backward-compat behaviour, fail-fast misconfiguration message."
+      ]
+    }
+  ],
+
+  "files_created": [],
+  "files_deleted": [],
+
+  "seam_contracts_produced": {
+    "HarnessName": {
+      "module_constants": ["HARNESS_NAMES (tuple[str, ...])", "HarnessName (Literal type alias)"],
+      "config_field": "Config.harness: str = 'claude-code'",
+      "persistence_key": "$.harness (top-level, line 2 of saved YAML; always emitted)",
+      "invariants_enforced": ["INV-1 at Config.load via _validate_harness", "INV-2 at Config.load (opencode⇒framework cross-check)", "INV-3 by construction (claude-code/codex never trip INV-2)"]
+    }
+  },
+
+  "seam_contracts_consumed": [],
+
+  "tests_added": [
+    {"class": "TestHarnessNamesConstant", "case": "test_harness_names_tuple_shape"},
+    {"class": "TestValidateHarness", "case": "test_none_defaults_to_claude_code"},
+    {"class": "TestValidateHarness", "case": "test_known_values_pass_through"},
+    {"class": "TestValidateHarness", "case": "test_unknown_value_lists_all_accepted_names"},
+    {"class": "TestValidateHarness", "case": "test_non_string_rejected"},
+    {"class": "TestValidateHarness", "case": "test_opencode_without_framework_actionable_message"},
+    {"class": "TestValidateHarness", "case": "test_claude_code_does_not_require_opencode_framework"},
+    {"class": "TestValidateHarness", "case": "test_codex_does_not_require_opencode_framework"},
+    {"class": "TestHarnessConfigLoad", "case": "test_harness_defaults_to_claude_code_when_absent", "ac": "AC-005"},
+    {"class": "TestHarnessConfigLoad", "case": "test_harness_unknown_value_rejected", "ac": "AC-006"},
+    {"class": "TestHarnessConfigLoad", "case": "test_harness_opencode_without_framework_rejected", "ac": "AC-007"},
+    {"class": "TestHarnessConfigLoad", "case": "test_harness_opencode_with_framework_loads", "ac": "AC-007 positive"},
+    {"class": "TestHarnessConfigLoad", "case": "test_harness_claude_code_with_empty_frameworks_loads", "ac": "AC-007 INV-3"},
+    {"class": "TestHarnessConfigLoad", "case": "test_harness_codex_with_empty_frameworks_loads", "ac": "AC-007 INV-3"},
+    {"class": "TestHarnessConfigLoad", "case": "test_harness_non_string_value_rejected"},
+    {"class": "TestHarnessConfigLoad", "case": "test_pre_epic_config_loads_clean", "ac": "AC-022"},
+    {"class": "TestHarnessConfigSave", "case": "test_save_always_emits_harness_field_for_default", "ac": "AC-008"},
+    {"class": "TestHarnessConfigSave", "case": "test_save_emits_harness_field_for_opencode", "ac": "AC-008"},
+    {"class": "TestHarnessConfigSave", "case": "test_save_load_save_byte_stable_for_harness", "ac": "AC-008"},
+    {"class": "TestHarnessFromWizard", "case": "test_from_wizard_defaults_when_harness_absent"},
+    {"class": "TestHarnessFromWizard", "case": "test_from_wizard_passes_through_opencode"},
+    {"class": "TestHarnessFromWizard", "case": "test_from_wizard_save_load_roundtrip_preserves_harness", "ac": "AC-008"}
+  ],
+
+  "tests_modified": [],
+  "tests_removed": [],
+
+  "ac_traceability": {
+    "AC-005": ["test_harness_defaults_to_claude_code_when_absent", "test_pre_epic_config_loads_clean"],
+    "AC-006": ["test_harness_unknown_value_rejected", "test_unknown_value_lists_all_accepted_names"],
+    "AC-007": ["test_harness_opencode_without_framework_rejected", "test_harness_opencode_with_framework_loads", "test_harness_claude_code_with_empty_frameworks_loads", "test_harness_codex_with_empty_frameworks_loads", "test_opencode_without_framework_actionable_message"],
+    "AC-008": ["test_save_always_emits_harness_field_for_default", "test_save_emits_harness_field_for_opencode", "test_save_load_save_byte_stable_for_harness", "test_from_wizard_save_load_roundtrip_preserves_harness"],
+    "AC-022": ["test_pre_epic_config_loads_clean"]
+  },
+
+  "make_check_result": {
+    "ruff": "All checks passed!",
+    "mypy": "Success: no issues found in 22 source files",
+    "pytest": {
+      "tests_collected": 957,
+      "tests_passed": 957,
+      "tests_failed": 0,
+      "exit_code": 0,
+      "delta_vs_baseline": "+22 new tests; baseline 935 unchanged"
+    },
+    "coverage": {
+      "module_under_test": "src/clauded/config.py",
+      "module_coverage_percent": 98,
+      "total_coverage_percent": 83.44,
+      "gate": "fail_under = 80 satisfied"
+    }
+  },
+
+  "boundary_rules_check": [
+    "Rule 1 (no cross-module imports beyond declared public surfaces): satisfied — all new public names live on clauded.config and are imported via standard `from clauded.config import ...`.",
+    "Rule 2 (Config is single source of truth): satisfied — harness lives only on Config; no env-var precedence, no fallback chains.",
+    "Rule 3 (no HTTP client library): not applicable.",
+    "Rule 4 (no test-only adaptations in production code): satisfied — validation is functionally required by AC-006/007.",
+    "Rule 5 (fragile seams require coordinated updates): not applicable in this story.",
+    "Rule 6 (no `if 'test' in env` branches): satisfied.",
+    "Rule 7 (boy-scout USE_BUILTIN_RIPGREP=0 removal): NOT touched in this story (Story 04 architect-1's responsibility per kickoff)."
+  ],
+
+  "implementation_constraints_check": [
+    "Pre-Alpine-removal targeting: not applicable.",
+    "Coverage ≥ 80 %: satisfied at 83.44%.",
+    "CHANGELOG.md [Unreleased] entry: present under Changed.",
+    "No interactive flows: satisfied.",
+    "GitHub API rate limiting: n/a.",
+    "FR9 / claude_dangerously_skip_permissions: untouched.",
+    "Backward compatibility (NFR1, AC-022): hard-tested via test_pre_epic_config_loads_clean.",
+    "Each story leaves codebase green: make check exit 0."
+  ],
+
+  "out_of_scope_confirmed_excluded": [
+    "Config.opencode_version pin field (Story 05)",
+    "Wizard harness step (Story 03)",
+    "--harness CLI flag (Story 04)",
+    "lima.py launch dispatcher (Story 04)",
+    "USE_BUILTIN_RIPGREP=0 removal (Story 04)",
+    "Documentation updates (Story 06)"
+  ],
+
+  "story_directory_files": ["architecture.json", "baseline.json", "verification.json", "result.json"],
+
+  "notes_for_verifier": "Implementation strictly follows architecture.md §4 HarnessName contract and architecture.json. All 957 tests green; lint and typecheck clean. Boundary rules and implementation constraints all satisfied. CHANGELOG entry sized for Story 02's contribution only — Story 06 will consolidate. Verifier-relevant pointers: src/clauded/config.py:26 (HARNESS_NAMES), src/clauded/config.py:190 (_validate_harness), src/clauded/config.py:342 (Config.harness field), src/clauded/config.py:518-521 (load wiring), src/clauded/config.py:577 (save wiring), src/clauded/config.py:377 (from_wizard wiring). New tests live under TestHarnessNamesConstant / TestValidateHarness / TestHarnessConfigLoad / TestHarnessConfigSave / TestHarnessFromWizard in tests/test_config.py."
+}

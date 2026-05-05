@@ -1,0 +1,336 @@
+{
+  "story_id": "04",
+  "story_name": "harness-aware-launch",
+  "title": "Refactor lima.py shell launch into harness dispatcher and add --harness CLI flag",
+  "owning_module": "src/clauded/lima.py + src/clauded/cli.py",
+  "epic_architecture_ref": "specs/epic-add-opencode-harness/architecture.md",
+  "epic_architecture_section": "§4 Seam: LaunchSpec; §3 Boundary Rule 7 (boy-scout)",
+
+  "paradigm": {
+    "level": "modular_monolith",
+    "boundary": "internal_dispatcher_refactor",
+    "rationale": "Story 04 refactors a single fragile seam (the launch construction in LimaVM.shell()) into a small dispatcher returning a typed LaunchSpec, and adds one new public-CLI surface (--harness). No new module, no new external boundary; the LaunchSpec dataclass is internal to lima.py — only LimaVM.shell()'s subprocess call site consumes it."
+  },
+
+  "produces_seams": [
+    {
+      "name": "LaunchSpec",
+      "shape": {
+        "kind": "frozen dataclass, internal to lima.py",
+        "fields": {
+          "argv": "list[str] — the command tokens that go after `bash -lic`. argv[0] is the binary name (claude | codex | opencode). The full string is the joined argv that gets passed to `bash -lic` as a single shell command, so each token must be safe for shell concatenation (the existing pattern uses simple flag strings; no shell metacharacters appear in any branch).",
+          "env": "dict[str, str] — extra env vars to prepend in the shell command string. After Story 04's boy-scout removal the dict is always empty, but the field is RETAINED for symmetry / forward compat per stories.json Story 04 notes."
+        },
+        "construction": "_build_launch_spec(harness, config) -> LaunchSpec — pure function (no I/O), branches on harness, applies the per-harness flag rules from architecture.md §4 invariants 1-3.",
+        "consumers": "ONLY LimaVM.shell()'s subprocess call site (internal seam, not cross-module)."
+      },
+      "invariants": [
+        "INV-1: argv[0] in {'claude', 'codex', 'opencode'} — the binary name. Enforced by construction (one literal per branch).",
+        "INV-2: env does NOT contain 'USE_BUILTIN_RIPGREP' for ANY harness (boy-scout). Enforced by NOT writing that key in any branch.",
+        "INV-3: For harness == 'opencode', argv contains NO --dangerously-* flag regardless of self.config.claude_dangerously_skip_permissions (FR7, AC-018). Enforced by the opencode branch ignoring the flag entirely."
+      ]
+    }
+  ],
+
+  "consumes_seams": [
+    {
+      "name": "HarnessName",
+      "from_story": "02",
+      "consumed_as": "click.Choice(HARNESS_NAMES) for --harness flag value validation; literal-string compare in _build_launch_spec dispatcher; Config.harness reads the persisted value as the dispatcher's default input."
+    }
+  ],
+
+  "components": [
+    {
+      "id": "C1",
+      "name": "LaunchSpec dataclass",
+      "kind": "frozen dataclass at module level in lima.py",
+      "location": "src/clauded/lima.py (above class LimaVM)",
+      "responsibility": "Typed carrier of the argv list and (currently empty) env dict produced by the dispatcher.",
+      "exports": ["LaunchSpec"]
+    },
+    {
+      "id": "C2",
+      "name": "_build_launch_spec dispatcher",
+      "kind": "private module-level pure function",
+      "location": "src/clauded/lima.py (alongside LaunchSpec)",
+      "signature": "_build_launch_spec(harness: str, config: Config) -> LaunchSpec",
+      "responsibility": "Pure function that branches on harness and emits the appropriate LaunchSpec. Reads claude_dangerously_skip_permissions from Config to decide flag inclusion for claude-code and codex; ignores it entirely for opencode.",
+      "branches": {
+        "claude-code": "argv = ['claude'] + (['--dangerously-skip-permissions'] if config.claude_dangerously_skip_permissions else [])",
+        "codex": "argv = ['codex'] + (['--dangerously-bypass-approvals-and-sandbox'] if config.claude_dangerously_skip_permissions else [])",
+        "opencode": "argv = ['opencode']  # no permission flag regardless of config (AC-018, FR7)"
+      },
+      "rationale": "Pulling the construction into a pure function lets us unit-test the dispatcher independent of subprocess. Avoids a bigger LimaVM.shell() that does I/O and string-building together."
+    },
+    {
+      "id": "C3",
+      "name": "LimaVM.__init__ harness_override parameter",
+      "kind": "method-signature change",
+      "location": "src/clauded/lima.py LimaVM.__init__",
+      "signature_change": "def __init__(self, config: Config, *, harness_override: str | None = None) -> None",
+      "responsibility": "Optional per-instance override for the active harness. Defaults to None (use config.harness). Storing on self allows .shell() to remain parameter-light.",
+      "rationale": "The kickoff explicitly authorizes either __init__ or shell() to receive the override; __init__ is chosen because cli.py constructs LimaVM once and the override should ride along through all .shell() calls (including --edit's second .shell() after reprovision). Adds one keyword-only param so existing callers (LimaVM(config)) keep working unchanged."
+    },
+    {
+      "id": "C4",
+      "name": "LimaVM.shell() refactor",
+      "kind": "method body change",
+      "location": "src/clauded/lima.py LimaVM.shell",
+      "responsibility": "Replace the hardcoded 'claude' string and USE_BUILTIN_RIPGREP=0 prefix with a call to _build_launch_spec(self.harness_override or self.config.harness, self.config). Render the LaunchSpec into the same `bash -lic <cmd_string>` invocation used today. The forward_env / --reconnect / mount_guest plumbing is preserved untouched.",
+      "command_string_assembly": "If env is empty (always after boy-scout): cmd_string = ' '.join(argv). If env is non-empty (forward-compat path): cmd_string = ' '.join([f'{k}={v}' for k, v in env.items()] + argv).",
+      "rationale": "Keep the existing subprocess.run shape; only the content of the bash -lic argument changes. This minimises blast radius and preserves test-mockability."
+    },
+    {
+      "id": "C5",
+      "name": "USE_BUILTIN_RIPGREP=0 removal (boy-scout)",
+      "kind": "deletion",
+      "location": "src/clauded/lima.py LimaVM.shell — lines that prepend USE_BUILTIN_RIPGREP=0 and the comment block above them",
+      "rationale": "Authorized by epic architecture.md §3 rule 7 and explicitly by the team-lead's kickoff for Story 04. Not migrated to the claude-code branch — removed entirely. The Alpine/musl ripgrep workaround is no longer load-bearing on Ubuntu and is going away with epic-remove-alpine-support."
+    },
+    {
+      "id": "C6",
+      "name": "--harness Click option",
+      "kind": "new CLI flag",
+      "location": "src/clauded/cli.py main()",
+      "decorator": "@click.option('--harness', type=click.Choice(HARNESS_NAMES), default=None, help='Override the active harness for this invocation (claude-code | codex | opencode).')",
+      "responsibility": "One-shot per-invocation harness override. None means 'use Config.harness'. Click's standard Invalid-Choice handling produces exit 2 + 'Invalid value' on stderr (AC-013).",
+      "import_change": "Adds `from .config import HARNESS_NAMES` to cli.py imports."
+    },
+    {
+      "id": "C7",
+      "name": "main() harness validation gate",
+      "kind": "new logic block in cli.py main()",
+      "location": "src/clauded/cli.py main() — placed BEFORE every LimaVM construction site that could result in entering the shell, AFTER config is loaded.",
+      "responsibility": "When --harness is set AND the resolved harness is not in config.frameworks (only opencode can fail here; claude-code and codex always pass per INV-3 of HarnessName), exit 1 with the FR6 message including 'clauded --edit' (AC-014).",
+      "shape": "Implemented as a small private helper `_validate_harness_override(harness, config)` that emits the click.echo(..., err=True) and raises SystemExit(1) when the override is provided and infeasible.",
+      "ordering": "Called only on the launch-into-shell path (NOT on --reprovision/--detect/--stop/--destroy/--reboot/--force-stop). For --edit a one-line warning is printed and the wizard runs (no validation gate; the wizard is the canonical place to change harness)."
+    },
+    {
+      "id": "C8",
+      "name": "main() harness_override plumbing",
+      "kind": "wiring into LimaVM construction",
+      "location": "src/clauded/cli.py main() — every LimaVM(config) construction site",
+      "responsibility": "Pass harness_override=harness into LimaVM at construction. Sites: --destroy, --stop/--force-stop, --edit (initial vm + post-update vm), the no-config path's vm, and the existing-config path's vm. The override is non-functional on the lifecycle-only paths (vm.destroy, vm.stop, etc don't enter shell), but plumbing it consistently keeps the dispatcher parameter intuitive and avoids special cases.",
+      "scope_constraint": "Only modify call sites that already construct LimaVM with `vm = LimaVM(config)`. Do NOT introduce new LimaVM construction sites."
+    },
+    {
+      "id": "C9",
+      "name": "main() mode-flag interaction matrix",
+      "kind": "behavioral guard",
+      "location": "src/clauded/cli.py main()",
+      "responsibility": "Per AC-015 / FR6: --harness is silently ignored with --reprovision/--detect/--stop/--destroy/--reboot/--force-stop (no warning, no validation). With --edit, emit a one-line warning to stderr ('--harness is ignored with --edit; use the wizard step to persist a harness change.') and run the wizard normally. The validation gate (C7) ONLY runs on the shell-launch paths (the no-config path's launch, and the existing-config path's launch).",
+      "implementation": "The validation gate is invoked only after all the early-return mode handlers are passed through. The --edit branch prints the warning at the top of its block (when harness flag is set). No flow-control change to the mode handlers themselves."
+    }
+  ],
+
+  "boundary_rules_compliance": [
+    "Rule 1 (no cross-module imports beyond declared public surfaces): satisfied — cli.py imports HARNESS_NAMES from clauded.config (same module-public surface used by Story 02).",
+    "Rule 2 (Config is single source of truth): satisfied — the override is per-invocation; the config file is NEVER mutated by --harness. The dispatcher reads from Config (or the override); no env-var fallback.",
+    "Rule 3 (no HTTP client library): not applicable; story does not call HTTP.",
+    "Rule 4 (no test-only adaptations in production code): satisfied — dispatcher is functionally required by AC-016/017/018.",
+    "Rule 5 (fragile seams require coordinated updates): the launch dispatcher IS the fragile seam being refactored; this story consolidates it.",
+    "Rule 6 (no `if 'test' in env` branches): satisfied.",
+    "Rule 7 (boy-scout USE_BUILTIN_RIPGREP=0 removal): EXPLICITLY EXERCISED in this story (architecture.md §3 rule 7)."
+  ],
+
+  "implementation_constraints_compliance": [
+    "Pre-Alpine-removal targeting: not directly relevant; Story 04 doesn't touch distro guards.",
+    "Coverage ≥ 80 %: Story 04 adds tests around the new dispatcher and CLI flag; coverage will not regress.",
+    "CHANGELOG.md [Unreleased] entry: required. Sections: Added (--harness flag), Changed (VM entrypoint is now harness-driven), Removed (USE_BUILTIN_RIPGREP=0 env var).",
+    "No interactive flows: n/a.",
+    "GitHub API rate limiting: n/a.",
+    "FR9 / claude_dangerously_skip_permissions: claude-code and codex still consult it; opencode ignores it (AC-018 hardening).",
+    "Backward compatibility (NFR1): default harness = claude-code so Config-without-harness flows behave identically. The boy-scout removal CHANGES observable env (USE_BUILTIN_RIPGREP=0 used to be exported into the bash -lic command). On Ubuntu this is a no-op; on Alpine it relies on the Alpine ripgrep being usable. Per architecture.md §3 rule 7 this is explicitly authorized.",
+    "Each story leaves codebase green: enforced by TDD + verifier's make check."
+  ],
+
+  "test_strategy": {
+    "framework": "pytest with hypothesis available; existing patterns",
+    "patterns_to_reuse": [
+      "patch('subprocess.run') for shell-call tests (existing test_lima.py pattern)",
+      "click.testing.CliRunner + isolated_filesystem + inline YAML for CLI tests (existing test_cli.py pattern)",
+      "patch('clauded.cli.LimaVM') / patch('clauded.cli.Provisioner') and patch('clauded.cli.wizard') for CLI tests that should not actually launch a VM"
+    ],
+    "files_to_modify": ["tests/test_lima.py", "tests/test_cli.py"],
+    "new_test_cases": [
+      {
+        "name": "test_build_launch_spec_claude_code_with_skip",
+        "ac": "AC-016",
+        "shape": "config.harness='claude-code', config.claude_dangerously_skip_permissions=True; assert LaunchSpec(argv=['claude', '--dangerously-skip-permissions'], env={})."
+      },
+      {
+        "name": "test_build_launch_spec_claude_code_without_skip",
+        "ac": "AC-016",
+        "shape": "config.harness='claude-code', config.claude_dangerously_skip_permissions=False; assert argv==['claude']; env=={}."
+      },
+      {
+        "name": "test_build_launch_spec_codex_with_skip",
+        "ac": "AC-017",
+        "shape": "harness='codex', config.claude_dangerously_skip_permissions=True; assert argv contains 'codex' and '--dangerously-bypass-approvals-and-sandbox'; env=={}."
+      },
+      {
+        "name": "test_build_launch_spec_codex_without_skip",
+        "ac": "AC-017",
+        "shape": "harness='codex', skip=False; argv==['codex']; env=={}."
+      },
+      {
+        "name": "test_build_launch_spec_opencode_ignores_skip_true",
+        "ac": "AC-018",
+        "shape": "harness='opencode', skip=True; argv==['opencode']; assert no '--dangerously-' token in argv; env=={}."
+      },
+      {
+        "name": "test_build_launch_spec_opencode_ignores_skip_false",
+        "ac": "AC-018",
+        "shape": "harness='opencode', skip=False; argv==['opencode']; env=={}."
+      },
+      {
+        "name": "test_build_launch_spec_no_use_builtin_ripgrep_for_any_harness",
+        "ac": "AC-016 boy-scout invariant",
+        "shape": "Parametrize over all three harnesses; assert 'USE_BUILTIN_RIPGREP' not in env keys for any."
+      },
+      {
+        "name": "test_shell_launches_claude_when_harness_is_claude_code",
+        "ac": "AC-016 (integration with subprocess)",
+        "shape": "vm = LimaVM(config); patch subprocess.run; vm.shell(); assert last call's bash-lic argument is 'claude --dangerously-skip-permissions' (no USE_BUILTIN_RIPGREP=0 prefix)."
+      },
+      {
+        "name": "test_shell_launches_codex_when_harness_is_codex",
+        "ac": "AC-017",
+        "shape": "config.harness='codex'; vm.shell(); assert bash-lic argument is 'codex --dangerously-bypass-approvals-and-sandbox' or 'codex' depending on skip flag."
+      },
+      {
+        "name": "test_shell_launches_opencode_when_harness_is_opencode",
+        "ac": "AC-018",
+        "shape": "config.harness='opencode' (frameworks include opencode); vm.shell(); assert bash-lic argument is exactly 'opencode'; assert no '--dangerously' substring regardless of skip."
+      },
+      {
+        "name": "test_shell_harness_override_takes_precedence",
+        "ac": "AC-012",
+        "shape": "config.harness='claude-code', frameworks include opencode; vm = LimaVM(config, harness_override='opencode'); vm.shell(); assert bash-lic argument launches opencode. Implicit: a separate test asserts config persisted on disk is unchanged (or rather, that the override is per-instance)."
+      },
+      {
+        "name": "test_shell_no_use_builtin_ripgrep_in_assembled_command",
+        "ac": "AC-016 boy-scout (integration)",
+        "shape": "All three harness variants: assert 'USE_BUILTIN_RIPGREP' not in the bash-lic argument string."
+      },
+      {
+        "name": "test_existing_shell_tests_updated_for_no_ripgrep",
+        "ac": "regression hygiene",
+        "shape": "The pre-existing tests at test_lima.py:447 and :470 currently assert the literal 'USE_BUILTIN_RIPGREP=0 claude...' command string. These assertions must be updated to drop the prefix."
+      },
+      {
+        "name": "test_harness_flag_overrides_config_one_invocation",
+        "ac": "AC-012",
+        "shape": "CliRunner with isolated_filesystem; write config harness=claude-code, frameworks include opencode; patch LimaVM and Provisioner; invoke main(['--harness', 'opencode']); assert LimaVM was constructed with harness_override='opencode'; reload .clauded.yaml from disk and assert harness=='claude-code' (unchanged)."
+      },
+      {
+        "name": "test_harness_flag_invalid_value_exits_2",
+        "ac": "AC-013",
+        "shape": "runner.invoke(main, ['--harness', 'gemini']); assert result.exit_code == 2; assert 'Invalid value' in result.output (Click stderr)."
+      },
+      {
+        "name": "test_harness_flag_missing_framework_exits_1",
+        "ac": "AC-014",
+        "shape": "Config has harness=claude-code, frameworks=[claude-code, codex] (NO opencode); CliRunner invoke(['--harness', 'opencode']); assert exit_code == 1; assert 'clauded --edit' in result.output."
+      },
+      {
+        "name": "test_harness_flag_silently_ignored_with_destroy",
+        "ac": "AC-015",
+        "shape": "Patch LimaVM and confirm; invoke(['--harness', 'opencode', '--destroy']); behaviour matches no-flag --destroy; no warning emitted."
+      },
+      {
+        "name": "test_harness_flag_silently_ignored_with_reprovision",
+        "ac": "AC-015",
+        "shape": "Same idiom: invoke(['--harness', 'opencode', '--reprovision']); behaviour matches no-flag --reprovision."
+      },
+      {
+        "name": "test_harness_flag_silently_ignored_with_stop",
+        "ac": "AC-015",
+        "shape": "Same idiom for --stop."
+      },
+      {
+        "name": "test_harness_flag_silently_ignored_with_detect",
+        "ac": "AC-015",
+        "shape": "Same idiom for --detect (detect-only path, exits early)."
+      },
+      {
+        "name": "test_harness_flag_warns_with_edit",
+        "ac": "AC-015",
+        "shape": "invoke(['--harness', 'opencode', '--edit']); patch wizard; assert wizard runs; assert stderr contains 'is ignored with --edit'."
+      }
+    ],
+    "test_modifications_required": [
+      "tests/test_lima.py:447 — drop 'USE_BUILTIN_RIPGREP=0 ' prefix from the asserted bash -lic argument.",
+      "tests/test_lima.py:470 — drop 'USE_BUILTIN_RIPGREP=0 ' prefix from the asserted bash -lic argument."
+    ],
+    "test_fixtures_introduced": [],
+    "mocks_introduced": [],
+    "patterns_to_avoid": [
+      "Do NOT create conftest.py.",
+      "Do NOT mock _build_launch_spec from inside lima.py — its purity makes direct unit testing trivial."
+    ]
+  },
+
+  "implementation_plan_outline": [
+    "Step 1 (TDD red, lima): write LaunchSpec/dispatcher tests + per-harness shell tests + override test in tests/test_lima.py. Update the two pre-existing shell tests to drop USE_BUILTIN_RIPGREP=0. Run pytest; confirm failures (ImportError for LaunchSpec, AssertionError on the still-prefixed shell command, signature error for harness_override).",
+    "Step 2 (TDD red, cli): write CLI flag tests in tests/test_cli.py covering AC-012 through AC-015. Run pytest; confirm failures (Click NoSuchOption for --harness; exit codes mismatched; warning absent).",
+    "Step 3 (LaunchSpec + dispatcher): add `@dataclass(frozen=True) class LaunchSpec` and `_build_launch_spec` in lima.py.",
+    "Step 4 (LimaVM signature): add `harness_override: str | None = None` keyword-only param to LimaVM.__init__ and store on self. Default None preserves all existing call sites.",
+    "Step 5 (LimaVM.shell): replace the hardcoded `claude_cmd` block (lines 214-220) with `spec = _build_launch_spec(self.harness_override or self.config.harness, self.config)` and `full_cmd = ' '.join([f'{k}={v}' for k, v in spec.env.items()] + spec.argv)`. Drop the USE_BUILTIN_RIPGREP block + comment.",
+    "Step 6 (cli.py imports + flag): add `from .config import HARNESS_NAMES` + `--harness` Click option. Add the flag to the main() signature.",
+    "Step 7 (cli.py validation gate + warning): introduce `_validate_harness_override(harness, config)` helper; insert calls only on the two shell-launch paths. Insert the one-line warning at the top of the --edit branch when harness flag is set.",
+    "Step 8 (cli.py LimaVM construction): pass harness_override=harness at every LimaVM(config) site (≈6 sites: --destroy, --stop/force-stop, --edit (twice), wizard-creation path, existing-config path).",
+    "Step 9 (CHANGELOG): under [Unreleased], add Added/Changed/Removed entries.",
+    "Step 10 (gate): make check; verify all 999+ tests + new tests pass."
+  ],
+
+  "risks_and_mitigations": [
+    {
+      "risk": "Existing test_lima.py tests assert the exact bash-lic argument string with 'USE_BUILTIN_RIPGREP=0' prefix; failing to update them blocks make check.",
+      "mitigation": "Step 1 explicitly modifies the two known assertions BEFORE the implementation lands so the TDD red phase shows the intended end state. Identified at lines 447 and 470."
+    },
+    {
+      "risk": "Story 05 (architect-1) overlaps lima.py and cli.py. The team-lead has serialized 05 behind 04, so we own the file in this window. We must NOT touch the opencode mount block (Story 05 territory) or the cli.py update-check helpers (Story 05 territory).",
+      "mitigation": "All edits in this story are scoped to (a) LimaVM.__init__ signature, (b) LimaVM.shell() body, (c) module-level LaunchSpec + _build_launch_spec in lima.py, (d) cli.py main() and a new validation helper. We will NOT touch lima.py _generate_lima_config OR cli.py _check_library_updates / _resolve_framework_versions / _get_npm_latest_version."
+    },
+    {
+      "risk": "harness_override plumbing might silently miss a LimaVM construction site that should have it.",
+      "mitigation": "Grep for `LimaVM(` in cli.py and lima.py; review every call site explicitly. The override is non-functional on lifecycle-only paths (destroy/stop) but plumbing it consistently avoids future bugs."
+    },
+    {
+      "risk": "AC-014 message exact phrasing — verifier may check for specific substrings.",
+      "mitigation": "Architecture.json codifies 'clauded --edit' as the required substring per FR6/AC-014 verbatim. The validation helper builds the message with that literal token."
+    },
+    {
+      "risk": "AC-015 'silently ignored' for --reprovision/--detect/--stop/--destroy: a stray click.echo would fail the contract.",
+      "mitigation": "The validation gate is invoked only on shell-launch paths; mode-handler branches return early without inspecting the harness flag. The one-line warning fires ONLY for --edit."
+    },
+    {
+      "risk": "Test for 'config file unchanged' (AC-012) must reload from disk after main() returns.",
+      "mitigation": "Test reads the YAML file after invoke(...) and asserts the harness key still equals 'claude-code'."
+    }
+  ],
+
+  "verification_anchors": {
+    "ac_to_artifact": {
+      "AC-012": "test_harness_flag_overrides_config_one_invocation + test_shell_harness_override_takes_precedence",
+      "AC-013": "test_harness_flag_invalid_value_exits_2",
+      "AC-014": "test_harness_flag_missing_framework_exits_1",
+      "AC-015": "test_harness_flag_silently_ignored_with_{destroy,reprovision,stop,detect} + test_harness_flag_warns_with_edit",
+      "AC-016": "test_build_launch_spec_claude_code_{with,without}_skip + test_shell_launches_claude_when_harness_is_claude_code",
+      "AC-017": "test_build_launch_spec_codex_{with,without}_skip + test_shell_launches_codex_when_harness_is_codex",
+      "AC-018": "test_build_launch_spec_opencode_ignores_skip_{true,false} + test_shell_launches_opencode_when_harness_is_opencode"
+    }
+  },
+
+  "story_directory_files": ["architecture.json", "baseline.json", "verification.json", "result.json"],
+
+  "out_of_scope_explicitly": [
+    "Opencode mount blocks in lima.py _generate_lima_config (Story 05) — premature diff present in working tree but NOT touched by this story.",
+    "_get_latest_opencode_version / _update_opencode helpers (Story 05).",
+    "Provisioner / role changes (Story 01, already verified).",
+    "Wizard harness step (Story 03, already verified).",
+    "Documentation updates (Story 06)."
+  ]
+}

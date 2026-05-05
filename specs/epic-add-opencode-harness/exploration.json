@@ -1,0 +1,143 @@
+{
+  "epic_name": "add-opencode-harness",
+  "explored_at": "2026-05-04T00:00:00Z",
+  "dossiers": {
+    "similar_features": "specs/epic-add-opencode-harness/exploration-similar-features.md",
+    "architecture": "specs/epic-add-opencode-harness/exploration-architecture.md",
+    "testing_and_conventions": "specs/epic-add-opencode-harness/exploration-testing.md"
+  },
+  "paradigm": {
+    "top_level": "modular-monolith",
+    "module_layout": "package-by-feature (detect/) + flat package (clauded/)",
+    "external_boundaries": "hexagonal (Lima/Ansible/GitHub/npm/GCS as ports)"
+  },
+  "key_files": {
+    "config_module": {
+      "path": "src/clauded/config.py",
+      "config_dataclass_lines": "234-290",
+      "load_save_from_wizard_lines": "401-558",
+      "version_block_emit_lines": "546-553",
+      "validation_normalisation_lines": "137-178"
+    },
+    "provisioner_module": {
+      "path": "src/clauded/provisioner.py",
+      "roles_with_variants_lines": "23-55",
+      "get_base_roles_lines": "257-323",
+      "node_auto_dependency_lines": "311-313",
+      "claude_dangerous_consumer_line": "358"
+    },
+    "wizard_module": {
+      "path": "src/clauded/wizard.py",
+      "framework_multiselect_lines": "192-211",
+      "edit_default_codex_line": "396",
+      "default_frameworks_line": "209"
+    },
+    "wizard_integration_module": {
+      "path": "src/clauded/detect/wizard_integration.py",
+      "framework_list_locations": [186, 396, 752],
+      "note": "framework list duplicated across 3 functions; must be updated in concert"
+    },
+    "cli_module": {
+      "path": "src/clauded/cli.py",
+      "version_helpers_range": "157-370",
+      "resolve_framework_versions_line": 356,
+      "check_library_updates_line": 387,
+      "npm_latest_helper_lines": "182-212"
+    },
+    "lima_module": {
+      "path": "src/clauded/lima.py",
+      "shell_method_dispatcher_target_lines": "202-248",
+      "claude_cmd_hardcode_line": 214,
+      "claude_dangerous_consumer_line": 215,
+      "use_builtin_ripgrep_line": 218,
+      "claude_codex_mount_block_lines": "380-418"
+    },
+    "codex_role_files": {
+      "ubuntu": "src/clauded/roles/codex-ubuntu/tasks/main.yml",
+      "alpine": "src/clauded/roles/codex-alpine/tasks/main.yml",
+      "note": "character-identical between distros for npm-based harnesses"
+    }
+  },
+  "patterns_to_reuse": [
+    "function-boundary-patch: patch _get_latest_*_version helpers at clauded.cli boundary, not subprocess level",
+    "discriminating-lambda-mock: side_effect=lambda vm, cmd: 'X' if 'tool' in cmd else 'Y' for _get_vm_tool_version",
+    "recording-select-side-effect: capture _menu_select calls to assert default index and offered items",
+    "paired-include-exclude-methods: test_includes_X / test_excludes_X method pairs in test_provisioner",
+    "isolated-filesystem-yaml: runner.isolated_filesystem() + inline .clauded.yaml writes for CLI tests",
+    "conditional-versions-block: emit `versions:` only when at least one pin is non-None (config.py:546)",
+    "non-configurable-default-injection: prepend always-present frameworks before user multi-select (wizard.py:209)",
+    "unconditional-host-mount: ~/.codex mounted regardless of frameworks (lima.py:407); follow same pattern for ~/.config/opencode and ~/.local/share/opencode"
+  ],
+  "patterns_to_diverge_from": [
+    {
+      "pattern": "npm-registry-via-VM",
+      "reason": "opencode is a static binary installed via official script (curl|bash). Latest version comes from GitHub releases API, NOT npm registry. New helper _get_latest_opencode_version() must hit https://api.github.com/repos/anomalyco/opencode/releases/latest and parse tag_name."
+    },
+    {
+      "pattern": "non-configurable-default-framework",
+      "reason": "claude-code and codex are always installed; opencode is opt-in (ADR-004). Wizard offers it in the multi-select alongside playwright; provisioner only adds the role when 'opencode' in config.frameworks."
+    },
+    {
+      "pattern": "always-on auto-accept flag",
+      "reason": "opencode TUI does not accept --dangerously-skip-permissions; auto-accept is config-file-based on opencode's side. Dispatcher must NOT append any flag for the opencode harness regardless of claude_dangerously_skip_permissions."
+    }
+  ],
+  "fragile_seams_requiring_coordinated_updates": [
+    {
+      "seam": "framework_options_list",
+      "locations": [
+        "src/clauded/wizard.py:196",
+        "src/clauded/detect/wizard_integration.py:186",
+        "src/clauded/detect/wizard_integration.py:396",
+        "src/clauded/detect/wizard_integration.py:752"
+      ],
+      "risk": "opencode must be added to all 4 lists or wizard behavior diverges between create/edit/detect flows"
+    },
+    {
+      "seam": "version_check_loop",
+      "locations": [
+        "src/clauded/cli.py:_resolve_framework_versions",
+        "src/clauded/cli.py:_check_library_updates"
+      ],
+      "risk": "if only one of these is extended for opencode, update prompts become inconsistent"
+    },
+    {
+      "seam": "wizard_answers_dict_shape",
+      "locations": ["wizard answers dict", "Config.from_wizard"],
+      "risk": "untyped dict[str, str | list[str] | bool]; harness key must be added in both producer and consumer"
+    },
+    {
+      "seam": "USE_BUILTIN_RIPGREP_env",
+      "location": "src/clauded/lima.py:218",
+      "risk": "Claude-code-specific workaround; dispatcher must scope it to claude-code branch only and drop entirely after Alpine removal (boy-scout per spec)"
+    }
+  ],
+  "test_infrastructure": {
+    "framework": "pytest >= 8.3",
+    "coverage_threshold": 80,
+    "coverage_enforcement": "[tool.coverage.report] fail_under = 80 in pyproject.toml",
+    "shared_fixtures": false,
+    "conftest_present": false,
+    "click_runner_pattern": "isolated_filesystem + inline YAML fixture",
+    "wizard_mock_strategy": "patch clauded.wizard._menu_select / _menu_multi_select at function boundary",
+    "ansible_execution_in_tests": false,
+    "playwright_e2e": false,
+    "limactl_in_tests": false
+  },
+  "build_commands": {
+    "lint": "uv run ruff check src/ tests/",
+    "format_check": "uv run ruff format --check src/ tests/",
+    "typecheck": "uv run mypy src/",
+    "test": "uv run pytest tests/ -v",
+    "coverage": "uv run pytest --cov=clauded --cov-report=term-missing tests/",
+    "check_all": "make check"
+  },
+  "project_conventions": [
+    "ALWAYS use uv (never pip)",
+    "ALL feature work + bug fixes MUST add CHANGELOG.md entry under [Unreleased]",
+    "NEVER tailor production code to tests",
+    "NEVER use Ansible file: state: absent on Lima mount paths (use command: rmdir)",
+    "Type hints required everywhere; mypy on src/ only (tests/ untyped)",
+    "Boy-scout: small adjacent fixes allowed; do not expand scope into refactors"
+  ]
+}

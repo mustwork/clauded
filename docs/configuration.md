@@ -511,7 +511,7 @@ environment:
 **Type**: List of strings
 **Required**: No
 **Default**: `[]`
-**Allowed Values**: `claude-code`, `playwright`
+**Allowed Values**: `claude-code`, `codex`, `opencode`, `playwright`
 
 Testing and development frameworks to install in the VM.
 
@@ -519,6 +519,8 @@ Testing and development frameworks to install in the VM.
 environment:
   frameworks:
     - claude-code
+    - codex
+    - opencode
     - playwright
 ```
 
@@ -530,8 +532,24 @@ environment:
 - **Command**: `claude`
 - **What it does**: AI-assisted development CLI
 - **Use cases**: Code generation, refactoring, debugging with Claude AI
-- **Alpine deps**: `libgcc`, `libstdc++`, `ripgrep`, `USE_BUILTIN_RIPGREP=0`
+- **Alpine deps**: `libgcc`, `libstdc++`, `ripgrep`
 - **Auto-accept**: See [Claude Code Permissions](#claude-code-permissions) below
+
+#### `codex`
+- **Installation**: `npm install -g @openai/codex`
+- **Command**: `codex`
+- **What it does**: OpenAI's AI-assisted development CLI
+- **Use cases**: Code generation, refactoring, debugging with OpenAI models
+- **Selectable as harness**: pick `codex` as your active harness to launch the codex TUI on `clauded`
+
+#### `opencode`
+- **Installation**: Official install script (`https://opencode.ai/install`), Ubuntu only (Alpine is rejected at config-load time)
+- **Binary**: `~/.local/bin/opencode`
+- **Command**: `opencode`
+- **What it does**: Provider-agnostic AI coding harness with a TUI
+- **Use cases**: Bring-your-own-LLM workflows, MCP integrations, terminal-native AI sessions
+- **Selectable as harness**: pick `opencode` as your active harness to launch the opencode TUI on `clauded`
+- **Mounted state**: `~/.config/opencode` and `~/.local/share/opencode` are mounted writably from host into the VM so auth tokens, sessions, MCP OAuth, and TUI prefs persist across `clauded --destroy && clauded` cycles
 
 #### `playwright`
 - **Package**: `playwright` (npm)
@@ -644,6 +662,69 @@ If you experience persistent permission prompts despite this setting, try adding
 3. **Idempotent**: Re-provisioning correctly enables or disables the setting based on current configuration.
 
 **Wizard Option**: The wizard prompts "Auto-accept Claude Code permission prompts in VM?" with default `Yes`. This can also be changed via `clauded --edit`.
+
+---
+
+## Choosing a harness
+
+Each project picks one **harness** — the AI coding TUI that `clauded` launches when you enter the VM shell. The choice is persisted in `.clauded.yaml` as a top-level `harness:` field and is per project (not per machine, not per user).
+
+**Allowed values**: `claude-code` (default), `codex`, `opencode`.
+
+```yaml
+harness: opencode
+environment:
+  frameworks:
+    - claude-code
+    - codex
+    - opencode
+versions:
+  opencode: "1.14.33"   # optional pin; omit for "latest"
+```
+
+### How the harness drives the entrypoint
+
+| Harness | Command launched | Permission flag | Notes |
+|---|---|---|---|
+| `claude-code` | `claude` | `--dangerously-skip-permissions` (when `claude.dangerously_skip_permissions: true`) | Default for new and pre-epic configs. |
+| `codex` | `codex` | `--dangerously-bypass-approvals-and-sandbox` (when `claude.dangerously_skip_permissions: true`) | Reuses the same `claude.dangerously_skip_permissions` setting. |
+| `opencode` | `opencode` | none | The opencode TUI does not accept `--dangerously-*` flags; the permission setting is ignored for this harness regardless of value. |
+
+No env-var prefixes are injected ahead of the launched binary; the previous Alpine/musl ripgrep workaround was removed when the launch dispatcher was introduced (see CHANGELOG.md).
+
+### Selecting a harness
+
+Three ways:
+
+1. **Wizard** — `clauded` (new project) or `clauded --edit` (existing project) shows a "Select harness" step after the frameworks multi-select. Picking `opencode` auto-adds `opencode` to the frameworks list with an info message (so the harness ⇒ framework rule is never violated through the wizard).
+2. **Per-invocation override** — `clauded --harness <claude-code|codex|opencode>` overrides the persisted value for one run. The `.clauded.yaml` is **not** mutated. Use this to try a different harness without committing.
+3. **Hand-edit** `.clauded.yaml` — set `harness:` directly. Validation runs on load: an unknown value or `harness: opencode` without `opencode` in `frameworks` aborts the run.
+
+### `--harness` interaction with mode flags
+
+| Combination | Behaviour |
+|---|---|
+| `clauded --harness <name>` | Override applies; persisted config unchanged. |
+| `clauded --harness <name> --reprovision` | Override silently ignored (reprovision is harness-agnostic). |
+| `clauded --harness <name> --reboot` | Override silently ignored. |
+| `clauded --harness <name> --stop` / `--force-stop` | Override silently ignored (no shell launched). |
+| `clauded --harness <name> --destroy` | Override silently ignored. |
+| `clauded --harness <name> --detect` | Override silently ignored (detection-only path). |
+| `clauded --harness <name> --edit` | One-line warning printed; wizard runs normally. Persist a harness change through the wizard, not through `--harness`. |
+| `clauded --harness gemini` | Exit 2 with Click's "Invalid value" error (only the three allowed values are accepted). |
+
+### Troubleshooting: harness ⇒ framework error
+
+If `clauded --harness opencode` (or loading a config with `harness: opencode`) reports:
+
+```
+harness 'opencode' requires 'opencode' in frameworks.
+Run `clauded --edit` to add opencode to the frameworks list, or pick a different harness.
+```
+
+run `clauded --edit` and either tick `opencode` in the frameworks multi-select (the wizard will add it for you when you pick `opencode` as the harness) or pick a different harness.
+
+`claude-code` and `codex` never trip this rule — both frameworks are non-configurable defaults present in every project.
 
 ---
 

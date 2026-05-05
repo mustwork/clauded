@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,62 @@ import click
 import yaml
 
 from .config import Config
+
+
+@dataclass(frozen=True)
+class LaunchSpec:
+    """Per-harness command shape produced by the launch dispatcher.
+
+    argv tokens are joined with spaces and passed to `bash -lic` as a single
+    shell command. argv[0] is always the binary name.
+
+    env carries any extra env-var assignments to prepend before argv. Currently
+    always empty (the only historical user, USE_BUILTIN_RIPGREP=0, was removed
+    as part of the launch-dispatcher refactor); the field is retained for
+    forward compatibility.
+    """
+
+    argv: list[str]
+    env: dict[str, str] = field(default_factory=dict)
+
+
+def _build_launch_spec(harness: str, config: Config) -> LaunchSpec:
+    """Build the LaunchSpec for a given harness.
+
+    Pure function: branches on harness, applies the per-harness flag rules.
+
+    - claude-code: appends --dangerously-skip-permissions iff
+      config.claude_dangerously_skip_permissions.
+    - codex: appends --dangerously-bypass-approvals-and-sandbox iff
+      config.claude_dangerously_skip_permissions.
+    - opencode: NEVER appends --dangerously-* flags regardless of
+      claude_dangerously_skip_permissions (FR7, AC-018).
+
+    Args:
+        harness: One of HARNESS_NAMES (claude-code | codex | opencode).
+        config: Active Config; consulted for claude_dangerously_skip_permissions.
+
+    Returns:
+        Frozen LaunchSpec with argv and (currently empty) env.
+
+    Raises:
+        ValueError: For an unrecognised harness value (defence-in-depth;
+            Config.load already validates against HARNESS_NAMES).
+    """
+    skip = config.claude_dangerously_skip_permissions
+    if harness == "claude-code":
+        argv = ["claude"]
+        if skip:
+            argv.append("--dangerously-skip-permissions")
+        return LaunchSpec(argv=argv)
+    if harness == "codex":
+        argv = ["codex"]
+        if skip:
+            argv.append("--dangerously-bypass-approvals-and-sandbox")
+        return LaunchSpec(argv=argv)
+    if harness == "opencode":
+        return LaunchSpec(argv=["opencode"])
+    raise ValueError(f"Unknown harness '{harness}'")
 
 
 def destroy_vm_by_name(vm_name: str) -> None:
@@ -52,9 +109,12 @@ def destroy_vm_by_name(vm_name: str) -> None:
 class LimaVM:
     """Manages a Lima VM instance."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, *, harness_override: str | None = None) -> None:
         self.config = config
         self.name = config.vm_name
+        # Per-invocation override applied by the --harness CLI flag. None means
+        # "use config.harness" (the persisted value).
+        self.harness_override = harness_override
 
     def exists(self) -> bool:
         """Check if the VM exists."""
@@ -211,13 +271,12 @@ class LimaVM:
         # Display welcome message with VM metadata
         self._print_welcome()
 
-        claude_cmd = "claude"
-        if self.config.claude_dangerously_skip_permissions:
-            claude_cmd += " --dangerously-skip-permissions"
-
-        # Set USE_BUILTIN_RIPGREP=0 explicitly for Alpine/musl compatibility.
-        # The native binary's bundled ripgrep doesn't work on musl.
-        full_cmd = f"USE_BUILTIN_RIPGREP=0 {claude_cmd}"
+        # Dispatch on the effective harness: per-invocation override if --harness
+        # was passed, else the persisted config.harness.
+        harness = self.harness_override or self.config.harness
+        spec = _build_launch_spec(harness, self.config)
+        env_prefix = " ".join(f"{k}={v}" for k, v in spec.env.items())
+        full_cmd = " ".join(p for p in (env_prefix, *spec.argv) if p)
 
         cmd = [
             "limactl",
@@ -416,6 +475,28 @@ class LimaVM:
                 "writable": True,
             }
         )
+
+        # Mount opencode user state (auth tokens, MCP OAuth, sessions, TUI prefs)
+        # so they persist across VM destroy/recreate cycles. Story 05.
+        if "opencode" in self.config.frameworks:
+            opencode_config_dir = home / ".config" / "opencode"
+            opencode_config_dir.mkdir(parents=True, exist_ok=True)
+            mounts.append(
+                {
+                    "location": str(opencode_config_dir),
+                    "mountPoint": f"{guest_home}/.config/opencode",
+                    "writable": True,
+                }
+            )
+            opencode_share_dir = home / ".local" / "share" / "opencode"
+            opencode_share_dir.mkdir(parents=True, exist_ok=True)
+            mounts.append(
+                {
+                    "location": str(opencode_share_dir),
+                    "mountPoint": f"{guest_home}/.local/share/opencode",
+                    "writable": True,
+                }
+            )
 
         # No provision scripts - all configuration handled by Ansible.
         # Lima user provisions fail on Alpine due to home directory permissions

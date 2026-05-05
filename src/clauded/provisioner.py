@@ -13,7 +13,7 @@ import click
 import yaml
 
 from . import __version__
-from .config import Config
+from .config import Config, ConfigValidationError
 from .downloads import get_downloads
 from .lima import LimaVM
 
@@ -50,6 +50,7 @@ _ROLES_WITH_VARIANTS = frozenset(
         # Framework roles (Story 06)
         "claude_code",
         "codex",
+        "opencode",
         "playwright",
     }
 )
@@ -173,6 +174,16 @@ class Provisioner:
 
     def run(self) -> None:
         """Run the provisioning playbook."""
+        # NFR5: opencode requires Ubuntu (pre-Alpine-removal targeting).
+        # Raised before role lookup so the user sees an actionable distro message
+        # rather than a missing-role error.
+        if self.config.vm_distro == "alpine" and "opencode" in self.config.frameworks:
+            raise ConfigValidationError(
+                "opencode is only supported on Ubuntu. "
+                "Re-run with --distro ubuntu (alpine support for opencode is "
+                "not provided pre-epic-remove-alpine-support)."
+            )
+
         # Get base roles and apply distro suffix
         base_roles = self._get_base_roles()
         roles_with_suffix = self._apply_distro_suffix(base_roles)
@@ -317,6 +328,9 @@ class Provisioner:
             if "node" not in roles:
                 roles.insert(roles.index("common") + 1, "node")
             roles.append("playwright")
+        if "opencode" in self.config.frameworks:
+            # opencode is a static binary; no Node.js dependency.
+            roles.append("opencode")
         if "claude-code" in self.config.frameworks:
             roles.append("claude_code")
 
@@ -373,6 +387,7 @@ class Provisioner:
                     # Framework version pins ("latest" if not pinned)
                     "claude_code_version": self.config.claude_code_version or "latest",
                     "codex_version": self.config.codex_version or "latest",
+                    "opencode_version": self.config.opencode_version or "latest",
                     # Playwright browsers (default all if playwright enabled)
                     "playwright_browsers": self.config.playwright_browsers
                     or (

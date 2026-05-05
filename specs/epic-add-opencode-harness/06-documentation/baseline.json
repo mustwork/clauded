@@ -1,0 +1,40 @@
+{
+  "story_id": "06",
+  "story_name": "documentation",
+  "captured_at": "2026-05-04T22:35:00Z",
+  "captured_by": "architect-2",
+  "command": "make check + pytest --cov",
+  "result": "pass",
+  "make_check": {
+    "ruff": "All checks passed!",
+    "mypy": "Success: no issues found in 22 source files",
+    "pytest": {
+      "tests_collected": 1035,
+      "tests_passed": 1035,
+      "tests_failed": 0,
+      "exit_code": 0
+    }
+  },
+  "coverage_at_story_06_boundary": {
+    "total_percent": 86.00,
+    "config_py": 98,
+    "lima_py": 94,
+    "cli_py": 86,
+    "provisioner_py": 90,
+    "wizard_py": 66,
+    "wizard_integration_py": 76,
+    "gate": "fail_under = 80 satisfied (AC-024 gate)"
+  },
+  "doc_files_to_modify": [
+    "README.md (frameworks table row + 'Choosing a harness' subsection)",
+    "specs/spec.md (opencode runtime, harness config field, --harness flag, harness ⇒ framework rule)",
+    "docs/configuration.md (Choosing a harness section + dispatcher matrix + .clauded.yaml example + harness ⇒ framework troubleshooting)",
+    "CHANGELOG.md (consolidated [Unreleased] section; verify all 6 categories used correctly)"
+  ],
+  "preconditions_observed": {
+    "stories_01_to_05_verified": "epic-state.json shows completed_stories: [02, 01, 03, 04, 05] with last-mile review skips covered by standing user authorization for environments lacking node binary.",
+    "no_doc_drift_in_working_tree": "git status shows README.md, specs/spec.md, docs/configuration.md unchanged in the unstaged diff. CHANGELOG.md has [Unreleased] entries from Stories 01-05; Story 06 will consolidate but not re-write.",
+    "stale_strings_to_purge": "docs/configuration.md line 533 still references 'USE_BUILTIN_RIPGREP=0' (removed in Story 04); the frameworks section lists only claude-code and playwright (codex and opencode missing); spec.md line 65 hardcodes 'Alpine Linux 3.21' as base OS (Ubuntu support has been added for some time but is also fine to leave as-is for this epic; Alpine-removal is a separate epic). Audit but do NOT scope-creep into the latter."
+  },
+  "notes": "Zero tolerance for failures. Story 06 is documentation-only — no code changes. AC-024 (make check + ≥80% coverage) and AC-025 (docs grep audit) are the two ACs in scope. Implementation will add a small grep-based verification test (per the integration-architect TDD discipline noted in the kickoff) to assert the required strings appear in each doc file."
+}

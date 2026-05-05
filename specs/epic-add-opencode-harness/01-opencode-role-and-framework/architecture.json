@@ -1,0 +1,58 @@
+{
+  "story_id": "01",
+  "story_name": "opencode-role-and-framework",
+  "owning_module": "provisioner.py + roles/opencode-ubuntu/ + wizard.py (frameworks-only) + detect/wizard_integration.py",
+  "interfaces": [
+    {
+      "name": "Provisioner._get_base_roles",
+      "signature": "def _get_base_roles(self) -> list[str]",
+      "behavior_change": "Append 'opencode' to the role list when 'opencode' in self.config.frameworks. Mirrors the playwright branch but does NOT auto-add 'node' (opencode is a static binary)."
+    },
+    {
+      "name": "Provisioner.run (NFR5 distro guard)",
+      "signature": "def run(self) -> None",
+      "behavior_change": "Before generating the playbook, raise ConfigValidationError when self.config.vm_distro == 'alpine' and 'opencode' in self.config.frameworks. Message must reference '--distro ubuntu' and explain that opencode requires Ubuntu (pre-Alpine-removal targeting). Guard runs BEFORE _get_base_roles so the error fires before any role lookup."
+    },
+    {
+      "name": "_ROLES_WITH_VARIANTS (module-level frozenset)",
+      "signature": "_ROLES_WITH_VARIANTS: frozenset[str]",
+      "behavior_change": "Add 'opencode' so _apply_distro_suffix maps 'opencode' -> 'opencode-ubuntu' for ubuntu (and 'opencode-alpine' for alpine — but alpine is blocked by the NFR5 guard so this is never reached)."
+    },
+    {
+      "name": "Provisioner._generate_playbook (deferred line)",
+      "signature": "def _generate_playbook(self, roles: list[str]) -> list[dict[str, Any]]",
+      "behavior_change": "DEFERRED to Story 05 per team-lead instructions: do NOT add an 'opencode_version' Ansible var in this story. The role accepts the literal sentinel 'latest' from its own default in this story (see role contract below)."
+    },
+    {
+      "name": "roles/opencode-ubuntu/tasks/main.yml (new file)",
+      "signature": "Ansible role tasks",
+      "behavior_change": "1. Set fact opencode_target_version, defaulting to playbook var 'opencode_version' if defined, else 'latest'. 2. When 'latest', resolve to tag_name from https://api.github.com/repos/anomalyco/opencode/releases/latest via Ansible uri module (or curl via command); strip leading 'v'. 3. Run the official install script (curl -fsSL https://opencode.ai/install | bash) as the unprivileged VM user with environment OPENCODE_INSTALL_DIR=$HOME/.local/bin and OPENCODE_VERSION (or pass --version) and the --no-modify-path flag. 4. Verify with 'opencode --version'. 5. changed_when set so reruns with same version are no-op (idempotent). NO opencode auth login. NO config file pre-population. NO Node.js dependency."
+    },
+    {
+      "name": "wizard.run() framework multi-select",
+      "signature": "wizard.py around line 195",
+      "behavior_change": "Add ('opencode', 'opencode', False) tuple alongside the existing ('playwright', 'playwright', False). Frameworks-only edit; no harness step in this story (Story 03)."
+    },
+    {
+      "name": "detect/wizard_integration.py framework-options lists",
+      "signature": "wizard_integration.py at lines ~172, ~382, ~738 (the three _menu_multi_select 'Select frameworks:' calls)",
+      "behavior_change": "Each of the three multi-select option lists gains the 'opencode' entry. Pre-checked state mirrors playwright pattern: False for new flows; 'opencode' in detected_tools / 'opencode' in config.frameworks / 'opencode' in merged_frameworks for the three respective contexts."
+    }
+  ],
+  "data_flow": "User picks 'opencode' in wizard frameworks multi-select OR sets frameworks: [opencode, ...] in .clauded.yaml -> Config.frameworks contains 'opencode' -> Provisioner.run() checks NFR5 guard (vm_distro != 'alpine') -> _get_base_roles() appends 'opencode' -> _apply_distro_suffix maps to 'opencode-ubuntu' -> ansible-playbook runs roles/opencode-ubuntu/tasks/main.yml -> install script downloads opencode binary into $HOME/.local/bin -> 'opencode --version' verifies on PATH. Launch entrypoint unchanged in this story (still claude).",
+  "seam_contracts_consumed": [],
+  "seam_contracts_produced": [],
+  "files_to_modify": [
+    "src/clauded/provisioner.py (add 'opencode' to _ROLES_WITH_VARIANTS, append 'opencode' to roles in _get_base_roles when in frameworks, add NFR5 alpine guard in run() — before role list construction)",
+    "src/clauded/wizard.py (add 'opencode' tuple to the framework multi-select around line 195)",
+    "src/clauded/detect/wizard_integration.py (add 'opencode' tuple to all three _menu_multi_select 'Select frameworks:' option lists at ~lines 172, 382, 738)",
+    "tests/test_provisioner.py (paired-include-exclude pattern, alpine guard test, parametrize 16 subsets for AC-021)",
+    "tests/test_wizard.py (recording-select-side-effect: assert 'opencode' present in offered framework options)",
+    "tests/test_detect_integration.py (assert 'opencode' present in framework options for all three integration flows)",
+    "CHANGELOG.md ([Unreleased] Added entry: opencode framework option for Ubuntu VMs)"
+  ],
+  "files_to_create": [
+    "src/clauded/roles/opencode-ubuntu/tasks/main.yml (new Ansible role tasks)"
+  ],
+  "implementation_strategy": "TDD per-component:\n\n1. Tests-first for provisioner (paired include/exclude, no-node assertion, alpine guard, 16-subset orthogonality parametrization, _ROLES_WITH_VARIANTS mapping). RED.\n2. Update src/clauded/provisioner.py: add 'opencode' to _ROLES_WITH_VARIANTS, append 'opencode' branch to _get_base_roles (no node auto-add), add NFR5 alpine guard in run() that raises ConfigValidationError with --distro ubuntu in the message. GREEN.\n3. Tests-first for wizard frameworks-list (recording-select-side-effect: assert offered options include opencode). RED.\n4. Update src/clauded/wizard.py: add 'opencode' option to framework multi-select. GREEN.\n5. Tests-first for wizard_integration framework lists (3 separate test cases). RED.\n6. Update src/clauded/detect/wizard_integration.py: add 'opencode' option in all three flows. GREEN.\n7. Create src/clauded/roles/opencode-ubuntu/tasks/main.yml mirroring codex-ubuntu structure but using the opencode install script + GitHub API tag resolution + $HOME/.local/bin. The role accepts the literal 'latest' sentinel via opencode_version playbook var (default 'latest') — Story 05 will wire the var; Story 01's role default keeps the playbook independent.\n8. Add CHANGELOG.md [Unreleased] Added entry.\n9. Run `make check`; verify all 935 baseline tests still pass plus new ones; coverage stays >= 80%.\n\nIn-flight QA per integration-architect protocol: ollama review then codex review on the implementation diff before handoff to verifier."
+}
