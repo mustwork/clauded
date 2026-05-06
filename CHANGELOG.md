@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **opencode role install** — the role was passing `OPENCODE_INSTALL_DIR` and `OPENCODE_VERSION` env vars to the upstream installer, but the script honors neither (`INSTALL_DIR` is hardcoded to `~/.opencode/bin`, the version env var is `VERSION`). As a result the binary never landed at `~/.local/bin/opencode` and version pins were ignored, causing provisioning to fail at the `--version` verification step. The role now exports `VERSION` (so pins take effect), installs `tar` (required by the script for Linux extraction), and symlinks `~/.opencode/bin/opencode` into `~/.local/bin/opencode` where the VM entrypoint expects it.
+
 ## [0.3.0] - 2026-05-05
 
 ### Added

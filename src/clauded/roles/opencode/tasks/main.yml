@@ -11,6 +11,7 @@
   apt:
     name:
       - curl
+      - tar
     state: present
     update_cache: yes
 
@@ -37,7 +38,7 @@
 - name: Resolve opencode target version
   become: no
   shell: |
-    set -e
+    set -eo pipefail
     if [ "{{ opencode_version | default('latest') }}" = "latest" ]; then
       curl -fsSL https://api.github.com/repos/anomalyco/opencode/releases/latest \
         | grep -oE '"tag_name"\s*:\s*"v?[0-9]+\.[0-9]+\.[0-9]+"' \
@@ -49,11 +50,22 @@
   register: resolved_opencode_version
   changed_when: false
 
+- name: Fail fast if version resolution returned empty
+  fail:
+    msg: >-
+      opencode version resolution produced no output. Most likely the GitHub
+      releases API was rate-limited or returned an unexpected payload. Pin
+      `versions.opencode` in .clauded.yaml or retry.
+  when: resolved_opencode_version.stdout | length == 0
+
+# Source of truth for "is opencode installed" is the canonical install path
+# (~/.opencode/bin/opencode) — not the ~/.local/bin symlink, which can be
+# stale or dangling from a prior failed run.
 - name: Detect currently installed opencode version (if any)
   become: no
   shell: |
-    if [ -x "{{ opencode_remote_home.stdout }}/.local/bin/opencode" ]; then
-      "{{ opencode_remote_home.stdout }}/.local/bin/opencode" --version 2>/dev/null \
+    if [ -x "{{ opencode_remote_home.stdout }}/.opencode/bin/opencode" ]; then
+      "{{ opencode_remote_home.stdout }}/.opencode/bin/opencode" --version 2>/dev/null \
         | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' \
         | head -n1
     fi
@@ -61,22 +73,42 @@
   changed_when: false
   failed_when: false
 
+# The upstream installer hardcodes INSTALL_DIR=$HOME/.opencode/bin and reads the
+# pin from the VERSION env var (not OPENCODE_VERSION). We let it install where
+# it wants, then symlink into ~/.local/bin where the rest of the role and the
+# VM entrypoint expect to find it.
 - name: Install opencode (resolved version)
   become: no
   shell: |
-    set -e
-    export OPENCODE_INSTALL_DIR="$HOME/.local/bin"
-    export OPENCODE_VERSION="{{ resolved_opencode_version.stdout }}"
+    set -eo pipefail
+    export VERSION="{{ resolved_opencode_version.stdout }}"
     curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
   when: installed_opencode_version.stdout != resolved_opencode_version.stdout
   register: opencode_install
   changed_when: opencode_install.rc == 0
 
+- name: Verify upstream installer produced the binary
+  become: no
+  stat:
+    path: "{{ opencode_remote_home.stdout }}/.opencode/bin/opencode"
+  register: opencode_upstream_binary
+  failed_when: not opencode_upstream_binary.stat.exists
+
+- name: Symlink opencode into ~/.local/bin
+  become: no
+  file:
+    src: "{{ opencode_remote_home.stdout }}/.opencode/bin/opencode"
+    dest: "{{ opencode_remote_home.stdout }}/.local/bin/opencode"
+    state: link
+    force: yes
+
 - name: Verify opencode binary exists
   become: no
   stat:
     path: "{{ opencode_remote_home.stdout }}/.local/bin/opencode"
+    follow: yes
   register: opencode_binary
+  failed_when: not opencode_binary.stat.exists
 
 - name: Verify opencode --version succeeds
   become: no
