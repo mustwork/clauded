@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-06
+
 ### Fixed
 
 - **opencode role `set -o pipefail` under dash** — the "Resolve opencode target version" and "Install opencode (resolved version)" tasks used `set -eo pipefail` but Ansible's `shell` module defaults to `/bin/sh` (dash on Ubuntu), which does not support `pipefail` and aborted the play with `Illegal option -o pipefail`. Both tasks now set `args.executable: /bin/bash`.
