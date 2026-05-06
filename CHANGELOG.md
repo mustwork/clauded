@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **opencode role `set -o pipefail` under dash** — the "Resolve opencode target version" and "Install opencode (resolved version)" tasks used `set -eo pipefail` but Ansible's `shell` module defaults to `/bin/sh` (dash on Ubuntu), which does not support `pipefail` and aborted the play with `Illegal option -o pipefail`. Both tasks now set `args.executable: /bin/bash`.
 - **opencode role install** — the role was passing `OPENCODE_INSTALL_DIR` and `OPENCODE_VERSION` env vars to the upstream installer, but the script honors neither (`INSTALL_DIR` is hardcoded to `~/.opencode/bin`, the version env var is `VERSION`). As a result the binary never landed at `~/.local/bin/opencode` and version pins were ignored, causing provisioning to fail at the `--version` verification step. The role now exports `VERSION` (so pins take effect), installs `tar` (required by the script for Linux extraction), and symlinks `~/.opencode/bin/opencode` into `~/.local/bin/opencode` where the VM entrypoint expects it.
 - **`make install` now picks up source-tree edits** — `uv tool install --force .` reuses the cached wheel keyed on path:version, so edits without a version bump silently stayed invisible to the installed tool (most painful when iterating on bundled Ansible role YAMLs). The `install` target now runs `uv cache clean clauded` first and uses `--reinstall`, forcing a rebuild from the working tree.
 

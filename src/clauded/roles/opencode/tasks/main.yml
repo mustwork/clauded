@@ -47,6 +47,8 @@
     else
       echo "{{ opencode_version }}"
     fi
+  args:
+    executable: /bin/bash
   register: resolved_opencode_version
   changed_when: false
 
@@ -83,6 +85,8 @@
     set -eo pipefail
     export VERSION="{{ resolved_opencode_version.stdout }}"
     curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+  args:
+    executable: /bin/bash
   when: installed_opencode_version.stdout != resolved_opencode_version.stdout
   register: opencode_install
   changed_when: opencode_install.rc == 0
