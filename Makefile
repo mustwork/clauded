@@ -52,9 +52,12 @@ help:
 # Installation
 # ----------------------------------------------------------------------------
 
+# `uv tool install --force .` reinstalls the tool but reuses the cached wheel
+# keyed on path:version — so source-tree edits without a version bump silently
+# stay invisible. Clearing the cache first forces a rebuild from the working tree.
 install:
-	uv tool uninstall clauded 2>/dev/null || true
-	uv tool install --force .
+	uv cache clean clauded 2>/dev/null || true
+	uv tool install --force --reinstall .
 
 # ----------------------------------------------------------------------------
 # Development
