@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-05-07
+
 ### Added
 
 - **claude-code-router (CCR) proxy (`vm.claude_code_router`)** — opt-in per-session [claude-code-router](https://github.com/musistudio/claude-code-router) running on `127.0.0.1:3456` inside the VM. When enabled, every `claude-code` session routes through the proxy and gains access to auto-discovered Ollama models on the host, an unconditional Anthropic passthrough, and optionally configured curated OpenAI-compatible providers (MiniMax, Groq, Together AI). Per-model overrides for `haiku`/`sonnet`/`opus` (with `<provider>/<model>` syntax — e.g. `haiku: ollama/qwen3:latest`, `opus: minimax/MiniMax-M2.7`) are supported via a small generated `CUSTOM_ROUTER_PATH` JS file at `/etc/clauded/ccr-router.js`. API keys never pass through provisioning — they live in the proxy's process environment only and are resolved via CCR's `${VAR}` interpolation. Pinned to CCR `1.0.73` (last 1.x release; v2.0.0 has active Ollama-routing regressions). See [docs/claude-code-router.md](docs/claude-code-router.md).
