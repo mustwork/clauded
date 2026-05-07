@@ -263,6 +263,12 @@ class Provisioner:
         if "claude-code" in self.config.frameworks:
             roles.append("claude_code")
 
+        if self.config.ccr_enabled:
+            # CCR requires Node.js for the npm install.
+            if "node" not in roles:
+                roles.insert(roles.index("common") + 1, "node")
+            roles.append("claude_code_router")
+
         return roles
 
     def _generate_playbook(self, roles: list[str]) -> list[dict[str, Any]]:
@@ -323,6 +329,10 @@ class Provisioner:
                         if "playwright" in self.config.frameworks
                         else []
                     ),
+                    # claude-code-router vars (consumed by claude_code_router role)
+                    "ccr_enabled": self.config.ccr_enabled,
+                    "ccr_providers": list(self.config.ccr_providers),
+                    "ccr_overrides": self.config.ccr_overrides,
                 },
                 "roles": roles,
             }

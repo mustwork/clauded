@@ -56,7 +56,7 @@ help:
 # keyed on path:version — so source-tree edits without a version bump silently
 # stay invisible. Clearing the cache first forces a rebuild from the working tree.
 install:
-	uv cache clean clauded 2>/dev/null || true
+	uv cache clean --force clauded || true
 	uv tool install --force --reinstall .
 
 # ----------------------------------------------------------------------------

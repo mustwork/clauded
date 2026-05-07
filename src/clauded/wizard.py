@@ -12,7 +12,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - import-time dependency 
         "Install it with your package manager or pip."
     ) from exc
 
-from .config import HARNESS_NAMES, Config
+from .config import CCR_PROVIDER_WHITELIST, HARNESS_NAMES, Config
 from .constants import DEFAULT_LANGUAGES, LANGUAGE_CONFIG
 
 _HARNESS_MENU_ITEMS: list[tuple[str, str]] = [
@@ -205,6 +205,25 @@ def run(project_path: Path) -> Config:
         default_index=0,
     )
     _apply_harness_to_answers(answers, chosen_harness)
+
+    # claude-code-router proxy (only offered when claude-code is the harness).
+    frameworks_list: list[str] = answers.get("frameworks", [])  # type: ignore[assignment]
+    if "claude-code" in frameworks_list and answers.get("harness") == "claude-code":
+        answers["ccr_enabled"] = click.confirm(
+            "Enable claude-code-router proxy for the VM?",
+            default=False,
+        )
+        if answers["ccr_enabled"]:
+            provider_items = sorted(CCR_PROVIDER_WHITELIST)
+            answers["ccr_providers"] = _menu_multi_select(
+                "Select claude-code-router providers:",
+                [(p, p, False) for p in provider_items],
+            )
+        else:
+            answers["ccr_providers"] = []
+    else:
+        answers["ccr_enabled"] = False
+        answers["ccr_providers"] = []
 
     # Playwright browser selection (if playwright was selected)
     if "playwright" in framework_selections:
@@ -404,6 +423,25 @@ def run_edit(config: Config, project_path: Path) -> Config:
         default_index=harness_default,
     )
     _apply_harness_to_answers(answers, chosen_harness)
+
+    # claude-code-router proxy (only offered when claude-code is the harness).
+    edit_frameworks: list[str] = answers.get("frameworks", [])  # type: ignore[assignment]
+    if "claude-code" in edit_frameworks and answers.get("harness") == "claude-code":
+        answers["ccr_enabled"] = click.confirm(
+            "Enable claude-code-router proxy for the VM?",
+            default=config.ccr_enabled,
+        )
+        if answers["ccr_enabled"]:
+            provider_items = sorted(CCR_PROVIDER_WHITELIST)
+            answers["ccr_providers"] = _menu_multi_select(
+                "Select claude-code-router providers:",
+                [(p, p, p in config.ccr_providers) for p in provider_items],
+            )
+        else:
+            answers["ccr_providers"] = []
+    else:
+        answers["ccr_enabled"] = False
+        answers["ccr_providers"] = []
 
     # Playwright browser selection (if playwright was selected)
     if "playwright" in framework_selections:

@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# clauded-ccr-with <command> [args...]
+# Ensures claude-code-router is running on 127.0.0.1:3456 then execs the
+# given command with ANTHROPIC_BASE_URL pointing at the proxy.
+# A background watcher manages CCR lifetime indefinitely: first start
+# (post-login on a new VM), token refresh (OAuth expiry), and crash recovery.
+set -euo pipefail
+
+CCR_BIN="ccr"
+CCR_USER_DIR="$HOME/.claude-code-router"
+CCR_LOG="/tmp/clauded-ccr.log"
+CCR_PORT=3456
+CCR_PIDFILE="/tmp/clauded-ccr.pid"
+CCR_TOKENFILE="/tmp/clauded-ccr.token"
+CCR_LOCKFILE="/tmp/clauded-ccr.lock"
+
+# Read the Claude Code subscription token from the local credentials file.
+# Returns empty string when credentials are not yet present (pre-login).
+_claude_auth_token() {
+    [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && printf '%s' "$CLAUDE_CODE_OAUTH_TOKEN" && return
+    local cfg_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+    local creds="$cfg_dir/.credentials.json"
+    [ -f "$creds" ] || return 0
+    python3 -c "
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+    tok = d.get('claudeAiOauth', {}).get('accessToken')
+    if isinstance(tok, str) and tok:
+        print(tok)
+except Exception:
+    pass
+" "$creds" 2>/dev/null
+}
+
+_probe() {
+    # CCR exposes /health for liveness checks (no auth required even when APIKEY set).
+    curl -fsS --max-time 1 "http://127.0.0.1:${CCR_PORT}/health" >/dev/null 2>&1
+}
+
+_ccr_running() {
+    local pid
+    pid=$(cat "$CCR_PIDFILE" 2>/dev/null || true)
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+_ccr_stop() {
+    local pid
+    pid=$(cat "$CCR_PIDFILE" 2>/dev/null || true)
+    [ -n "$pid" ] && kill "$pid" 2>/dev/null || true
+    rm -f "$CCR_PIDFILE" "$CCR_TOKENFILE"
+    for _i in $(seq 1 10); do _probe || break; sleep 0.5; done
+}
+
+_ccr_start() {
+    # CCR resolves ${ANTHROPIC_API_KEY} (and other ${VAR}) from env at config-load time.
+    # Pass the OAuth token so the anthropic provider passthrough can authenticate.
+    ANTHROPIC_API_KEY="$1" \
+    "$CCR_BIN" start \
+        >>"$CCR_LOG" 2>&1 &
+    echo $! > "$CCR_PIDFILE"
+    printf '%s' "$1" > "$CCR_TOKENFILE"
+}
+
+# Background watcher: runs indefinitely, manages CCR lifetime.
+# Fires when: credentials appear after login, token is refreshed, or CCR crashes.
+# Uses flock to prevent races when multiple wrapper invocations run concurrently.
+{
+    while true; do
+        _tok=$(_claude_auth_token)
+        _saved_tok=$(cat "$CCR_TOKENFILE" 2>/dev/null || true)
+
+        if [ -n "$_tok" ] && { ! _ccr_running || ! _probe || [ "$_tok" != "$_saved_tok" ]; }; then
+            (
+                flock -n 9 || exit 0
+                _ccr_stop
+                _ccr_start "$_tok"
+            ) 9>"$CCR_LOCKFILE"
+        fi
+
+        sleep 2
+    done
+} &
+
+# Fast path: if credentials are already available, wait for CCR to become
+# healthy before exec'ing the command (watcher will have started it above).
+# In the pre-login case exec proceeds immediately; CCR starts after login.
+if ! _probe && [ -n "$(_claude_auth_token)" ]; then
+    for _i in $(seq 1 120); do
+        sleep 0.5
+        _probe && break
+        if [ "$_i" -eq 120 ]; then
+            echo "clauded-ccr-with: claude-code-router did not become healthy within 60s. See $CCR_LOG" >&2
+            exit 1
+        fi
+    done
+fi
+
+exec "$@"

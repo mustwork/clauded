@@ -7,6 +7,8 @@ import pytest
 import yaml
 
 from clauded.config import (
+    CCR_OVERRIDE_KEYS,
+    CCR_PROVIDER_WHITELIST,
     CURRENT_VERSION,
     HARNESS_NAMES,
     Config,
@@ -1836,3 +1838,263 @@ environment:
             config_path = self._write_config(tmp_path, bad)
             with pytest.raises(ConfigValidationError, match="Unknown vm.distro"):
                 Config.load(config_path)
+
+
+# ---------------------------------------------------------------------------
+# claude-code-router config tests
+# ---------------------------------------------------------------------------
+
+_CCR_BASE_YAML = """\
+version: "1"
+harness: claude-code
+vm:
+  name: clauded-test-abc123
+  cpus: 1
+  memory: 8GiB
+  disk: 20GiB
+mount:
+  host: /test/path
+  guest: /test/path
+environment:
+  python: null
+  node: null
+  java: null
+  kotlin: null
+  rust: null
+  go: null
+  dart: null
+  c: null
+  tools: []
+  databases: []
+  frameworks:
+    - claude-code
+  playwright_browsers: []
+claude:
+  dangerously_skip_permissions: true
+ssh:
+  host_key_checking: true
+"""
+
+
+def _write_ccr_yaml(tmp_path: Path, extra_vm_block: str = "") -> Path:
+    """Write a minimal valid config with an optional extra `vm:` sub-block."""
+    text = _CCR_BASE_YAML
+    if extra_vm_block:
+        text = text.replace("  disk: 20GiB\n", f"  disk: 20GiB\n{extra_vm_block}\n")
+    path = tmp_path / ".clauded.yaml"
+    path.write_text(text)
+    return path
+
+
+class TestCCRConfig:
+    """Tests for vm.claude_code_router config schema."""
+
+    def test_load_enabled_true(self, tmp_path: Path) -> None:
+        path = _write_ccr_yaml(
+            tmp_path,
+            "  claude_code_router:\n    enabled: true\n    providers: []",
+        )
+        config = Config.load(path)
+        assert config.ccr_enabled is True
+
+    def test_load_providers(self, tmp_path: Path) -> None:
+        path = _write_ccr_yaml(
+            tmp_path,
+            "  claude_code_router:\n    enabled: true\n    providers:\n      - minimax",
+        )
+        config = Config.load(path)
+        assert config.ccr_providers == ["minimax"]
+
+    def test_missing_block_defaults(self, tmp_path: Path) -> None:
+        path = _write_ccr_yaml(tmp_path)
+        config = Config.load(path)
+        assert config.ccr_enabled is False
+        assert config.ccr_providers == []
+        assert config.ccr_overrides == {}
+
+    @pytest.mark.parametrize("bad_value", ["yes", 123, "true", 0])
+    def test_invalid_enabled_raises(self, tmp_path: Path, bad_value: object) -> None:
+        raw: dict[object, object] = yaml.safe_load(_CCR_BASE_YAML)
+        raw.setdefault("vm", {})["claude_code_router"] = {  # type: ignore[index]
+            "enabled": bad_value,
+        }
+        path = tmp_path / ".clauded.yaml"
+        path.write_text(yaml.dump(raw, default_flow_style=False))
+        with pytest.raises(ConfigValidationError, match="claude_code_router.enabled"):
+            Config.load(path)
+
+    def test_unknown_provider_raises(self, tmp_path: Path) -> None:
+        path = _write_ccr_yaml(
+            tmp_path,
+            (
+                "  claude_code_router:\n    enabled: true\n"
+                "    providers:\n      - does-not-exist"
+            ),
+        )
+        with pytest.raises(ConfigValidationError, match="does-not-exist"):
+            Config.load(path)
+
+    def test_roundtrip_enabled(self, tmp_path: Path) -> None:
+        config = Config(
+            vm_name="clauded-test",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code"],
+            ccr_enabled=True,
+            ccr_providers=["minimax"],
+        )
+        path = tmp_path / ".clauded.yaml"
+        config.save(path)
+        loaded = Config.load(path)
+        assert loaded.ccr_enabled is True
+        assert loaded.ccr_providers == ["minimax"]
+
+    def test_roundtrip_disabled_omits_block(self, tmp_path: Path) -> None:
+        config = Config(
+            vm_name="clauded-test",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code"],
+            ccr_enabled=False,
+        )
+        path = tmp_path / ".clauded.yaml"
+        config.save(path)
+        text = path.read_text()
+        assert "claude_code_router" not in text
+        loaded = Config.load(path)
+        assert loaded.ccr_enabled is False
+        assert loaded.ccr_providers == []
+
+    def test_whitelist_constant_exported(self) -> None:
+        assert CCR_PROVIDER_WHITELIST == frozenset({"minimax", "groq", "together"})
+
+    def test_from_wizard_threads_ccr_fields(self, tmp_path: Path) -> None:
+        answers = {
+            "cpus": "1",
+            "memory": "8GiB",
+            "disk": "20GiB",
+            "frameworks": ["claude-code"],
+            "ccr_enabled": True,
+            "ccr_providers": ["groq"],
+        }
+        config = Config.from_wizard(answers, tmp_path)
+        assert config.ccr_enabled is True
+        assert config.ccr_providers == ["groq"]
+
+    def test_from_wizard_defaults_ccr_off(self, tmp_path: Path) -> None:
+        answers = {
+            "cpus": "1",
+            "memory": "8GiB",
+            "disk": "20GiB",
+            "frameworks": ["claude-code"],
+        }
+        config = Config.from_wizard(answers, tmp_path)
+        assert config.ccr_enabled is False
+        assert config.ccr_providers == []
+
+
+class TestCCROverridesConfig:
+    """Tests for vm.claude_code_router.overrides config schema."""
+
+    def test_override_keys_constant(self) -> None:
+        assert CCR_OVERRIDE_KEYS == frozenset({"haiku", "sonnet", "opus"})
+
+    def test_roundtrip_preserves_override(self, tmp_path: Path) -> None:
+        config = Config(
+            vm_name="clauded-test",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code"],
+            ccr_enabled=True,
+            ccr_overrides={"haiku": "ollama/qwen3:latest"},
+        )
+        path = tmp_path / ".clauded.yaml"
+        config.save(path)
+        loaded = Config.load(path)
+        assert loaded.ccr_overrides == {"haiku": "ollama/qwen3:latest"}
+
+    def test_empty_overrides_omitted_from_yaml(self, tmp_path: Path) -> None:
+        config = Config(
+            vm_name="clauded-test",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code"],
+            ccr_enabled=True,
+            ccr_overrides={},
+        )
+        path = tmp_path / ".clauded.yaml"
+        config.save(path)
+        text = path.read_text()
+        assert "overrides" not in text
+
+    def test_unknown_override_key_raises(self, tmp_path: Path) -> None:
+        raw: dict[object, object] = yaml.safe_load(_CCR_BASE_YAML)
+        raw.setdefault("vm", {})["claude_code_router"] = {  # type: ignore[index]
+            "enabled": True,
+            "overrides": {"sonnet-3-5": "anthropic/claude-3-5-sonnet-latest"},
+        }
+        path = tmp_path / ".clauded.yaml"
+        path.write_text(yaml.dump(raw, default_flow_style=False))
+        with pytest.raises(ConfigValidationError, match="sonnet-3-5"):
+            Config.load(path)
+
+    @pytest.mark.parametrize("bad_value", ["", 123, None])
+    def test_invalid_override_value_raises(
+        self, tmp_path: Path, bad_value: object
+    ) -> None:
+        raw: dict[object, object] = yaml.safe_load(_CCR_BASE_YAML)
+        raw.setdefault("vm", {})["claude_code_router"] = {  # type: ignore[index]
+            "enabled": True,
+            "overrides": {"haiku": bad_value},
+        }
+        path = tmp_path / ".clauded.yaml"
+        path.write_text(yaml.dump(raw, default_flow_style=False))
+        with pytest.raises(ConfigValidationError, match="haiku"):
+            Config.load(path)
+
+    def test_override_without_slash_raises(self, tmp_path: Path) -> None:
+        raw: dict[object, object] = yaml.safe_load(_CCR_BASE_YAML)
+        raw.setdefault("vm", {})["claude_code_router"] = {  # type: ignore[index]
+            "enabled": True,
+            "overrides": {"haiku": "qwen3-without-provider-prefix"},
+        }
+        path = tmp_path / ".clauded.yaml"
+        path.write_text(yaml.dump(raw, default_flow_style=False))
+        with pytest.raises(ConfigValidationError, match="provider.*model"):
+            Config.load(path)
+
+    def test_overrides_not_mapping_raises(self, tmp_path: Path) -> None:
+        raw: dict[object, object] = yaml.safe_load(_CCR_BASE_YAML)
+        raw.setdefault("vm", {})["claude_code_router"] = {  # type: ignore[index]
+            "enabled": True,
+            "overrides": "not-a-map",
+        }
+        path = tmp_path / ".clauded.yaml"
+        path.write_text(yaml.dump(raw, default_flow_style=False))
+        with pytest.raises(ConfigValidationError, match="must be a mapping"):
+            Config.load(path)
+
+    def test_from_wizard_threads_ccr_overrides(self, tmp_path: Path) -> None:
+        answers = {
+            "cpus": "1",
+            "memory": "8GiB",
+            "disk": "20GiB",
+            "frameworks": ["claude-code"],
+            "ccr_enabled": True,
+            "ccr_providers": [],
+            "ccr_overrides": {"sonnet": "groq/llama-3.3-70b-versatile"},
+        }
+        config = Config.from_wizard(answers, tmp_path)
+        assert config.ccr_overrides == {"sonnet": "groq/llama-3.3-70b-versatile"}

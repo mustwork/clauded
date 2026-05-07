@@ -28,6 +28,16 @@ HARNESS_NAMES: tuple[str, ...] = ("claude-code", "codex", "opencode")
 # compatibility; callers that want type-narrowing can opt in via this alias.
 HarnessName = Literal["claude-code", "codex", "opencode"]
 
+# Curated claude-code-router provider names accepted in vm.claude_code_router.providers.
+# Ollama is implicit (auto-discovered) and Anthropic passthrough is unconditional;
+# neither appears here.
+CCR_PROVIDER_WHITELIST: frozenset[str] = frozenset({"minimax", "groq", "together"})
+
+# Model alias keys accepted in vm.claude_code_router.overrides. Each key maps a
+# short alias to an explicit "<provider>/<model>" string that the role translates
+# into CCR's "<provider>,<model>" routing syntax (in /etc/clauded/ccr-router.js).
+CCR_OVERRIDE_KEYS: frozenset[str] = frozenset({"haiku", "sonnet", "opus"})
+
 
 class ConfigVersionError(Exception):
     """Raised when config version is incompatible."""
@@ -311,6 +321,13 @@ class Config:
     # VM behavior
     keep_vm_running: bool = False
 
+    # claude-code-router proxy feature (vm.claude_code_router in .clauded.yaml).
+    # When enabled, the claude-code harness launch is wrapped with a script that
+    # ensures CCR is running on 127.0.0.1:3456 and sets ANTHROPIC_BASE_URL.
+    ccr_enabled: bool = False
+    ccr_providers: list[str] = field(default_factory=list)
+    ccr_overrides: dict[str, str] = field(default_factory=dict)
+
     # Host environment variables to forward into the VM shell session
     forward_env: list[str] = field(default_factory=list)
 
@@ -349,6 +366,9 @@ class Config:
             ),
             ssh_host_key_checking=answers.get("ssh_host_key_checking", True),
             keep_vm_running=answers.get("keep_vm_running", False),
+            ccr_enabled=answers.get("ccr_enabled", False),
+            ccr_providers=answers.get("ccr_providers", []),
+            ccr_overrides=answers.get("ccr_overrides", {}),
             forward_env=answers.get("forward_env", []),
             harness=answers.get("harness", "claude-code"),
         )
@@ -542,6 +562,50 @@ class Config:
         frameworks_value = env.get("frameworks") or []
         harness_value = _validate_harness(data.get("harness"), frameworks_value)
 
+        # Parse vm.claude_code_router block (optional; missing → defaults).
+        ccr_block = data.get("vm", {}).get("claude_code_router") or {}
+        ccr_enabled = ccr_block.get("enabled", False)
+        if not isinstance(ccr_enabled, bool):
+            raise ConfigValidationError(
+                f"vm.claude_code_router.enabled must be a boolean, got "
+                f"{type(ccr_enabled).__name__!r} ({ccr_enabled!r})"
+            )
+        ccr_providers_raw = ccr_block.get("providers") or []
+        for provider in ccr_providers_raw:
+            if provider not in CCR_PROVIDER_WHITELIST:
+                raise ConfigValidationError(
+                    f"Unknown claude_code_router provider {provider!r}. "
+                    f"Allowed values: {', '.join(sorted(CCR_PROVIDER_WHITELIST))}"
+                )
+        ccr_providers: list[str] = list(ccr_providers_raw)
+
+        ccr_overrides_raw = ccr_block.get("overrides")
+        if ccr_overrides_raw is None:
+            ccr_overrides_raw = {}
+        if not isinstance(ccr_overrides_raw, dict):
+            raise ConfigValidationError(
+                "vm.claude_code_router.overrides must be a mapping, "
+                f"got {type(ccr_overrides_raw).__name__!r}"
+            )
+        for key, value in ccr_overrides_raw.items():
+            if key not in CCR_OVERRIDE_KEYS:
+                raise ConfigValidationError(
+                    f"Unknown claude_code_router override key {key!r}. "
+                    f"Allowed keys: {', '.join(sorted(CCR_OVERRIDE_KEYS))}"
+                )
+            if not isinstance(value, str) or not value:
+                raise ConfigValidationError(
+                    f"vm.claude_code_router.overrides[{key!r}] must be a "
+                    f"non-empty string, got {value!r}"
+                )
+            if "/" not in value:
+                raise ConfigValidationError(
+                    f"vm.claude_code_router.overrides[{key!r}] must use "
+                    f"'<provider>/<model>' syntax (e.g. 'ollama/qwen3:latest', "
+                    f"'minimax/MiniMax-M2.7'), got {value!r}"
+                )
+        ccr_overrides: dict[str, str] = dict(ccr_overrides_raw)
+
         return cls(
             version=version,
             vm_name=vm_name,
@@ -571,6 +635,9 @@ class Config:
             ),
             ssh_host_key_checking=data.get("ssh", {}).get("host_key_checking", True),
             keep_vm_running=data.get("vm", {}).get("keep_running", False),
+            ccr_enabled=ccr_enabled,
+            ccr_providers=ccr_providers,
+            ccr_overrides=ccr_overrides,
             forward_env=data.get("vm", {}).get("forward_env") or [],
             previous_vm_name=previous_vm,
             harness=harness_value,
@@ -590,6 +657,14 @@ class Config:
             vm_data["previous_name"] = self.previous_vm_name
         if self.keep_vm_running:
             vm_data["keep_running"] = self.keep_vm_running
+        if self.ccr_enabled:
+            ccr_block: dict[str, Any] = {
+                "enabled": True,
+                "providers": list(self.ccr_providers),
+            }
+            if self.ccr_overrides:
+                ccr_block["overrides"] = dict(self.ccr_overrides)
+            vm_data["claude_code_router"] = ccr_block
         if self.forward_env:
             vm_data["forward_env"] = self.forward_env
 

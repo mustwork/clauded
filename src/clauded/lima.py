@@ -22,10 +22,9 @@ class LaunchSpec:
     argv tokens are joined with spaces and passed to `bash -lic` as a single
     shell command. argv[0] is always the binary name.
 
-    env carries any extra env-var assignments to prepend before argv. Currently
-    always empty (the only historical user, USE_BUILTIN_RIPGREP=0, was removed
-    as part of the launch-dispatcher refactor); the field is retained for
-    forward compatibility.
+    env carries extra env-var assignments to prepend before argv. Used by the
+    claude-code-router proxy feature (ANTHROPIC_BASE_URL for the claude-code
+    harness when ccr_enabled).
     """
 
     argv: list[str]
@@ -60,6 +59,14 @@ def _build_launch_spec(harness: str, config: Config) -> LaunchSpec:
         argv = ["claude"]
         if skip:
             argv.append("--dangerously-skip-permissions")
+        if config.ccr_enabled:
+            # Wrap with the CCR launcher: ensures the proxy is healthy on
+            # 127.0.0.1:3456 before exec'ing claude, and points the SDK at it.
+            argv = ["clauded-ccr-with"] + argv
+            return LaunchSpec(
+                argv=argv,
+                env={"ANTHROPIC_BASE_URL": "http://127.0.0.1:3456"},
+            )
         return LaunchSpec(argv=argv)
     if harness == "codex":
         argv = ["codex"]

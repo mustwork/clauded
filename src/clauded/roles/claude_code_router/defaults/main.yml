@@ -1,0 +1,11 @@
+---
+# Pinned to 1.0.73 — last 1.x release (2025-12-18). v2.0.0 (2026-01-04) is a
+# major refactor (workspaces split into packages/{cli,core,server,shared}) and
+# carries active regressions on Ollama routing as of 2026-05 (musistudio/
+# claude-code-router#1379, #1166). TODO: bump once 2.x stabilises and the
+# Ollama routing regressions close.
+ccr_version: "1.0.73"
+ccr_port: 3456
+ccr_upstream_ollama: "http://host.lima.internal:11434"
+ccr_etc_dir: "/etc/clauded"
+ccr_wrapper_path: "/usr/local/bin/clauded-ccr-with"

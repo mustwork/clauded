@@ -906,3 +906,79 @@ class TestLimaVMShellHarnessDispatch:
             vm.shell()
         cmd_string = mock_run.call_args[0][0][-1]
         assert cmd_string.startswith("codex")
+
+
+def _ccr_config(
+    *,
+    harness: str = "claude-code",
+    enabled: bool = True,
+    skip_permissions: bool = True,
+    frameworks: list[str] | None = None,
+) -> Config:
+    """Build a Config for claude-code-router tests."""
+    return Config(
+        vm_name="clauded-ccr",
+        cpus=1,
+        memory="8GiB",
+        disk="20GiB",
+        mount_host="/test",
+        mount_guest="/test",
+        frameworks=frameworks or ["claude-code"],
+        harness=harness,
+        claude_dangerously_skip_permissions=skip_permissions,
+        ccr_enabled=enabled,
+    )
+
+
+class TestCCRLima:
+    """LaunchSpec wrapping for the claude-code-router proxy."""
+
+    def test_argv_prepended_when_enabled(self) -> None:
+        spec = _build_launch_spec(
+            "claude-code", _ccr_config(harness="claude-code", enabled=True)
+        )
+        assert spec.argv[0] == "clauded-ccr-with"
+        assert spec.argv[1] == "claude"
+
+    def test_env_contains_base_url(self) -> None:
+        spec = _build_launch_spec(
+            "claude-code", _ccr_config(harness="claude-code", enabled=True)
+        )
+        assert spec.env["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:3456"
+
+    def test_env_no_auth_token_override(self) -> None:
+        spec = _build_launch_spec(
+            "claude-code", _ccr_config(harness="claude-code", enabled=True)
+        )
+        assert "ANTHROPIC_AUTH_TOKEN" not in spec.env
+
+    def test_shell_renders_env_and_wrapper(self) -> None:
+        config = _ccr_config(harness="claude-code", enabled=True, skip_permissions=True)
+        vm = LimaVM(config)
+        with patch("subprocess.run") as mock_run:
+            vm.shell()
+        cmd_string = mock_run.call_args[0][0][-1]
+        assert "ANTHROPIC_BASE_URL=http://127.0.0.1:3456" in cmd_string
+        assert "clauded-ccr-with" in cmd_string
+        assert "claude" in cmd_string
+
+    @pytest.mark.parametrize("harness", ["codex", "opencode"])
+    def test_other_harnesses_not_wrapped(self, harness: str) -> None:
+        frameworks = (
+            ["claude-code", "codex", "opencode"]
+            if harness == "opencode"
+            else ["claude-code", "codex"]
+        )
+        spec = _build_launch_spec(
+            harness,
+            _ccr_config(harness=harness, enabled=True, frameworks=frameworks),
+        )
+        assert spec.env == {}
+        assert "clauded-ccr-with" not in spec.argv
+
+    def test_feature_off_no_env_no_wrapper(self) -> None:
+        spec = _build_launch_spec(
+            "claude-code", _ccr_config(harness="claude-code", enabled=False)
+        )
+        assert spec.env == {}
+        assert spec.argv[0] != "clauded-ccr-with"

@@ -32,6 +32,7 @@ Isolated, per-project Lima VMs (MacOS) with automatic environment provisioning t
 - **Testing Frameworks**: Playwright with browser binaries ready to use
 - **VM Lifecycle Management**: Create, start, stop, destroy, and reprovision VMs
 - **Multi-Instance Support**: Multiple terminals can connect to the same VM; VM only stops when the last session exits
+- **claude-code-router (CCR)**: Optional per-session proxy for routing claude-code requests to Ollama models on the host, curated OpenAI-compatible providers (MiniMax, Groq, Together AI), and the Anthropic API — see [docs/claude-code-router.md](docs/claude-code-router.md)
 - **Atomic Config Updates**: Automatic rollback on failure ensures config never references broken VMs
 - **Crash Recovery**: Detects and recovers from interrupted operations on startup
 - **Customizable Resources**: Configure CPU, memory, and disk allocation per project

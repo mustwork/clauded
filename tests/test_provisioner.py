@@ -1220,3 +1220,133 @@ class TestEnvironmentFiltering:
         # Should have clauded-specific vars
         assert "ANSIBLE_ROLES_PATH" in captured_env
         assert "ANSIBLE_CONFIG" in captured_env
+
+
+# ---------------------------------------------------------------------------
+# claude-code-router role + provisioner integration
+# ---------------------------------------------------------------------------
+
+
+def _ccr_config(
+    *,
+    enabled: bool = True,
+    providers: list[str] | None = None,
+    overrides: dict[str, str] | None = None,
+) -> Config:
+    return Config(
+        vm_name="clauded-ccr",
+        cpus=1,
+        memory="8GiB",
+        disk="20GiB",
+        mount_host="/test",
+        mount_guest="/test",
+        frameworks=["claude-code"],
+        ccr_enabled=enabled,
+        ccr_providers=providers or [],
+        ccr_overrides=overrides or {},
+    )
+
+
+class TestCCRProvisionerIntegration:
+    """Tests for the claude-code-router role plumbing through the provisioner."""
+
+    def test_role_appended_when_enabled(self) -> None:
+        config = _ccr_config(enabled=True)
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+        roles = provisioner._get_base_roles()
+        assert "claude_code_router" in roles
+        assert "node" in roles  # CCR requires node
+
+    def test_role_omitted_when_disabled(self) -> None:
+        config = _ccr_config(enabled=False)
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+        roles = provisioner._get_base_roles()
+        assert "claude_code_router" not in roles
+
+    def test_extra_vars_passed_to_playbook(self) -> None:
+        config = _ccr_config(
+            enabled=True,
+            providers=["groq"],
+            overrides={"haiku": "ollama/qwen3:latest"},
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+        playbook = provisioner._generate_playbook(["common", "claude_code_router"])
+        vars_dict = playbook[0]["vars"]
+        assert vars_dict["ccr_enabled"] is True
+        assert vars_dict["ccr_providers"] == ["groq"]
+        assert vars_dict["ccr_overrides"] == {"haiku": "ollama/qwen3:latest"}
+
+
+class TestCCRRoleArtifacts:
+    """Unit tests for the claude_code_router Ansible role artifacts."""
+
+    @staticmethod
+    def _role_path() -> Path:
+        import clauded
+
+        return Path(clauded.__file__).parent / "roles" / "claude_code_router"
+
+    def test_role_directory_and_required_files_exist(self) -> None:
+        role_path = self._role_path()
+        assert role_path.is_dir()
+        assert (role_path / "tasks" / "main.yml").exists()
+        assert (role_path / "defaults" / "main.yml").exists()
+        assert (role_path / "files" / "clauded-ccr-with").exists()
+
+    def test_ccr_version_is_pinned(self) -> None:
+        import yaml
+
+        defaults_path = self._role_path() / "defaults" / "main.yml"
+        data = yaml.safe_load(defaults_path.read_text())
+        version = data.get("ccr_version")
+        assert isinstance(version, str) and version
+
+    def test_no_api_key_assignments_in_role(self) -> None:
+        role_path = self._role_path()
+        for filepath in role_path.rglob("*"):
+            if not filepath.is_file():
+                continue
+            content = filepath.read_text(errors="replace")
+            assert (
+                ': "sk' not in content and "='sk" not in content
+            ), f"{filepath.relative_to(role_path)}: literal API key value found"
+
+    def test_wrapper_script_loopback_only(self) -> None:
+        wrapper = self._role_path() / "files" / "clauded-ccr-with"
+        content = wrapper.read_text()
+        assert "127.0.0.1" in content
+
+    def test_wrapper_script_has_background_watcher(self) -> None:
+        wrapper = self._role_path() / "files" / "clauded-ccr-with"
+        content = wrapper.read_text()
+        assert "while true" in content
+        assert "flock" in content
+
+    def test_no_j2_files_in_role(self) -> None:
+        role_path = self._role_path()
+        j2_files = list(role_path.rglob("*.j2"))
+        assert j2_files == []
+
+    def test_no_systemd_unit_in_role(self) -> None:
+        role_path = self._role_path()
+        systemd_files = [
+            p
+            for p in role_path.rglob("*")
+            if p.is_file() and p.suffix in (".service", ".socket", ".timer")
+        ]
+        assert systemd_files == []
+
+    def test_curated_provider_guards_present(self) -> None:
+        tasks_path = self._role_path() / "tasks" / "main.yml"
+        content = tasks_path.read_text()
+        for provider in ("minimax", "groq", "together"):
+            guard = f"{{% if '{provider}' in ccr_providers %}}"
+            assert guard in content, f"missing curated guard for {provider}"
+
+    def test_loopback_bind_in_config_template(self) -> None:
+        tasks_path = self._role_path() / "tasks" / "main.yml"
+        content = tasks_path.read_text()
+        assert '"HOST": "127.0.0.1"' in content
