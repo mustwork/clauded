@@ -9,3 +9,9 @@ ccr_port: 3456
 ccr_upstream_ollama: "http://host.lima.internal:11434"
 ccr_etc_dir: "/etc/clauded"
 ccr_wrapper_path: "/usr/local/bin/clauded-ccr-with"
+# Pino-backed log level: fatal|error|warn|info|debug|trace. Overridden via
+# vm.claude_code_router.log_level in .clauded.yaml; the provisioner threads
+# the value through extra-vars. Default `warn` keeps production sessions
+# quiet — pino's debug stream (level=20) is voluminous and is only useful
+# during diagnosis.
+ccr_log_level: "warn"

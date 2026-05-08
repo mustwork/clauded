@@ -33,6 +33,39 @@
     global: yes
     state: present
 
+# Patch the bundled @musistudio/llms Anthropic transformer to default
+# useBearer=true. CCR registers built-in transformers as singleton instances
+# (cli.js:82503 — `new e()` with no args), so the array-form
+# `["Anthropic", { "UseBearer": true }]` in a provider's transformer config
+# fails with "u is not a constructor" (the registered handle is an instance,
+# not a class). Anthropic OAuth subscription tokens (sk-ant-oat01-*) only
+# authenticate via `Authorization: Bearer`, never via `x-api-key`, so the
+# default `useBearer = false` makes anthropic-passthrough unusable for
+# subscription users. Flipping the default at the bundle is the lightest
+# fix: scoped to the pinned CCR version, idempotent, reverted on reinstall.
+- name: Patch CCR Anthropic transformer to default useBearer=true
+  ansible.builtin.replace:
+    path: /usr/lib/node_modules/@musistudio/claude-code-router/dist/cli.js
+    regexp: 'this\.useBearer = this\.options\?\.UseBearer \?\? false;'
+    replace: 'this.useBearer = this.options?.UseBearer ?? true;'
+
+- name: Assert post-patch sentinel is present
+  ansible.builtin.command:
+    cmd: grep -qF 'this.useBearer = this.options?.UseBearer ?? true;' /usr/lib/node_modules/@musistudio/claude-code-router/dist/cli.js
+  changed_when: false
+
+- name: Assert pre-patch form is absent
+  ansible.builtin.command:
+    cmd: grep -qF 'this.useBearer = this.options?.UseBearer ?? false;' /usr/lib/node_modules/@musistudio/claude-code-router/dist/cli.js
+  register: ccr_pre_patch_check
+  changed_when: false
+  failed_when: ccr_pre_patch_check.rc == 0
+
+- name: Verify patched CCR cli.js still parses as JS
+  ansible.builtin.command:
+    cmd: node --check /usr/lib/node_modules/@musistudio/claude-code-router/dist/cli.js
+  changed_when: false
+
 - name: Probe host Ollama for discovered models
   uri:
     url: "{{ ccr_upstream_ollama }}/api/tags"
@@ -64,7 +97,7 @@
         "HOST": "127.0.0.1",
         "PORT": {{ ccr_port }},
         "LOG": true,
-        "LOG_LEVEL": "info",
+        "LOG_LEVEL": "{{ ccr_log_level }}",
         "API_TIMEOUT_MS": 600000,
         "CUSTOM_ROUTER_PATH": "{{ ccr_etc_dir }}/ccr-router.js",
         "Providers": [
@@ -147,8 +180,23 @@
       // preserves the original model name. Returns null only for non-claude
       // requests (e.g. explicit "provider,model" in req.body.model), letting
       // CCR's built-in routing handle them.
+      //
+      // Carve-out: requests carrying Anthropic server-side web tools
+      // (web_search_*, web_fetch_*) bypass user overrides and pin to the
+      // anthropic provider. These tools execute on api.anthropic.com and
+      // have no equivalent on minimax/groq/together/ollama, so honoring an
+      // override here would 401 (or silently drop the tool) and break
+      // WebSearch/WebFetch from the harness.
       module.exports = async (req, config, { event }) => {
         const model = (req && req.body && req.body.model) || '';
+        const tools = (req && req.body && req.body.tools) || [];
+        const hasAnthropicWebTool = Array.isArray(tools) && tools.some(t => {
+          const ty = t && t.type;
+          return typeof ty === 'string' && (ty.startsWith('web_search') || ty.startsWith('web_fetch'));
+        });
+        if (hasAnthropicWebTool) {
+          return 'anthropic,' + (model.startsWith('claude-') ? model : 'claude-sonnet-4-6');
+        }
       {% if ccr_overrides.haiku is defined and ccr_overrides.haiku %}
         if (model.includes('haiku')) return '{{ ccr_overrides.haiku | replace("/", ",") }}';
       {% endif %}

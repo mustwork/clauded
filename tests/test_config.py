@@ -2098,3 +2098,73 @@ class TestCCROverridesConfig:
         }
         config = Config.from_wizard(answers, tmp_path)
         assert config.ccr_overrides == {"sonnet": "groq/llama-3.3-70b-versatile"}
+
+    def test_log_level_default_is_warn(self, tmp_path: Path) -> None:
+        raw: dict[object, object] = yaml.safe_load(_CCR_BASE_YAML)
+        raw.setdefault("vm", {})["claude_code_router"] = {  # type: ignore[index]
+            "enabled": True,
+        }
+        path = tmp_path / ".clauded.yaml"
+        path.write_text(yaml.dump(raw, default_flow_style=False))
+        config = Config.load(path)
+        assert config.ccr_log_level == "warn"
+
+    @pytest.mark.parametrize(
+        "level", ["fatal", "error", "warn", "info", "debug", "trace"]
+    )
+    def test_log_level_accepts_pino_levels(self, tmp_path: Path, level: str) -> None:
+        raw: dict[object, object] = yaml.safe_load(_CCR_BASE_YAML)
+        raw.setdefault("vm", {})["claude_code_router"] = {  # type: ignore[index]
+            "enabled": True,
+            "log_level": level,
+        }
+        path = tmp_path / ".clauded.yaml"
+        path.write_text(yaml.dump(raw, default_flow_style=False))
+        config = Config.load(path)
+        assert config.ccr_log_level == level
+
+    @pytest.mark.parametrize("bad", ["verbose", "DEBUG", "", 7, None])
+    def test_invalid_log_level_raises(self, tmp_path: Path, bad: object) -> None:
+        raw: dict[object, object] = yaml.safe_load(_CCR_BASE_YAML)
+        raw.setdefault("vm", {})["claude_code_router"] = {  # type: ignore[index]
+            "enabled": True,
+            "log_level": bad,
+        }
+        path = tmp_path / ".clauded.yaml"
+        path.write_text(yaml.dump(raw, default_flow_style=False))
+        with pytest.raises(ConfigValidationError, match="log_level"):
+            Config.load(path)
+
+    def test_log_level_round_trip(self, tmp_path: Path) -> None:
+        config = Config(
+            vm_name="clauded-test",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code"],
+            ccr_enabled=True,
+            ccr_log_level="trace",
+        )
+        path = tmp_path / ".clauded.yaml"
+        config.save(path)
+        loaded = Config.load(path)
+        assert loaded.ccr_log_level == "trace"
+
+    def test_default_log_level_omitted_from_yaml(self, tmp_path: Path) -> None:
+        # Diagnostic knob at its default shouldn't pollute the saved file.
+        config = Config(
+            vm_name="clauded-test",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code"],
+            ccr_enabled=True,
+        )
+        path = tmp_path / ".clauded.yaml"
+        config.save(path)
+        text = path.read_text()
+        assert "log_level" not in text

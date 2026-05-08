@@ -333,6 +333,7 @@ class Provisioner:
                     "ccr_enabled": self.config.ccr_enabled,
                     "ccr_providers": list(self.config.ccr_providers),
                     "ccr_overrides": self.config.ccr_overrides,
+                    "ccr_log_level": self.config.ccr_log_level,
                 },
                 "roles": roles,
             }

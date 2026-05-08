@@ -38,6 +38,11 @@ CCR_PROVIDER_WHITELIST: frozenset[str] = frozenset({"minimax", "groq", "together
 # into CCR's "<provider>,<model>" routing syntax (in /etc/clauded/ccr-router.js).
 CCR_OVERRIDE_KEYS: frozenset[str] = frozenset({"haiku", "sonnet", "opus"})
 
+# Pino log levels accepted by CCR (passed through to config.json LOG_LEVEL).
+CCR_LOG_LEVELS: frozenset[str] = frozenset(
+    {"fatal", "error", "warn", "info", "debug", "trace"}
+)
+
 
 class ConfigVersionError(Exception):
     """Raised when config version is incompatible."""
@@ -327,6 +332,13 @@ class Config:
     ccr_enabled: bool = False
     ccr_providers: list[str] = field(default_factory=list)
     ccr_overrides: dict[str, str] = field(default_factory=dict)
+    # CCR's pino LOG_LEVEL (vm.claude_code_router.log_level). Default `warn`
+    # keeps production sessions quiet; bump to `debug` or `trace` when
+    # investigating routing or upstream-auth issues. CCR's pino transformer log
+    # already records outbound URL and headers at level=20 (debug), so a Node
+    # http-debug knob is unnecessary (and didn't work anyway — undici/fetch
+    # doesn't honor NODE_DEBUG=http,https).
+    ccr_log_level: str = "warn"
 
     # Host environment variables to forward into the VM shell session
     forward_env: list[str] = field(default_factory=list)
@@ -369,6 +381,7 @@ class Config:
             ccr_enabled=answers.get("ccr_enabled", False),
             ccr_providers=answers.get("ccr_providers", []),
             ccr_overrides=answers.get("ccr_overrides", {}),
+            ccr_log_level=answers.get("ccr_log_level", "warn"),
             forward_env=answers.get("forward_env", []),
             harness=answers.get("harness", "claude-code"),
         )
@@ -606,6 +619,13 @@ class Config:
                 )
         ccr_overrides: dict[str, str] = dict(ccr_overrides_raw)
 
+        ccr_log_level = ccr_block.get("log_level", "warn")
+        if not isinstance(ccr_log_level, str) or ccr_log_level not in CCR_LOG_LEVELS:
+            raise ConfigValidationError(
+                f"vm.claude_code_router.log_level must be one of "
+                f"{sorted(CCR_LOG_LEVELS)}, got {ccr_log_level!r}"
+            )
+
         return cls(
             version=version,
             vm_name=vm_name,
@@ -638,6 +658,7 @@ class Config:
             ccr_enabled=ccr_enabled,
             ccr_providers=ccr_providers,
             ccr_overrides=ccr_overrides,
+            ccr_log_level=ccr_log_level,
             forward_env=data.get("vm", {}).get("forward_env") or [],
             previous_vm_name=previous_vm,
             harness=harness_value,
@@ -664,6 +685,8 @@ class Config:
             }
             if self.ccr_overrides:
                 ccr_block["overrides"] = dict(self.ccr_overrides)
+            if self.ccr_log_level != "warn":
+                ccr_block["log_level"] = self.ccr_log_level
             vm_data["claude_code_router"] = ccr_block
         if self.forward_env:
             vm_data["forward_env"] = self.forward_env

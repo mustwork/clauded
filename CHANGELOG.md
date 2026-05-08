@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **claude-code-router (CCR) proxy refinements** — the optional `vm.claude_code_router` proxy gains four behaviours that complete the routing layer:
+  - The Anthropic provider sends `Authorization: Bearer <token>` and omits `x-api-key`. Subscription OAuth tokens (`sk-ant-oat01-*`) and conventional API keys (`sk-ant-api03-*`) both authenticate against `api.anthropic.com`. Implemented as a provision-time text patch against the bundled `@musistudio/llms` Anthropic transformer in `cli.js` (flipping the default of `useBearer` from `false` to `true`). The provider config keeps the simple string form `"transformer": { "use": ["Anthropic"] }`. The patch is sentinel-asserted post-edit, syntax-checked with `node --check`, and a host-side pytest at `tests/test_claude_code_router_patch.py` re-runs the role's regex against a checked-in fixture excerpt of the pinned CCR 1.0.73 bundle so a CCR version bump cannot silently no-op the substitution.
+  - The custom router at `/etc/clauded/ccr-router.js` inspects `req.body.tools` and pins any request carrying an Anthropic server-side web tool (`web_search_*`, `web_fetch_*`) to the `anthropic` provider. Plain model traffic continues to honor `vm.claude_code_router.overrides`.
+  - The `clauded-ccr-with` watcher closes fd 9 (`9>&-`) when launching the CCR daemon, so the lock file's open file description is released as soon as the subshell exits. This lets subsequent watcher iterations re-acquire the lock and rotate `ANTHROPIC_API_KEY` after an OAuth refresh.
+  - `vm.claude_code_router.log_level` accepts pino's standard set (`fatal|error|warn|info|debug|trace`, default `warn`) and is rendered into CCR's `config.json` as `LOG_LEVEL`. At `debug` the rotated pino logs in `~/.claude-code-router/logs/ccr-*.log` include `final request` entries that capture each outbound URL plus full request headers and body, which is the most reliable way to inspect what CCR is sending upstream. See [docs/claude-code-router.md](docs/claude-code-router.md#diagnostic-logging).
+- **`apply_detection_to_config` preserves the full `claude_code_router` block** through detection-driven reprovisioning (`clauded --reprovision --detect`): `ccr_enabled`, `ccr_providers`, `ccr_overrides`, and `ccr_log_level` round-trip alongside the other persisted Config fields.
+
 ## [0.3.2] - 2026-05-07
 
 ### Added

@@ -70,9 +70,10 @@ Each `overrides.<key>` value uses `<provider>/<model>` syntax. The provider must
 
 CCR's built-in router has only one model-name pattern match (`background` for any model containing both "claude" and "haiku"). To support per-model routing for sonnet and opus, the role generates a small custom router at `/etc/clauded/ccr-router.js` that pattern-matches Anthropic model names against the configured overrides:
 
-1. Override matches → route to the configured `<provider>,<model>`.
-2. No override but model starts with `claude-` → forward to the `anthropic` provider with the original model name preserved.
-3. Anything else → fall back to CCR's built-in routing (`Router.default`, `think`, `longContext`, etc.).
+1. **Anthropic server-side web tools carve-out** — if `req.body.tools` contains any tool whose `type` starts with `web_search` or `web_fetch`, the request is pinned to the `anthropic` provider regardless of overrides. These tools execute on `api.anthropic.com` and have no equivalent on minimax/groq/together/ollama; routing such a request to a non-Anthropic upstream would 401 (or silently drop the tool) and break `WebSearch`/`WebFetch` calls from the harness.
+2. Override matches (and no web tool) → route to the configured `<provider>,<model>`.
+3. No override but model starts with `claude-` → forward to the `anthropic` provider with the original model name preserved.
+4. Anything else → fall back to CCR's built-in routing (`Router.default`, `think`, `longContext`, etc.).
 
 The custom router is written from `vm.claude_code_router.overrides` at provision time and re-rendered on `clauded --reprovision`.
 
@@ -103,6 +104,38 @@ clauded
 ```
 
 If the proxy fails to start, check `/tmp/clauded-ccr.log` and `~/.claude-code-router/logs/`.
+
+## Diagnostic logging
+
+`vm.claude_code_router.log_level` raises CCR's pino verbosity when investigating
+routing or upstream-auth issues. Default `warn` keeps production sessions quiet.
+
+```yaml
+vm:
+  claude_code_router:
+    enabled: true
+    log_level: debug   # fatal | error | warn (default) | info | debug | trace
+```
+
+`log_level` is forwarded into CCR's generated `config.json` as `LOG_LEVEL`. At
+`debug` (level=20) the rotated pino logs in `~/.claude-code-router/logs/ccr-*.log`
+include route-resolution traces and — most usefully — `final request` entries
+that capture each outbound URL and its full request headers and body, which is
+the most reliable way to inspect what CCR is actually sending upstream. `trace`
+adds pino's per-request internals on top. Takes effect after `clauded
+--reprovision`. Useful one-liner for filtering out the watcher's `/health`
+noise:
+
+```bash
+limactl shell <vm-name> -- bash -c '
+  jq -c "select(.level >= 20 and (.req.url // \"\") != \"/health\")" \
+     ~/.claude-code-router/logs/ccr-*.log | tail -50
+'
+```
+
+`/tmp/clauded-ccr.log` is only the wrapper-captured stdout/stderr from CCR's
+Node process — startup banners and unhandled errors. Don't expect the structured
+debug stream there.
 
 ## Troubleshooting
 

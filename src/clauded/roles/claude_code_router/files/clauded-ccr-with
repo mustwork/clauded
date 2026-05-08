@@ -55,9 +55,14 @@ _ccr_stop() {
 _ccr_start() {
     # CCR resolves ${ANTHROPIC_API_KEY} (and other ${VAR}) from env at config-load time.
     # Pass the OAuth token so the anthropic provider passthrough can authenticate.
+    #
+    # 9>&- closes fd 9 in the CCR child. Without it, the daemon inherits the
+    # subshell's open fd on $CCR_LOCKFILE, keeps the OFD alive after the
+    # subshell exits, and pins the kernel-level flock forever — so subsequent
+    # watcher iterations always lose `flock -n 9` and never rotate the token.
     ANTHROPIC_API_KEY="$1" \
     "$CCR_BIN" start \
-        >>"$CCR_LOG" 2>&1 &
+        >>"$CCR_LOG" 2>&1 9>&- &
     echo $! > "$CCR_PIDFILE"
     printf '%s' "$1" > "$CCR_TOKENFILE"
 }

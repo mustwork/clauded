@@ -1578,6 +1578,10 @@ class TestWizardIntegrationHarnessStep:
             opencode_version="1.14.33",
             harness="opencode",
             previous_vm_name="prior-vm-name",
+            ccr_enabled=True,
+            ccr_providers=["groq"],
+            ccr_overrides={"haiku": "ollama/qwen3:latest"},
+            ccr_log_level="debug",
         )
 
         detection = DetectionResult(
@@ -1616,3 +1620,7 @@ class TestWizardIntegrationHarnessStep:
         assert new_config.codex_version == "0.45.0"
         assert new_config.opencode_version == "1.14.33"
         assert new_config.harness == "opencode"
+        assert new_config.ccr_enabled is True
+        assert new_config.ccr_providers == ["groq"]
+        assert new_config.ccr_overrides == {"haiku": "ollama/qwen3:latest"}
+        assert new_config.ccr_log_level == "debug"

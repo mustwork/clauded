@@ -524,6 +524,10 @@ def apply_detection_to_config(
         claude_dangerously_skip_permissions=config.claude_dangerously_skip_permissions,
         ssh_host_key_checking=config.ssh_host_key_checking,
         keep_vm_running=config.keep_vm_running,
+        ccr_enabled=config.ccr_enabled,
+        ccr_providers=list(config.ccr_providers or []),
+        ccr_overrides=dict(config.ccr_overrides or {}),
+        ccr_log_level=config.ccr_log_level,
         forward_env=list(config.forward_env or []),
         harness=config.harness,
     )

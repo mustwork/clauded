@@ -1278,6 +1278,26 @@ class TestCCRProvisionerIntegration:
         assert vars_dict["ccr_enabled"] is True
         assert vars_dict["ccr_providers"] == ["groq"]
         assert vars_dict["ccr_overrides"] == {"haiku": "ollama/qwen3:latest"}
+        # log_level defaults to "warn" and is always emitted so the template
+        # always renders a valid LOG_LEVEL string.
+        assert vars_dict["ccr_log_level"] == "warn"
+
+    def test_log_level_extra_var_reflects_config(self) -> None:
+        config = Config(
+            vm_name="clauded-ccr",
+            cpus=1,
+            memory="8GiB",
+            disk="20GiB",
+            mount_host="/test",
+            mount_guest="/test",
+            frameworks=["claude-code"],
+            ccr_enabled=True,
+            ccr_log_level="debug",
+        )
+        vm = LimaVM(config)
+        provisioner = Provisioner(config, vm)
+        playbook = provisioner._generate_playbook(["common", "claude_code_router"])
+        assert playbook[0]["vars"]["ccr_log_level"] == "debug"
 
 
 class TestCCRRoleArtifacts:
@@ -1339,6 +1359,17 @@ class TestCCRRoleArtifacts:
         ]
         assert systemd_files == []
 
+    def test_anthropic_provider_uses_bearer_auth(self) -> None:
+        # CCR's Anthropic transformer otherwise sets x-api-key, which collides
+        # with the Authorization: Bearer header the inbound claude-code request
+        # already carries; the upstream gateway then 401s with
+        # "invalid x-api-key" when the value is an OAuth subscription token.
+        # Pin the UseBearer:true option into the role template so the
+        # transformer drops x-api-key and forwards Authorization: Bearer only.
+        tasks_path = self._role_path() / "tasks" / "main.yml"
+        text = tasks_path.read_text()
+        assert '["Anthropic", { "UseBearer": true }]' in text
+
     def test_curated_provider_guards_present(self) -> None:
         tasks_path = self._role_path() / "tasks" / "main.yml"
         content = tasks_path.read_text()
@@ -1350,3 +1381,15 @@ class TestCCRRoleArtifacts:
         tasks_path = self._role_path() / "tasks" / "main.yml"
         content = tasks_path.read_text()
         assert '"HOST": "127.0.0.1"' in content
+
+    def test_custom_router_carves_out_anthropic_web_tools(self) -> None:
+        tasks_path = self._role_path() / "tasks" / "main.yml"
+        content = tasks_path.read_text()
+        assert "req.body.tools" in content
+        assert "web_search" in content
+        assert "web_fetch" in content
+        web_tool_idx = content.find("hasAnthropicWebTool")
+        haiku_override_idx = content.find("ccr_overrides.haiku")
+        assert (
+            0 <= web_tool_idx < haiku_override_idx
+        ), "web-tool carve-out must run before override matching"
