@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-05-08
+
 ### Changed
 
 - **claude-code-router (CCR) proxy refinements** — the optional `vm.claude_code_router` proxy gains four behaviours that complete the routing layer:
