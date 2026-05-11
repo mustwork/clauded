@@ -66,6 +66,27 @@
     cmd: node --check /usr/lib/node_modules/@musistudio/claude-code-router/dist/cli.js
   changed_when: false
 
+# Ship a custom `extrathinktag` transformer. CCR 1.0.73's built-in registry
+# has no entry by that name (the legacy musistudio/llms transformer was
+# dropped during the v1→v2 refactor); without this file, the silent
+# `"use": ["extrathinktag"]` reference in the minimax provider config
+# resolves to nothing and MiniMax M2.x `<think>...</think>` blocks leak
+# verbatim into the harness context. CCR's dynamic loader instantiates the
+# module via `new (require(path))(options)` and registers the resulting
+# instance under its `.name` property.
+- name: Install extrathinktag CCR transformer
+  copy:
+    src: files/extra-think-tag.js
+    dest: "{{ ccr_etc_dir }}/extra-think-tag.js"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Verify extrathinktag transformer parses as JS
+  ansible.builtin.command:
+    cmd: node --check {{ ccr_etc_dir }}/extra-think-tag.js
+  changed_when: false
+
 - name: Probe host Ollama for discovered models
   uri:
     url: "{{ ccr_upstream_ollama }}/api/tags"
@@ -100,6 +121,9 @@
         "LOG_LEVEL": "{{ ccr_log_level }}",
         "API_TIMEOUT_MS": 600000,
         "CUSTOM_ROUTER_PATH": "{{ ccr_etc_dir }}/ccr-router.js",
+        "transformers": [
+          { "path": "{{ ccr_etc_dir }}/extra-think-tag.js" }
+        ],
         "Providers": [
           {
             "name": "anthropic",

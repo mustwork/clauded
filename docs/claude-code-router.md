@@ -82,6 +82,7 @@ The custom router is written from `vm.claude_code_router.overrides` at provision
 - **Anthropic provider's `models[]` is a fixed list.** The role enumerates current Claude generations (haiku/sonnet/opus 4-5/4-6/4-7, 3-5/3-7 dated variants). New model names that aren't in the list will fail at the proxy with `provider not found`. Edit the role's generated config or extend `models[]` if you need a model not on the list.
 - **Tool use with Ollama is model-dependent.** qwen2.5-coder, qwen3-coder, and llama3.1 generally work; gpt-oss models are known broken (musistudio/claude-code-router#790). Test with your specific Ollama model before relying on it for agentic flows.
 - **Sonnet/opus name-based overrides go through `CUSTOM_ROUTER_PATH`.** CCR's built-in router doesn't pattern-match those names; clauded's small JS router handles them.
+- **MiniMax reasoning is dropped, not surfaced.** Providers that emit `<think>...</think>` blocks (MiniMax M2.x in particular) get the reasoning stripped before it reaches Claude Code — the harness sees only the final answer, not a collapsed thinking block. The strip-and-drop transformer at `/etc/clauded/extra-think-tag.js` is wired into the `minimax` provider's `transformer.use` list. The "surface as Anthropic thinking blocks" alternative was considered and rejected; see [ADR-0002](adr/0002-ccr-extrathinktag-drops-reasoning.md) for the tradeoff.
 
 ## Version pin
 

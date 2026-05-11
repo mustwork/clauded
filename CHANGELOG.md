@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CCR `<think>` reasoning leak on MiniMax providers** — the `minimax` provider in the generated CCR config referenced a `"use": ["extrathinktag"]` transformer that doesn't exist in CCR 1.0.73's built-in registry (the legacy musistudio/llms transformer was dropped during the v1→v2 refactor; unknown names are silently filtered by CCR's loader). As a result, MiniMax M2.x emitted raw `<think>...</think>` blocks in `delta.content` that survived the OpenAI→Anthropic SSE conversion and polluted the harness context window. The role now ships a custom transformer at `/etc/clauded/extra-think-tag.js` (registered via the top-level `transformers: [{ path }]` array in CCR's `config.json`) that strips `<think>...</think>` blocks from both JSON and SSE responses with state preserved across split SSE frames, and drops any parallel `delta.reasoning_content` field. Backed by a host-side `node`-driven pytest at `tests/test_ccr_extrathinktag_transformer.py` exercising single-delta, split-across-deltas, unterminated, and passthrough cases.
+
 ## [0.3.3] - 2026-05-08
 
 ### Changed
