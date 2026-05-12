@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-05-12
+
 ### Fixed
 
 - **Ansible apt module failure on Ubuntu 24.04 minimal cloud image** — the `Update apt cache` task in the `common` role aborted with `{"cmd": "update", "msg": "[Errno 2] No such file or directory: b'update'"}` on fresh VMs. The minimal cloud image lacks `python3-apt`, so Ansible's apt module enters its auto-install fallback (`apt.py:1306`), which calls `module.run_command([APT_GET_CMD, 'update'])`. When `get_bin_path("apt-get")` returns `None` during that fallback, `run_command` (`basic.py:1860`) strips the `None` from the arg list, leaving just `['update']` — which subprocess cannot resolve. Fixed by adding a `raw`-based bootstrap task that installs `python3-apt` before any `apt:` task runs.
