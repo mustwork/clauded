@@ -1,3 +1,3 @@
 """clauded - Isolated, per-project Lima VMs with automatic environment provisioning."""
 
-__version__ = "0.3.7"
+__version__ = "0.3.8"
