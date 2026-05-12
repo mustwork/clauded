@@ -372,6 +372,8 @@ class TestLimaVMCommands:
             ["limactl", "start", "--tty=false", "clauded-test1234"],
             check=True,
             stdin=subprocess.DEVNULL,
+            stdout=None,
+            stderr=None,
         )
 
     def test_stop_calls_limactl_stop(self, sample_config: Config) -> None:
@@ -384,7 +386,22 @@ class TestLimaVMCommands:
         mock_run.assert_called_once_with(
             ["limactl", "stop", "clauded-test1234"],
             check=True,
+            stdout=None,
+            stderr=None,
         )
+
+    def test_stop_redirects_stderr_to_devnull_under_quiet(
+        self, sample_config: Config
+    ) -> None:
+        """stop() suppresses limactl's stderr INFO chatter under --quiet."""
+        vm = LimaVM(sample_config, quiet=True)
+
+        with patch("subprocess.run") as mock_run:
+            vm.stop()
+
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["stdout"] is subprocess.DEVNULL
+        assert kwargs["stderr"] is subprocess.DEVNULL
 
     def test_destroy_calls_limactl_delete(self, sample_config: Config) -> None:
         """destroy() calls limactl delete with -f flag."""
@@ -485,6 +502,43 @@ class TestLimaVMCommands:
         env = call_args[1]["env"]
         assert "--preserve-env" in cmd
         assert env["LIMA_SHELLENV_ALLOW"] == "ANTHROPIC_API_KEY"
+
+    def test_shell_forwards_extra_argv_after_harness_argv(
+        self, sample_config: Config
+    ) -> None:
+        """shell() appends extra_argv tokens to the bash -lic command."""
+        vm = LimaVM(sample_config)
+
+        with patch("subprocess.run") as mock_run:
+            vm.shell(extra_argv=("--resume", "abc-123"))
+
+        cmd = mock_run.call_args[0][0]
+        assert cmd[-1] == "claude --dangerously-skip-permissions --resume abc-123"
+
+    def test_shell_quotes_extra_argv_with_shell_metacharacters(
+        self, sample_config: Config
+    ) -> None:
+        """shell() shlex-quotes each extra_argv token so spaces/quotes survive."""
+        vm = LimaVM(sample_config)
+
+        with patch("subprocess.run") as mock_run:
+            vm.shell(extra_argv=("--prompt", "hello world", "$(rm -rf)"))
+
+        full_cmd = mock_run.call_args[0][0][-1]
+        # Each argument is individually quoted; the substitution stays inert.
+        assert "'hello world'" in full_cmd
+        assert "'$(rm -rf)'" in full_cmd
+
+    def test_shell_extra_argv_empty_leaves_command_unchanged(
+        self, sample_config: Config
+    ) -> None:
+        """shell() with no extra_argv produces the same command as before."""
+        vm = LimaVM(sample_config)
+
+        with patch("subprocess.run") as mock_run:
+            vm.shell(extra_argv=())
+
+        assert mock_run.call_args[0][0][-1] == "claude --dangerously-skip-permissions"
 
     def test_shell_no_preserve_env_when_no_vars_present(
         self, sample_config: Config

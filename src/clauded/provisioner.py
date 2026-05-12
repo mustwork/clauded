@@ -92,11 +92,21 @@ def _find_ansible_playbook() -> str:
 class Provisioner:
     """Generates and runs Ansible playbooks for VM provisioning."""
 
-    def __init__(self, config: Config, vm: LimaVM, *, debug: bool = False):
+    def __init__(
+        self,
+        config: Config,
+        vm: LimaVM,
+        *,
+        debug: bool = False,
+        quiet: bool = False,
+    ):
         self.config = config
         self.vm = vm
         self.roles_path = Path(__file__).parent / "roles"
         self.debug = debug
+        # Suppress the "Provisioning ..." banner and redirect Ansible stdout to
+        # /dev/null. Stderr stays attached so failures still surface.
+        self.quiet = quiet
 
     def _validate_roles_exist(self, role_names: list[str]) -> list[str]:
         """Validate that all required roles exist.
@@ -149,15 +159,19 @@ class Provisioner:
 
             lima_ssh_config = self.vm.get_ssh_config_path()
 
-            print(f"\nProvisioning VM '{self.vm.name}'...")
-            print(f"Roles: {', '.join(roles)}\n")
+            if not self.quiet:
+                print(f"\nProvisioning VM '{self.vm.name}'...")
+                print(f"Roles: {', '.join(roles)}\n")
 
-            # Display SQLite storage disclaimer (C3)
-            if "sqlite" in self.config.databases:
-                print("⚠️  SQLite storage location:")
-                print("   • Host-mounted paths persist across VM recreations")
-                print("   • VM-local paths are ephemeral (lost on VM destroy)")
-                print("   • Configure database file location according to your needs\n")
+                # Display SQLite storage disclaimer (C3)
+                if "sqlite" in self.config.databases:
+                    print("⚠️  SQLite storage location:")
+                    print("   • Host-mounted paths persist across VM recreations")
+                    print("   • VM-local paths are ephemeral (lost on VM destroy)")
+                    print(
+                        "   • Configure database file location according to "
+                        "your needs\n"
+                    )
 
             env = {
                 **_filter_env(dict(os.environ)),
@@ -177,7 +191,12 @@ class Provisioner:
                 cmd.append("-vv")
 
             try:
-                subprocess.run(cmd, env=env, check=True)
+                subprocess.run(
+                    cmd,
+                    env=env,
+                    check=True,
+                    stdout=subprocess.DEVNULL if self.quiet else None,
+                )
             except FileNotFoundError:
                 click.echo(
                     "Ansible is not installed. Install with: uv tool install clauded",

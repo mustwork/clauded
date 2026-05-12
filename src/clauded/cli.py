@@ -24,6 +24,83 @@ from .lima import LimaVM, destroy_vm_by_name
 from .provisioner import Provisioner, __commit__
 
 
+def _validate_harness_passthrough(
+    extra: tuple[str, ...], argv: list[str] | None = None
+) -> None:
+    """Enforce that the variadic ``extra`` contains only post-``--`` tokens.
+
+    Two failures are caught here, both produced by ``ignore_unknown_options``
+    silently absorbing flags click can't match:
+
+    1. ``clauded --typo`` — extras present, no ``--`` separator. Either a
+       typo for a clauded flag or a missing separator; either way refuse.
+    2. ``clauded --typo -- --resume x`` — ``--typo`` is an unknown clauded
+       flag that leaked into the variadic ahead of the legitimate post-``--``
+       tail. Refuse and name the offending token(s).
+
+    ``argv`` is the raw process argv to inspect. Defaults to ``sys.argv``;
+    tests pass it explicitly because click's ``CliRunner`` does not mutate
+    ``sys.argv`` to match the simulated invocation.
+    """
+    raw = sys.argv if argv is None else argv
+    extras = tuple(extra)
+
+    if "--" in raw:
+        idx = raw.index("--")
+        after_dd = tuple(raw[idx + 1 :])
+        # extras should be exactly the tokens after `--`. Anything else means
+        # an unknown flag before `--` was absorbed by ignore_unknown_options.
+        if len(extras) >= len(after_dd) and extras[len(extras) - len(after_dd) :] == (
+            after_dd
+        ):
+            unknown = extras[: len(extras) - len(after_dd)]
+        else:
+            # Defensive: ordering or content diverged from the simple
+            # "unknown-prefix + after_dd" model. Treat all extras as suspect.
+            unknown = extras
+        if unknown:
+            click.echo(
+                f"Error: unknown option(s): {' '.join(unknown)}. "
+                "If you meant to forward to the harness, place them after the "
+                "`--` separator.",
+                err=True,
+            )
+            raise SystemExit(2)
+        return
+
+    if extras:
+        click.echo(
+            f"Error: unknown option(s): {' '.join(extras)}. "
+            "If you meant to forward to the harness, place them after a `--` "
+            "separator. Example: clauded -- --resume <session-id>",
+            err=True,
+        )
+        raise SystemExit(2)
+
+
+def _info(quiet: bool, message: str = "") -> None:
+    """Emit a status message to stdout unless ``quiet`` suppresses it.
+
+    Used for launch-path chatter ("Starting Claude Code...", "Updated
+    .clauded.yaml", etc.) that the user can turn off with ``--quiet``. Error
+    output (``click.echo(..., err=True)``) is never routed through this helper
+    so failures always surface.
+    """
+    if not quiet:
+        click.echo(message)
+
+
+def _reject_passthrough_on_non_launch(extra: tuple[str, ...], *, mode: str) -> None:
+    """Reject forwarded args on subcommands that never launch the harness."""
+    if not extra:
+        return
+    click.echo(
+        f"Error: harness passthrough args are not valid with --{mode}.",
+        err=True,
+    )
+    raise SystemExit(2)
+
+
 def _validate_harness_override(harness: str | None, config: Config) -> None:
     """Reject a --harness override that targets a framework not in the config.
 
@@ -99,7 +176,9 @@ def _reset_terminal() -> None:
             pass
 
 
-def _stop_vm_if_last_session(vm: LimaVM, config_path: Path) -> None:
+def _stop_vm_if_last_session(
+    vm: LimaVM, config_path: Path, *, quiet: bool = False
+) -> None:
     """Stop the VM only if this was the last active session.
 
     Checks for other active SSH sessions in the VM. If other sessions
@@ -108,6 +187,8 @@ def _stop_vm_if_last_session(vm: LimaVM, config_path: Path) -> None:
     Args:
         vm: The LimaVM instance to potentially stop
         config_path: Path to .clauded.yaml for reloading config
+        quiet: When True, skip the interactive "stop?" prompt and accept its
+            default (stop). Status echoes are also suppressed.
     """
     if not vm.is_running():
         return
@@ -120,26 +201,33 @@ def _stop_vm_if_last_session(vm: LimaVM, config_path: Path) -> None:
     # Check if other sessions are still active
     active_sessions = vm.count_active_sessions()
     if active_sessions > 0:
-        click.echo(
+        _info(
+            quiet,
             f"\nVM '{vm.name}' has {active_sessions} other active session(s), "
-            "leaving it running."
+            "leaving it running.",
         )
         return
 
-    # Last session - prompt before stopping
-    # Allow Ctrl+C to cancel (treated as "No")
-    try:
-        # Prompt with default=True (auto-confirms in non-interactive contexts)
-        # click.confirm() returns True in non-TTY contexts without blocking
-        should_stop = click.confirm(
-            f"\nThis is the last active session. Stop VM '{vm.name}'?", default=True
-        )
-    except (click.Abort, EOFError, KeyboardInterrupt):
-        # Ctrl+C, Ctrl+D, or EOF: treat as "No" (leave VM running)
-        should_stop = False
+    if quiet:
+        # --quiet implies "use the default" — same outcome the confirm prompt
+        # would produce in a non-TTY context, just without the question.
+        should_stop = True
+    else:
+        # Last session - prompt before stopping
+        # Allow Ctrl+C to cancel (treated as "No")
+        try:
+            # Prompt with default=True (auto-confirms in non-interactive contexts)
+            # click.confirm() returns True in non-TTY contexts without blocking
+            should_stop = click.confirm(
+                f"\nThis is the last active session. Stop VM '{vm.name}'?",
+                default=True,
+            )
+        except (click.Abort, EOFError, KeyboardInterrupt):
+            # Ctrl+C, Ctrl+D, or EOF: treat as "No" (leave VM running)
+            should_stop = False
 
-    # Only echo in interactive mode (when stdin is a TTY)
-    is_interactive = sys.stdin.isatty()
+    # Only echo in interactive mode (when stdin is a TTY) and not quiet
+    is_interactive = sys.stdin.isatty() and not quiet
 
     if should_stop:
         if is_interactive:
@@ -597,7 +685,9 @@ def _handle_crash_recovery(config: Config, config_path: Path) -> None:
     config.save(config_path)
 
 
-@click.command()
+@click.command(
+    context_settings={"ignore_unknown_options": True},
+)
 @click.version_option(
     version=version("clauded"),
     prog_name="clauded",
@@ -639,6 +729,24 @@ def _handle_crash_recovery(config: Config, config_path: Path) -> None:
         "(claude-code | codex | opencode). Persisted value is unchanged."
     ),
 )
+@click.option(
+    "--no-update",
+    is_flag=True,
+    help=(
+        "Skip the clauded-version and harness-binary update checks for a "
+        "faster startup. Ignored when --reprovision is also given."
+    ),
+)
+@click.option(
+    "--quiet",
+    "-q",
+    is_flag=True,
+    help=(
+        "Suppress setup/provisioning output and auto-accept the end-of-session "
+        "stop prompt. Errors still surface on stderr."
+    ),
+)
+@click.argument("extra", nargs=-1, type=click.UNPROCESSED)
 def main(
     destroy: bool,
     reprovision: bool,
@@ -650,11 +758,66 @@ def main(
     no_detect: bool = False,
     debug: bool = False,
     harness: str | None = None,
+    no_update: bool = False,
+    quiet: bool = False,
+    extra: tuple[str, ...] = (),
 ) -> None:
     """clauded - Isolated, per-project Lima VMs.
 
     Run in any directory to create or connect to a project-specific VM.
+
+    Arguments after a ``--`` separator are forwarded verbatim to the harness
+    binary (claude / codex / opencode). Example::
+
+        clauded -- --resume <session-id>
     """
+    _validate_harness_passthrough(extra)
+
+    # --quiet is incompatible with paths that require interactive prompts,
+    # paths whose stdout is itself the deliverable (--detect emits JSON), and
+    # paths that would have to run the Ansible provisioner (which is noisy by
+    # nature and whose failures benefit from full diagnostic output). Reject up
+    # front so users get a clear signal instead of an inconsistent run.
+    if quiet:
+        config_path_preview = Path.cwd() / ".clauded.yaml"
+        if edit:
+            click.echo(
+                "Error: --quiet cannot be combined with --edit (the wizard "
+                "requires interactive output).",
+                err=True,
+            )
+            raise SystemExit(2)
+        if reprovision:
+            click.echo(
+                "Error: --quiet cannot be combined with --reprovision "
+                "(provisioning produces unavoidable diagnostic output).",
+                err=True,
+            )
+            raise SystemExit(2)
+        if detect_only and not reprovision:
+            click.echo(
+                "Error: --quiet cannot be combined with --detect (JSON output "
+                "is the deliverable).",
+                err=True,
+            )
+            raise SystemExit(2)
+        wizard_path = (
+            not config_path_preview.exists()
+            and not destroy
+            and not stop
+            and not force_stop
+        )
+        if wizard_path:
+            click.echo(
+                "Error: --quiet requires an existing .clauded.yaml — the "
+                "first-run wizard cannot operate silently.",
+                err=True,
+            )
+            raise SystemExit(2)
+        # --quiet implies --no-update: a version mismatch would otherwise
+        # trigger a silent re-provision, which is exactly what we forbid above.
+        no_update = True
+
     # Register SIGINT handler for graceful cleanup
     signal.signal(signal.SIGINT, _sigint_handler)
 
@@ -671,12 +834,14 @@ def main(
     # Handle --detect alone (detection-only mode, outputs JSON)
     # Note: --detect with --reprovision is handled separately below
     if detect_only and not reprovision:
+        _reject_passthrough_on_non_launch(extra, mode="detect")
         detection_result = detect(project_path, debug=debug)
         display_detection_json(detection_result)
         return
 
     # Handle --destroy
     if destroy:
+        _reject_passthrough_on_non_launch(extra, mode="destroy")
         if not config_path.exists():
             click.echo("No .clauded.yaml found in current directory.")
             raise SystemExit(1)
@@ -685,7 +850,7 @@ def main(
         # migration message (step 1: clauded --destroy) can actually destroy
         # their existing Alpine VM.
         config = Config.load(config_path, allow_alpine_legacy=True)
-        vm = LimaVM(config, harness_override=harness)
+        vm = LimaVM(config, harness_override=harness, quiet=quiet)
 
         if vm.exists():
             vm.destroy()
@@ -698,6 +863,9 @@ def main(
 
     # Handle --stop and --force-stop
     if stop or force_stop:
+        _reject_passthrough_on_non_launch(
+            extra, mode="force-stop" if force_stop else "stop"
+        )
         if not config_path.exists():
             click.echo("No .clauded.yaml found in current directory.")
             raise SystemExit(1)
@@ -705,7 +873,7 @@ def main(
         # Stopping a legacy Alpine VM should not require pre-emptive config
         # editing — same rationale as --destroy above.
         config = Config.load(config_path, allow_alpine_legacy=True)
-        vm = LimaVM(config, harness_override=harness)
+        vm = LimaVM(config, harness_override=harness, quiet=quiet)
 
         if not vm.exists() or not vm.is_running():
             click.echo(f"VM '{vm.name}' is not running.")
@@ -742,7 +910,7 @@ def main(
 
         config = Config.load(config_path)
         _handle_crash_recovery(config, config_path)
-        vm = LimaVM(config, harness_override=harness)
+        vm = LimaVM(config, harness_override=harness, quiet=quiet)
 
         if not vm.exists():
             click.echo(f"VM '{vm.name}' does not exist. Run 'clauded' to create it.")
@@ -767,8 +935,8 @@ def main(
             ) as old_vm_name:
                 click.echo("\nUpdated .clauded.yaml")
                 # Re-create LimaVM with new config (name might have changed)
-                vm = LimaVM(new_config, harness_override=harness)
-                provisioner = Provisioner(new_config, vm, debug=debug)
+                vm = LimaVM(new_config, harness_override=harness, quiet=quiet)
+                provisioner = Provisioner(new_config, vm, debug=debug, quiet=quiet)
                 provisioner.run()
 
                 # On success: prompt to delete old VM if name changed
@@ -795,9 +963,9 @@ def main(
                     "New group memberships (e.g., docker) may require 'newgrp docker' "
                     "or a new terminal."
                 )
-            vm.shell(reconnect=(other_sessions == 0))
+            vm.shell(reconnect=(other_sessions == 0), extra_argv=extra)
         finally:
-            _stop_vm_if_last_session(vm, config_path)
+            _stop_vm_if_last_session(vm, config_path, quiet=quiet)
         return
 
     # No config? Run wizard (with or without detection)
@@ -830,15 +998,25 @@ def main(
     else:
         _validate_harness_override(harness, config)
 
-    vm = LimaVM(config, harness_override=harness)
+    vm = LimaVM(config, harness_override=harness, quiet=quiet)
     provisioned = False  # Track if provisioning ran (need SSH reconnect for groups)
 
     # VM doesn't exist? Create and provision
     if not vm.exists():
+        # --quiet forbids running the provisioner: refuse rather than create
+        # silently with output that we'd otherwise have to suppress.
+        if quiet:
+            click.echo(
+                f"Error: VM '{vm.name}' does not exist; --quiet refuses to "
+                "create and provision it. Run `clauded` once without --quiet, "
+                "or pass --reprovision.",
+                err=True,
+            )
+            raise SystemExit(2)
         # Use atomic_update for crash recovery during VM creation
         with config.atomic_update(config.vm_name, config_path) as old_vm_name:
             vm.create(debug=debug)
-            provisioner = Provisioner(config, vm, debug=debug)
+            provisioner = Provisioner(config, vm, debug=debug, quiet=quiet)
             provisioner.run()
             provisioned = True
 
@@ -855,13 +1033,17 @@ def main(
             vm.start(debug=debug)
 
         # Check for clauded version change and library updates
-        if not reprovision:
+        # --no-update short-circuits both checks for fast startup; an explicit
+        # --reprovision still wins because the user asked for it.
+        if not reprovision and not no_update:
             if _handle_version_change(vm):
-                provisioner = Provisioner(config, vm, debug=debug)
+                provisioner = Provisioner(config, vm, debug=debug, quiet=quiet)
                 provisioner.run()
                 provisioned = True
             else:
                 _check_library_updates(vm, config)
+        elif no_update and not reprovision:
+            _info(quiet, "Skipping update checks (--no-update).")
 
         # Re-run provisioning if requested (independent of start)
         if reprovision:
@@ -901,7 +1083,7 @@ def main(
                 else:
                     click.echo("\nNo new requirements detected.")
 
-            provisioner = Provisioner(config, vm, debug=debug)
+            provisioner = Provisioner(config, vm, debug=debug, quiet=quiet)
             provisioner.run()
             provisioned = True
 
@@ -910,17 +1092,21 @@ def main(
         # Check for other active sessions before rebooting
         other_sessions = vm.count_active_sessions()
         if other_sessions > 0:
-            click.echo(
+            _info(
+                quiet,
                 f"Cannot reboot: {other_sessions} other session(s) active. "
-                "Use --force-stop first or close other sessions."
+                "Use --force-stop first or close other sessions.",
             )
         else:
-            click.echo(f"\nRebooting VM '{vm.name}'...")
+            _info(quiet, f"\nRebooting VM '{vm.name}'...")
             vm.stop()
             vm.start(debug=debug)
 
     # Enter Claude Code
-    click.echo(f"\nStarting Claude Code in VM '{vm.name}' at {config.mount_guest}...")
+    _info(
+        quiet,
+        f"\nStarting Claude Code in VM '{vm.name}' at {config.mount_guest}...",
+    )
     try:
         # Reconnect if provisioning ran (picks up group membership changes)
         # Reboot already creates a fresh session, so no reconnect needed
@@ -930,16 +1116,17 @@ def main(
         if needs_reconnect:
             other_sessions = vm.count_active_sessions()
             if other_sessions > 0:
-                click.echo(
+                _info(
+                    quiet,
                     f"Note: {other_sessions} other session(s) active. "
                     "Skipping SSH reconnect to avoid disruption. "
                     "New group memberships (e.g., docker) may require 'newgrp docker' "
-                    "or a new terminal."
+                    "or a new terminal.",
                 )
                 needs_reconnect = False
-        vm.shell(reconnect=needs_reconnect)
+        vm.shell(reconnect=needs_reconnect, extra_argv=extra)
     finally:
-        _stop_vm_if_last_session(vm, config_path)
+        _stop_vm_if_last_session(vm, config_path, quiet=quiet)
 
 
 if __name__ == "__main__":

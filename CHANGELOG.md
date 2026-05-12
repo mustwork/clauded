@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-05-12
+
+### Added
+
+- **Generic harness argument forwarding** — arguments supplied after a `--` separator are now forwarded verbatim to the launched harness binary (claude / codex / opencode). Example: `clauded -- --resume <session-id>` passes `--resume <session-id>` through to `claude` inside the VM. The `--` separator is required, so future clauded flags cannot silently shadow user-supplied harness flags; each token is `shlex.quote`'d before being joined into the `bash -lic` launch command. Passthrough is rejected with an actionable error on subcommands that never launch the harness (`--destroy`, `--stop`, `--force-stop`, bare `--detect`). Unknown clauded flags (typos, future-flag attempts) — whether bare (`clauded --typo`) or leaking ahead of the `--` separator (`clauded --typo -- --resume x`) — now error with the offending token named, instead of being silently forwarded.
+- **`--no-update` flag** — skip the clauded-version mismatch check (which would otherwise prompt for reprovision) and the harness binary update check (claude-code / codex version drift) on startup. Useful for fast iteration when the user knows the VM is up to date and wants to avoid the network round-trips that resolve "latest" versions from GCS/npm. Ignored when `--reprovision` is also given so explicit user intent always wins.
+- **`--quiet` / `-q` flag** — suppress setup, startup, AND shutdown output for unattended or scripted invocations: gates the "Starting VM…", welcome banner, "Starting Claude Code in VM…", reboot, and stop status lines, redirects `limactl` (start/stop) subprocess stdout AND stderr to `/dev/null` (failures still surface curated error messages via `click.echo(err=True)`), and auto-accepts the end-of-session "This is the last active session. Stop VM?" prompt (taking the default action: stop). `--quiet` implies `--no-update` — the version-mismatch check that would silently trigger a re-provision is unconditionally skipped. Rejected up front when combined with `--edit`, `--reprovision`, bare `--detect`, a missing `.clauded.yaml`, or a missing VM (those paths either need interactive output or would have to run the Ansible provisioner, which is noisy by nature).
+
 ## [0.3.5] - 2026-05-12
 
 ### Fixed

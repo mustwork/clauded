@@ -1191,7 +1191,7 @@ class TestEnvironmentFiltering:
 
         captured_env = {}
 
-        def mock_subprocess_run(cmd, env=None, check=False):
+        def mock_subprocess_run(cmd, env=None, check=False, stdout=None):
             nonlocal captured_env
             captured_env = env or {}
             return MagicMock()

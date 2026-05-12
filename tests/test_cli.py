@@ -1342,3 +1342,437 @@ class TestHarnessFlagModeFlagInteractions:
                 f"--harness override leaked into LimaVM construction under "
                 f"--reboot; expected all None, got {override_values}"
             )
+
+
+class TestHarnessPassthrough:
+    """Tests for generic harness argument forwarding via ``clauded -- <args>``."""
+
+    def test_passthrough_forwards_to_shell_on_launch_path(
+        self,
+        runner: CliRunner,
+        sample_config_yaml: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Args after ``--`` reach LimaVM.shell as ``extra_argv``."""
+        monkeypatch.setattr("sys.argv", ["clauded", "--", "--resume", "session-xyz"])
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--", "--resume", "session-xyz"])
+
+                assert result.exit_code == 0, result.output
+                mock_vm.shell.assert_called_once()
+                kwargs = mock_vm.shell.call_args.kwargs
+                assert kwargs["extra_argv"] == ("--resume", "session-xyz")
+
+    def test_passthrough_requires_double_dash_separator(
+        self,
+        runner: CliRunner,
+        sample_config_yaml: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Bare unknown flags without ``--`` produce an actionable error."""
+        # sys.argv intentionally lacks "--" — the user typed `clauded --resume x`
+        monkeypatch.setattr("sys.argv", ["clauded", "--resume", "x"])
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM"):
+                result = runner.invoke(main, ["--resume", "x"])
+
+            assert result.exit_code == 2
+            assert "`--` separator" in result.output
+            assert "--resume" in result.output
+
+    def test_unknown_flag_before_double_dash_errors(
+        self,
+        runner: CliRunner,
+        sample_config_yaml: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A typoed clauded flag before ``--`` must not silently forward."""
+        monkeypatch.setattr(
+            "sys.argv",
+            ["clauded", "--typo", "--", "--resume", "x"],
+        )
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM"):
+                result = runner.invoke(main, ["--typo", "--", "--resume", "x"])
+
+            assert result.exit_code == 2
+            assert "unknown option(s):" in result.output
+            assert "--typo" in result.output
+            # The legitimate post-`--` payload should NOT appear in the error.
+            assert "--resume" not in result.output.split("unknown option(s):")[1]
+
+    def test_known_flag_plus_unknown_before_double_dash_errors(
+        self,
+        runner: CliRunner,
+        sample_config_yaml: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Known clauded flags don't shield a sibling typo from rejection."""
+        monkeypatch.setattr(
+            "sys.argv",
+            ["clauded", "--debug", "--typo", "--", "foo"],
+        )
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM"):
+                result = runner.invoke(main, ["--debug", "--typo", "--", "foo"])
+
+            assert result.exit_code == 2
+            assert "--typo" in result.output
+
+    def test_legit_forward_with_dash_dash_in_value_succeeds(
+        self,
+        runner: CliRunner,
+        sample_config_yaml: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Forwarded args that themselves start with ``--`` are not rejected."""
+        monkeypatch.setattr(
+            "sys.argv",
+            ["clauded", "--", "--resume", "abc"],
+        )
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--", "--resume", "abc"])
+
+            assert result.exit_code == 0, result.output
+            kwargs = mock_vm.shell.call_args.kwargs
+            assert kwargs["extra_argv"] == ("--resume", "abc")
+
+    def test_passthrough_rejected_on_destroy(
+        self,
+        runner: CliRunner,
+        sample_config_yaml: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``--destroy`` never launches the harness, so passthrough is invalid."""
+        monkeypatch.setattr("sys.argv", ["clauded", "--destroy", "--", "--resume", "x"])
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(
+                    main, ["--destroy", "--", "--resume", "x"], input="n\n"
+                )
+
+            assert result.exit_code == 2
+            assert "not valid with --destroy" in result.output
+
+    def test_passthrough_rejected_on_stop(
+        self,
+        runner: CliRunner,
+        sample_config_yaml: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``--stop`` never launches the harness, so passthrough is invalid."""
+        monkeypatch.setattr("sys.argv", ["clauded", "--stop", "--", "--resume", "x"])
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM"):
+                result = runner.invoke(main, ["--stop", "--", "--resume", "x"])
+
+            assert result.exit_code == 2
+            assert "not valid with --stop" in result.output
+
+    def test_no_passthrough_leaves_shell_extra_argv_empty(
+        self,
+        runner: CliRunner,
+        sample_config_yaml: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When the user passes no extras, shell receives an empty tuple."""
+        monkeypatch.setattr("sys.argv", ["clauded"])
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                runner.invoke(main, [])
+
+                kwargs = mock_vm.shell.call_args.kwargs
+                assert kwargs["extra_argv"] == ()
+
+
+class TestNoUpdateFlag:
+    """Tests for ``--no-update``: skip clauded-version + library update checks."""
+
+    def test_no_update_skips_version_and_library_checks(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--no-update bypasses _handle_version_change and _check_library_updates."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch("clauded.cli._handle_version_change") as mock_version,
+                patch("clauded.cli._check_library_updates") as mock_libraries,
+            ):
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--no-update"])
+
+                assert result.exit_code == 0, result.output
+                mock_version.assert_not_called()
+                mock_libraries.assert_not_called()
+                assert "Skipping update checks" in result.output
+                mock_vm.shell.assert_called_once()
+
+    def test_default_runs_version_and_library_checks(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """Without --no-update, both checks fire on the running-VM path."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch(
+                    "clauded.cli._handle_version_change", return_value=False
+                ) as mock_version,
+                patch("clauded.cli._check_library_updates") as mock_libraries,
+            ):
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, [])
+
+                assert result.exit_code == 0, result.output
+                mock_version.assert_called_once()
+                mock_libraries.assert_called_once()
+
+    def test_reprovision_overrides_no_update(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--reprovision wins over --no-update: explicit user intent prevails."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch("clauded.cli._handle_version_change") as mock_version,
+                patch("clauded.cli._check_library_updates") as mock_libraries,
+                patch("clauded.cli.Provisioner") as MockProvisioner,
+            ):
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+                mock_provisioner = MagicMock()
+                MockProvisioner.return_value = mock_provisioner
+
+                result = runner.invoke(main, ["--reprovision", "--no-update"])
+
+                assert result.exit_code == 0, result.output
+                # Version/library checks are skipped (reprovision path already
+                # bypasses them) but the explicit reprovision still runs.
+                mock_version.assert_not_called()
+                mock_libraries.assert_not_called()
+                mock_provisioner.run.assert_called_once()
+
+
+class TestQuietFlag:
+    """Tests for the ``--quiet`` setup-output suppression flag."""
+
+    def test_quiet_passes_quiet_to_lima_vm(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """LimaVM is constructed with quiet=True under --quiet."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--quiet"])
+
+            assert result.exit_code == 0, result.output
+            quiet_values = [call.kwargs.get("quiet") for call in MockVM.call_args_list]
+            assert quiet_values and all(v is True for v in quiet_values)
+
+    def test_quiet_suppresses_launch_banner(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--quiet hides the 'Starting Claude Code in VM...' line."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--quiet"])
+
+            assert result.exit_code == 0, result.output
+            assert "Starting Claude Code" not in result.output
+
+    def test_quiet_auto_accepts_last_session_stop_prompt(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """The 'This is the last active session...' prompt is skipped and
+        the default action (stop) is taken without printing anything."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with patch("clauded.cli.LimaVM") as MockVM:
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                # is_running flips: True during launch, still True when
+                # _stop_vm_if_last_session inspects it.
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--quiet"])
+
+            assert result.exit_code == 0, result.output
+            assert "last active session" not in result.output
+            mock_vm.stop.assert_called_once()
+
+    def test_quiet_rejected_with_edit(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--quiet + --edit must fail fast; the wizard needs to print."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            result = runner.invoke(main, ["--quiet", "--edit"])
+
+            assert result.exit_code == 2
+            assert "--quiet cannot be combined with --edit" in result.output
+
+    def test_quiet_rejected_with_detect_alone(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--quiet + bare --detect must fail; detect's JSON is the output."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            result = runner.invoke(main, ["--quiet", "--detect"])
+
+            assert result.exit_code == 2
+            assert "--quiet cannot be combined with --detect" in result.output
+
+    def test_quiet_rejected_when_wizard_would_run(self, runner: CliRunner) -> None:
+        """--quiet without an existing .clauded.yaml errors out."""
+        with runner.isolated_filesystem():
+            result = runner.invoke(main, ["--quiet"])
+
+            assert result.exit_code == 2
+            assert "requires an existing .clauded.yaml" in result.output
+
+    def test_quiet_rejects_first_time_provisioning(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """If the VM doesn't exist, --quiet refuses (provisioning is noisy)."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch("clauded.cli.Provisioner") as MockProvisioner,
+            ):
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = False
+                mock_vm.name = "clauded-testcli1"
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--quiet"])
+
+            assert result.exit_code == 2
+            assert "does not exist" in result.output
+            mock_vm.create.assert_not_called()
+            MockProvisioner.assert_not_called()
+
+    def test_quiet_rejected_with_reprovision(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--quiet + --reprovision is contradictory and rejected upfront."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            result = runner.invoke(main, ["--quiet", "--reprovision"])
+
+            assert result.exit_code == 2
+            assert "--quiet cannot be combined with --reprovision" in result.output
+
+    def test_quiet_implies_no_update(
+        self, runner: CliRunner, sample_config_yaml: str
+    ) -> None:
+        """--quiet alone (no --no-update) still skips the update checks."""
+        with runner.isolated_filesystem():
+            Path(".clauded.yaml").write_text(sample_config_yaml)
+
+            with (
+                patch("clauded.cli.LimaVM") as MockVM,
+                patch("clauded.cli._handle_version_change") as mock_version,
+                patch("clauded.cli._check_library_updates") as mock_libraries,
+            ):
+                mock_vm = MagicMock()
+                mock_vm.exists.return_value = True
+                mock_vm.is_running.return_value = True
+                mock_vm.name = "clauded-testcli1"
+                mock_vm.count_active_sessions.return_value = 0
+                MockVM.return_value = mock_vm
+
+                result = runner.invoke(main, ["--quiet"])
+
+            assert result.exit_code == 0, result.output
+            mock_version.assert_not_called()
+            mock_libraries.assert_not_called()

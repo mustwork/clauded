@@ -3,6 +3,7 @@
 import getpass
 import json
 import os
+import shlex
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -116,12 +117,21 @@ def destroy_vm_by_name(vm_name: str) -> None:
 class LimaVM:
     """Manages a Lima VM instance."""
 
-    def __init__(self, config: Config, *, harness_override: str | None = None) -> None:
+    def __init__(
+        self,
+        config: Config,
+        *,
+        harness_override: str | None = None,
+        quiet: bool = False,
+    ) -> None:
         self.config = config
         self.name = config.vm_name
         # Per-invocation override applied by the --harness CLI flag. None means
         # "use config.harness" (the persisted value).
         self.harness_override = harness_override
+        # Suppress non-error status output (Creating/Starting/Stopping VM, the
+        # welcome banner). Errors still flow to stderr.
+        self.quiet = quiet
 
     def exists(self) -> bool:
         """Check if the VM exists."""
@@ -151,7 +161,8 @@ class LimaVM:
                 yaml.dump(lima_config, f, default_flow_style=False)
 
             try:
-                print(f"\nCreating VM '{self.name}'...")
+                if not self.quiet:
+                    print(f"\nCreating VM '{self.name}'...")
                 cmd = ["limactl"]
                 if debug:
                     cmd.extend(["--debug", "--log-level", "debug"])
@@ -172,6 +183,8 @@ class LimaVM:
                     cmd,
                     check=True,
                     stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL if self.quiet else None,
+                    stderr=subprocess.DEVNULL if self.quiet else None,
                 )
             except FileNotFoundError:
                 click.echo(
@@ -188,7 +201,8 @@ class LimaVM:
 
     def start(self, *, debug: bool = False) -> None:
         """Start an existing VM."""
-        print(f"\nStarting VM '{self.name}'...")
+        if not self.quiet:
+            print(f"\nStarting VM '{self.name}'...")
         cmd = ["limactl"]
         if debug:
             cmd.extend(["--debug", "--log-level", "debug"])
@@ -199,6 +213,8 @@ class LimaVM:
                 cmd,
                 check=True,
                 stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL if self.quiet else None,
+                stderr=subprocess.DEVNULL if self.quiet else None,
             )
         except FileNotFoundError:
             click.echo(
@@ -215,9 +231,15 @@ class LimaVM:
 
     def stop(self) -> None:
         """Stop the VM."""
-        print(f"\nStopping VM '{self.name}'...")
+        if not self.quiet:
+            print(f"\nStopping VM '{self.name}'...")
         try:
-            subprocess.run(["limactl", "stop", self.name], check=True)
+            subprocess.run(
+                ["limactl", "stop", self.name],
+                check=True,
+                stdout=subprocess.DEVNULL if self.quiet else None,
+                stderr=subprocess.DEVNULL if self.quiet else None,
+            )
         except FileNotFoundError:
             click.echo(
                 "Lima is not installed. Install with: brew install lima", err=True
@@ -266,7 +288,12 @@ class LimaVM:
         """Delete the VM."""
         destroy_vm_by_name(self.name)
 
-    def shell(self, *, reconnect: bool = False) -> None:
+    def shell(
+        self,
+        *,
+        reconnect: bool = False,
+        extra_argv: tuple[str, ...] = (),
+    ) -> None:
         """Open the Claude Code shell in the VM.
 
         Args:
@@ -274,6 +301,11 @@ class LimaVM:
                 provisioning to pick up group membership changes (e.g., docker).
                 Lima reuses SSH master control sockets by default, which means
                 group changes from Ansible don't take effect without reconnecting.
+            extra_argv: Additional argv tokens forwarded to the harness binary
+                (claude / codex / opencode). Each token is shell-quoted before
+                being appended to the launch command, so callers may pass values
+                containing spaces or shell metacharacters verbatim. CCR-wrapped
+                launches stay correct because clauded-ccr-with execs "$@".
         """
         # Display welcome message with VM metadata
         self._print_welcome()
@@ -283,7 +315,8 @@ class LimaVM:
         harness = self.harness_override or self.config.harness
         spec = _build_launch_spec(harness, self.config)
         env_prefix = " ".join(f"{k}={v}" for k, v in spec.env.items())
-        full_cmd = " ".join(p for p in (env_prefix, *spec.argv) if p)
+        extra_str = " ".join(shlex.quote(t) for t in extra_argv)
+        full_cmd = " ".join(p for p in (env_prefix, *spec.argv, extra_str) if p)
 
         cmd = [
             "limactl",
@@ -315,6 +348,8 @@ class LimaVM:
 
     def _print_welcome(self) -> None:
         """Print welcome message with VM metadata."""
+        if self.quiet:
+            return
         try:
             result = subprocess.run(
                 ["limactl", "shell", self.name, "cat", "/etc/clauded.json"],
