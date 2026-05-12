@@ -23,6 +23,19 @@
     group: root
     mode: '0755'
 
+# Ubuntu minimal cloud images ship without python3-apt. Ansible's apt module
+# has an auto-install fallback, but on these images get_bin_path("apt-get")
+# can return None during the fallback, producing a malformed command list
+# (filtered to just ['update']) and failing with "No such file or directory:
+# b'update'". Bootstrap python3-apt via raw before any apt: task runs.
+- name: Bootstrap python3-apt for ansible apt module (minimal cloud image lacks it)
+  raw: apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y python3-apt
+  register: bootstrap_apt
+  changed_when: false
+  retries: 5
+  delay: 5
+  until: bootstrap_apt.rc == 0
+
 - name: Update apt cache
   apt:
     update_cache: yes
