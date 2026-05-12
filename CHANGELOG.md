@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Claude Code reprovision failure when the running binary is being replaced** — the `Download Claude Code binary directly` task in the `claude_code` role used `curl -fsSL -o ~/.local/bin/claude`, which opens the destination with `O_TRUNC`. When reprovisioning is triggered from a session whose `claude` binary lives at that path, the kernel returns `ETXTBSY` and curl exits 23 (`Failure writing output to destination`). The task now downloads to a sibling temp file (`.claude.$$.new`), `chmod +x`'es it there, then atomically `mv`s it into place — `rename(2)` swaps the inode without touching the running executable.
+
 ## [0.3.7] - 2026-05-12
 
 ## [0.3.6] - 2026-05-12

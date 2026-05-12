@@ -53,8 +53,13 @@
       *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
     esac
     BINARY_URL="{{ downloads.claude_code.gcs_bucket }}/{{ resolved_claude_code_version.stdout }}/$PLATFORM/claude"
-    curl -fsSL "$BINARY_URL" -o ~/.local/bin/claude
-    chmod +x ~/.local/bin/claude
+    # Write to a sibling temp file and atomically rename so we don't
+    # truncate a currently-executing claude binary (curl -O_TRUNC fails
+    # with ETXTBSY on the running CLI; rename(2) swaps the inode safely).
+    TMP="$HOME/.local/bin/.claude.$$.new"
+    curl -fsSL "$BINARY_URL" -o "$TMP"
+    chmod +x "$TMP"
+    mv -f "$TMP" "$HOME/.local/bin/claude"
 
 - name: Create Claude Code config file
   copy:
